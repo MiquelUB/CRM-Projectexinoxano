@@ -1,0 +1,632 @@
+import { useState, useEffect } from "react";
+import api from "@/lib/api";
+import { format } from "date-fns";
+import { X, Mail, CreditCard, Trash2, Save, Euro, Building2, User, Sparkles, Eye, Bot, Loader2, ArrowRight } from "lucide-react";
+
+export default function DealDrawer({ deal, onClose, onUpdate }: any) {
+  // State per a camps editables
+  const [titol, setTitol] = useState(deal.titol || "");
+  const [valorSetup, setValorSetup] = useState(deal.valor_setup?.toString() || "0");
+  const [valorLlicencia, setValorLlicencia] = useState(deal.valor_llicencia?.toString() || "0");
+  const [prioritat, setPrioritat] = useState(deal.prioritat || "mitjana");
+  const [properPas, setProperPas] = useState(deal.proper_pas || "");
+  const [dataSeguiment, setDataSeguiment] = useState(
+    deal.data_seguiment ? new Date(deal.data_seguiment).toISOString().split('T')[0] : ""
+  );
+  const [notesHumanes, setNotesHumanes] = useState(deal.notes_humanes || "");
+  
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [emails, setEmails] = useState<any[]>([]);
+  const [llicencia, setLlicencia] = useState<any>(null);
+
+  // AI State
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiResult, setAiResult] = useState<any>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [showAiModal, setShowAiModal] = useState(false);
+  const [selectedModel, setSelectedModel] = useState("anthropic/claude-3.5-sonnet");
+
+  // Email Composer State
+  const [showEmailComposer, setShowEmailComposer] = useState(false);
+  const [composerData, setComposerData] = useState({ to: "", subject: "", body: "", instruccionsIA: "" });
+  const [sendingEmail, setSendingEmail] = useState(false);
+
+  const handleOpenComposer = (to = deal.contacte?.email || "", subject = `Seguiment PXX — ${deal.municipi?.nom || 'Ajuntament'}`, body = "") => {
+    setComposerData({ to, subject, body, instruccionsIA: "" });
+    setShowEmailComposer(true);
+  };
+
+  const handleSendEmail = async () => {
+    setSendingEmail(true);
+    try {
+      await api.emails.enviar({
+        deal_id: deal.id,
+        to: composerData.to,
+        assumpte: composerData.subject,
+        cos: composerData.body
+      });
+      setShowEmailComposer(false);
+      // Refresh list
+      api.emails.llistar({ deal_id: deal.id }).then((res: any) => setEmails(res.items || []));
+    } catch (e: any) {
+      alert(`Error enviant email: ${e.message}`);
+    } finally {
+      setSendingEmail(false);
+    }
+  };
+
+  const handleRedactarIA = async () => {
+    setAiLoading(true);
+    setAiError(null);
+    try {
+      const res = await api.agent.redactarEmail({
+        deal_id: deal.id,
+        instruccions: composerData.instruccionsIA,
+        model: selectedModel,
+        to_address: composerData.to
+      });
+      setComposerData(prev => ({
+        ...prev,
+        subject: res.assumpte,
+        body: res.cos_text
+      }));
+    } catch (e: any) {
+      setAiError(e.message);
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const handleResumIA = async () => {
+    setAiLoading(true);
+    setAiError(null);
+    try {
+      const res = await api.agent.resumirDeal({ deal_id: deal.id, model: selectedModel });
+      setAiResult({ type: 'summary', data: res });
+      setShowAiModal(true);
+    } catch (e: any) {
+      setAiError(e.message);
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const handleAnalitzarIA = async () => {
+    setAiLoading(true);
+    setAiError(null);
+    try {
+      const res = await api.agent.analitzarDeal({ deal_id: deal.id, model: selectedModel });
+      setAiResult({ type: 'analysis', data: res });
+      setShowAiModal(true);
+    } catch (e: any) {
+      setAiError(e.message);
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (deal.id) {
+      api.emails.llistar({ deal_id: deal.id }).then((res: any) => setEmails(res.items || []));
+      api.llicencies.llistar({ deal_id: deal.id }).then((res: any) => {
+         if (res.items && res.items.length > 0) setLlicencia(res.items[0]);
+      });
+    }
+  }, [deal.id]);
+
+  const handleSaveAll = async () => {
+    setSaving(true);
+    try {
+      await api.deals.editar(deal.id, {
+        titol,
+        valor_setup: parseFloat(valorSetup),
+        valor_llicencia: parseFloat(valorLlicencia),
+        prioritat,
+        proper_pas: properPas || null,
+        data_seguiment: dataSeguiment || null,
+        notes_humanes: notesHumanes
+      });
+      if (onUpdate) onUpdate();
+      alert("Deal actualitzat correctament.");
+    } catch (e: any) {
+      alert(`Error al guardar: ${e.message}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm("Estàs segur que vols eliminar aquest deal? Aquesta acció no es pot desfer.")) return;
+    setDeleting(true);
+    try {
+      await api.deals.eliminar(deal.id);
+      if (onUpdate) onUpdate();
+      onClose();
+    } catch (e: any) {
+      alert(`Error al eliminar: ${e.message}`);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleCrearLlicencia = async () => {
+    try {
+      const data_inici = new Date().toISOString().split('T')[0];
+      const nextYear = new Date();
+      nextYear.setFullYear(nextYear.getFullYear() + 1);
+      const data_renovacio = nextYear.toISOString().split('T')[0];
+      
+      await api.llicencies.crear({
+          deal_id: deal.id,
+          data_inici,
+          data_renovacio,
+          estat: "activa"
+      });
+      api.llicencies.llistar({ deal_id: deal.id }).then((res: any) => {
+         if (res.items && res.items.length > 0) setLlicencia(res.items[0]);
+      });
+      if (onUpdate) onUpdate();
+    } catch (e) {
+      alert("Error creant llicència.");
+    }
+  };
+
+  const handleConfirmarPagament = async (pagamentId: string) => {
+    try {
+      await api.pagaments.confirmar(pagamentId, { estat: "pagat", data_confirmacio: new Date().toISOString().split('T')[0] });
+      // Refresh license to get updated payments list
+      api.llicencies.llistar({ deal_id: deal.id }).then((res: any) => {
+         if (res.items && res.items.length > 0) setLlicencia(res.items[0]);
+      });
+      if (onUpdate) onUpdate();
+    } catch (e) {
+      alert("Error confirmant pagament.");
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/20 flex justify-end">
+      <div className="w-[550px] h-full bg-white shadow-xl flex flex-col translate-x-0 transition-transform overflow-hidden">
+        {/* Header */}
+        <div className="bg-slate-900 text-white p-6 flex justify-between items-center sticky top-0 z-10 shrink-0">
+          <div>
+            <h2 className="text-xl font-bold mb-1">Detalls de l'oportunitat</h2>
+            <div className="text-slate-400 text-sm font-medium">ID: {deal.id.substring(0,8)}...</div>
+          </div>
+          <div className="flex items-center space-x-3">
+            <select 
+                value={selectedModel}
+                onChange={(e) => setSelectedModel(e.target.value)}
+                className="bg-slate-800 text-white text-[10px] font-bold px-2 py-1 rounded border border-slate-700 outline-none"
+            >
+                <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet</option>
+                <option value="openai/gpt-4o">GPT-4o (Premium)</option>
+                <option value="openai/gpt-4o-mini">GPT-4o mini (Ràpid)</option>
+                <option value="google/gemini-pro-1.5">Gemini 1.5 Pro</option>
+                <option value="mistralai/mistral-small-3.1-24b-instruct">Mistral Small</option>
+                <option value="meta-llama/llama-3.1-70b-instruct">Llama 3.1 70B</option>
+            </select>
+            <button 
+                onClick={handleResumIA}
+                disabled={aiLoading}
+                className="flex items-center space-x-1 px-3 py-1 bg-blue-500/20 hover:bg-blue-500/40 text-blue-200 rounded-lg text-xs font-bold transition-colors disabled:opacity-50"
+            >
+              {aiLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Bot className="w-3 h-3" />}
+              <span>Resum IA</span>
+            </button>
+            <button 
+                onClick={handleDelete} 
+                disabled={deleting}
+                className="p-2 text-slate-400 hover:text-red-400 transition-colors"
+                title="Eliminar Deal"
+            >
+              <Trash2 className="w-5 h-5" />
+            </button>
+            <button onClick={onClose} className="p-2 text-slate-400 hover:text-white transition-colors">
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="p-8 space-y-8 flex-1 overflow-y-auto custom-scrollbar">
+          
+          {/* Secció Títol */}
+          <section>
+            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Títol de l'oportunitat</label>
+            <input 
+                value={titol} 
+                onChange={e => setTitol(e.target.value)}
+                className="w-full text-xl font-bold text-slate-800 border-b border-transparent focus:border-blue-500 outline-none pb-1 transition-colors bg-transparent"
+            />
+          </section>
+
+          {/* Secció Informació General */}
+          <section className="grid grid-cols-2 gap-6">
+            <div className="col-span-2 md:col-span-1">
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Municipi</label>
+                <div className="flex items-center space-x-2 text-slate-700 font-bold bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <Building2 className="w-4 h-4 text-slate-400" />
+                    <span>{deal.municipi?.nom || "Desconegut"}</span>
+                </div>
+            </div>
+            <div className="col-span-2 md:col-span-1">
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Contacte Principal</label>
+                <div className="flex items-center space-x-2 text-slate-700 font-bold bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <User className="w-4 h-4 text-slate-400" />
+                    <span>{deal.contacte?.nom || "Sense contacte"}</span>
+                </div>
+            </div>
+          </section>
+
+          {/* Secció Econòmica */}
+          <section className="bg-blue-50/50 p-6 rounded-2xl border border-blue-100">
+            <h3 className="text-xs font-black text-blue-600 uppercase tracking-widest mb-4 flex items-center">
+                <Euro className="w-3 h-3 mr-2" /> Valors de l'Acord
+            </h3>
+            <div className="grid grid-cols-2 gap-6">
+                <div>
+                    <label className="block text-[10px] font-extrabold text-blue-400 uppercase mb-1">Set Up (€)</label>
+                   <input 
+                        type="number"
+                        value={valorSetup} 
+                        onChange={e => setValorSetup(e.target.value)}
+                        className="w-full bg-white border border-blue-100 rounded-xl px-4 py-2 font-bold text-slate-700 outline-none focus:border-blue-400"
+                   />
+                </div>
+                <div>
+                    <label className="block text-[10px] font-extrabold text-blue-400 uppercase mb-1">Manteniment (€)</label>
+                   <input 
+                        type="number"
+                        value={valorLlicencia} 
+                        onChange={e => setValorLlicencia(e.target.value)}
+                        className="w-full bg-white border border-blue-100 rounded-xl px-4 py-2 font-bold text-slate-700 outline-none focus:border-blue-400"
+                   />
+                </div>
+                <div className="col-span-2 flex justify-between items-center pt-2 border-t border-blue-100">
+                    <span className="text-[10px] font-black text-blue-400 uppercase">Total Pipeline</span>
+                    <span className="text-lg font-black text-blue-700">
+                        {(Number(valorSetup) + Number(valorLlicencia)).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+                    </span>
+                </div>
+            </div>
+          </section>
+
+          {/* Secció Prioritat i Etapa */}
+          <section className="grid grid-cols-2 gap-6">
+            <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Prioritat</label>
+                <select 
+                    value={prioritat} 
+                    onChange={e => setPrioritat(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 font-bold text-slate-700 outline-none focus:border-blue-400"
+                >
+                    <option value="alta">Alta 🔥</option>
+                    <option value="mitjana">Mitjana ⚡</option>
+                    <option value="baixa">Baixa 🧊</option>
+                </select>
+            </div>
+            <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Etapa Actual</label>
+                <div className="px-4 py-2 rounded-xl bg-slate-100 text-slate-500 font-bold text-sm border border-slate-200">
+                    {deal.etapa.replace('_', ' ').toUpperCase()}
+                </div>
+            </div>
+          </section>
+
+          {/* Secció Proper Pas */}
+          <section>
+            <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Proper Pas</h3>
+            <div className="space-y-4">
+              <input
+                type="text"
+                value={properPas}
+                onChange={(e) => setProperPas(e.target.value)}
+                placeholder="Ex: Trucar a l'alcalde"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 outline-none focus:border-blue-400"
+              />
+              <div className="relative">
+                <input
+                  type="date"
+                  value={dataSeguiment}
+                  onChange={(e) => setDataSeguiment(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 outline-none focus:border-blue-400"
+                />
+              </div>
+            </div>
+          </section>
+
+          <section>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Notes de Seguiment</h3>
+              <button 
+                onClick={handleAnalitzarIA}
+                disabled={aiLoading}
+                className="flex items-center space-x-1 px-3 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 rounded-lg text-[10px] font-black tracking-widest uppercase transition-colors disabled:opacity-50"
+              >
+                {aiLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                <span>Analitzar amb IA</span>
+              </button>
+            </div>
+            <textarea
+                value={notesHumanes}
+                onChange={(e) => setNotesHumanes(e.target.value)}
+                placeholder="Escriu aquí qualsevol detall de la negociació..."
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 outline-none focus:border-blue-400 min-h-[120px]"
+            />
+          </section>
+
+          {/* Footer d'accions del Drawer */}
+          <div className="pt-6 border-t flex space-x-3">
+            <button 
+                onClick={handleSaveAll} 
+                disabled={saving}
+                className="flex-1 h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black shadow-lg shadow-blue-100 transition-all flex items-center justify-center space-x-2"
+            >
+                {saving ? "Guardant..." : (
+                    <>
+                        <Save className="w-4 h-4" />
+                        <span>Guardar Canvis</span>
+                    </>
+                )}
+            </button>
+          </div>
+
+          {/* Secció Llicència (visible només a tancat_guanyat) */}
+          {deal.etapa === "tancat_guanyat" && (
+            <section className="bg-emerald-50 p-6 rounded-2xl border border-emerald-100">
+               <h3 className="text-xs font-black text-emerald-600 uppercase tracking-widest mb-4 flex items-center">
+                 <CreditCard className="w-4 h-4 mr-2" /> Gestió de Llicència
+               </h3>
+               {llicencia ? (
+                 <div className="text-sm space-y-2">
+                     <p className="flex justify-between">
+                         <span className="text-emerald-600 font-bold uppercase text-[10px]">Estat</span>
+                         <span className="font-black text-emerald-700">{llicencia.estat.toUpperCase()}</span>
+                     </p>
+                     <p className="flex justify-between">
+                         <span className="text-emerald-600 font-bold uppercase text-[10px]">Inici</span>
+                         <span className="font-bold">{format(new Date(llicencia.data_inici), "dd/MM/yyyy")}</span>
+                     </p>
+                     <p className="flex justify-between">
+                         <span className="text-emerald-600 font-bold uppercase text-[10px]">Renovació</span>
+                         <span className="font-black text-rose-500">{format(new Date(llicencia.data_renovacio), "dd/MM/yyyy")}</span>
+                     </p>
+
+                     {llicencia.pagaments?.length > 0 && (
+                       <div className="mt-4 pt-4 border-t border-emerald-100">
+                         <label className="text-[10px] font-black text-emerald-600 uppercase mb-2 block">Pagaments Recents</label>
+                         <div className="space-y-2">
+                           {llicencia.pagaments.map((p: any) => (
+                             <div key={p.id} className="flex items-center justify-between bg-white/50 p-2 rounded-lg border border-emerald-100/50">
+                               <div>
+                                 <p className="text-[10px] font-black text-slate-700">{p.tipus.toUpperCase()}</p>
+                                 <p className="text-[9px] font-bold text-slate-400">{format(new Date(p.data_emisio), "dd/MM/yy")} • {Number(p.import).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</p>
+                               </div>
+                               <div className="flex items-center gap-2">
+                                  <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-md uppercase ${p.estat === 'pagat' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                                    {p.estat}
+                                  </span>
+                                  {p.estat !== 'pagat' && (
+                                    <button 
+                                      onClick={() => handleConfirmarPagament(p.id)}
+                                      className="text-[10px] font-black text-blue-600 hover:underline px-1"
+                                    >
+                                      CONFIRMAR
+                                    </button>
+                                  )}
+                               </div>
+                             </div>
+                           ))}
+                         </div>
+                       </div>
+                     )}
+                 </div>
+               ) : (
+                 <div>
+                   <p className="text-xs text-emerald-600 font-medium mb-4">Aquest deal està guanyat però encara no té llicència activa.</p>
+                   <button onClick={handleCrearLlicencia} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-bold text-sm transition-colors">
+                     Activar Llicència Ara
+                   </button>
+                 </div>
+               )}
+            </section>
+          )}
+
+          <section>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                <Mail className="w-4 h-4" /> Emails Vinculats
+              </h3>
+              <button 
+                onClick={() => handleOpenComposer()}
+                className="flex items-center space-x-1 px-3 py-1 bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 rounded-lg text-[10px] font-black tracking-widest uppercase transition-colors"
+              >
+                <Mail className="w-3 h-3" />
+                <span>Nou Email</span>
+              </button>
+            </div>
+            {emails.length === 0 ? (
+              <p className="text-xs text-slate-400 italic">No hi ha emails vinculats automàticament.</p>
+            ) : (
+              <div className="space-y-4">
+                 {emails.map(e => (
+                    <div key={e.id} className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-sm">
+                      <div className="flex justify-between font-bold text-slate-700 mb-1">
+                        <div className="flex items-center gap-2">
+                          <span>{e.direccio === 'IN' ? 'De: ' + e.from_address : 'Per a: ' + e.to_address}</span>
+                          {e.direccio === 'OUT' && (
+                            <div className="flex items-center" title={e.obert ? `Obert ${e.nombre_obertures} vegades. Primera: ${e.data_obertura ? format(new Date(e.data_obertura), "dd/MM HH:mm") : '-'}` : "No obert encara"}>
+                              <Eye className={`w-3 h-3 ${e.obert ? 'text-emerald-500' : 'text-slate-300'}`} />
+                            </div>
+                          )}
+                        </div>
+                        <span className="text-[10px] text-slate-400 font-bold">{format(new Date(e.data_email), "dd/MM HH:mm")}</span>
+                      </div>
+                      <p className="font-black text-slate-900 mb-2">{e.assumpte}</p>
+                      <p className="text-slate-500 line-clamp-2 text-xs leading-relaxed">{e.cos}</p>
+                    </div>
+                 ))}
+              </div>
+            )}
+          </section>
+        </div>
+
+        {/* AI Modal */}
+        {showAiModal && aiResult && (
+          <div className="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6">
+            <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in duration-200">
+              <div className="bg-slate-900 p-6 flex justify-between items-center">
+                <div className="flex items-center space-x-2 text-white">
+                  <Bot className="w-5 h-5 text-blue-400" />
+                  <span className="font-black text-sm uppercase tracking-widest">Agent IA - {aiResult.type === 'summary' ? 'Resum Executiu' : 'Anàlisi de Deal'}</span>
+                </div>
+                <button onClick={() => setShowAiModal(false)} className="text-slate-400 hover:text-white transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="p-8">
+                {aiResult.type === 'summary' ? (
+                  <p className="text-slate-700 leading-relaxed font-medium">{aiResult.data.resum}</p>
+                ) : (
+                  <div className="space-y-6">
+                    <div className="bg-rose-50 p-4 rounded-2xl border border-rose-100">
+                      <label className="block text-[10px] font-black text-rose-500 uppercase tracking-widest mb-1">Obstacle Principal</label>
+                      <p className="text-rose-900 font-bold">{aiResult.data.obstacle_principal}</p>
+                    </div>
+                    <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100">
+                      <label className="block text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-1">Proper Pas Recomanat</label>
+                      <p className="text-emerald-900 font-bold">{aiResult.data.proper_pas_recomanat}</p>
+                    </div>
+                    <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100">
+                      <label className="block text-[10px] font-black text-blue-500 uppercase tracking-widest mb-1">Missatge Clau</label>
+                      <p className="text-blue-900 font-bold">{aiResult.data.missatge_clau}</p>
+                    </div>
+                    <div className="flex items-center justify-between">
+                       <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-md ${aiResult.data.urgencia === 'alta' ? 'bg-red-500 text-white' : aiResult.data.urgencia === 'mitjana' ? 'bg-amber-500 text-white' : 'bg-slate-400 text-white'}`}>
+                         Urgència: {aiResult.data.urgencia}
+                       </span>
+                       <button 
+                        onClick={() => {
+                          setProperPas(aiResult.data.proper_pas_recomanat);
+                          setShowAiModal(false);
+                        }}
+                        className="flex items-center space-x-2 text-blue-600 font-black text-xs uppercase hover:underline"
+                       >
+                         <span>Aplicar proper pas</span>
+                         <ArrowRight className="w-3 h-3" />
+                       </button>
+                    </div>
+                  </div>
+                )}
+                
+                <div className="mt-8 pt-4 border-t border-slate-100 flex justify-between items-center text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                  <span>Model: {aiResult.data.model_usat}</span>
+                  <button onClick={() => setShowAiModal(false)} className="text-slate-900 font-black">Tancar</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Email Composer Modal */}
+        {showEmailComposer && (
+          <div className="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6">
+            <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in duration-200 flex flex-col max-h-[90vh]">
+              <div className="bg-slate-900 p-6 flex justify-between items-center">
+                <div className="flex items-center space-x-2 text-white">
+                  <Mail className="w-5 h-5 text-blue-400" />
+                  <span className="font-black text-sm uppercase tracking-widest">Nou Missatge</span>
+                </div>
+                <button onClick={() => setShowEmailComposer(false)} className="text-slate-400 hover:text-white transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="p-8 space-y-4 overflow-y-auto">
+                <div className="grid grid-cols-12 gap-4 items-center">
+                   <label className="col-span-2 text-[10px] font-black text-slate-400 uppercase">Per a:</label>
+                   <input 
+                    value={composerData.to}
+                    onChange={e => setComposerData({...composerData, to: e.target.value})}
+                    className="col-span-10 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 font-bold text-slate-700 outline-none focus:border-blue-400"
+                   />
+                </div>
+                <div className="grid grid-cols-12 gap-4 items-center">
+                   <label className="col-span-2 text-[10px] font-black text-slate-400 uppercase">Assumpte:</label>
+                   <input 
+                    value={composerData.subject}
+                    onChange={e => setComposerData({...composerData, subject: e.target.value})}
+                    className="col-span-10 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 font-bold text-slate-700 outline-none focus:border-blue-400"
+                   />
+                </div>
+
+                {/* IA Redactor Section */}
+                <div className="bg-blue-50/50 p-4 rounded-2xl border border-blue-100 space-y-3">
+                  <div className="flex items-center justify-between text-blue-600">
+                    <div className="flex items-center space-x-2">
+                        <Sparkles className="w-4 h-4" />
+                        <span className="text-[10px] font-black uppercase tracking-widest">Redactar amb IA</span>
+                    </div>
+                    <select 
+                        value={selectedModel}
+                        onChange={(e) => setSelectedModel(e.target.value)}
+                        className="bg-white/50 text-[10px] font-bold px-2 py-0.5 rounded border border-blue-200 outline-none"
+                    >
+                        <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet</option>
+                        <option value="openai/gpt-4o">GPT-4o (Premium)</option>
+                        <option value="openai/gpt-4o-mini">GPT-4o mini (Ràpid)</option>
+                        <option value="google/gemini-pro-1.5">Gemini 1.5 Pro</option>
+                        <option value="mistralai/mistral-small-3.1-24b-instruct">Mistral Small</option>
+                        <option value="meta-llama/llama-3.1-70b-instruct">Llama 3.1 70B</option>
+                    </select>
+                  </div>
+                  <textarea 
+                    placeholder="Instruccions per a la IA (ex: 'Demana una reunió per dimarts per tancar el setup')"
+                    value={composerData.instruccionsIA}
+                    onChange={e => setComposerData({...composerData, instruccionsIA: e.target.value})}
+                    className="w-full bg-white border border-blue-100 rounded-xl px-4 py-2 text-sm font-medium text-slate-700 outline-none focus:border-blue-300 min-h-[60px]"
+                  />
+                  <button 
+                    onClick={handleRedactarIA}
+                    disabled={aiLoading || !composerData.instruccionsIA}
+                    className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50 flex items-center justify-center space-x-2"
+                  >
+                    {aiLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Bot className="w-3 h-3" />}
+                    <span>{composerData.body ? 'Regenerar Versió' : 'Generar Esborrany'}</span>
+                  </button>
+                </div>
+
+                <textarea 
+                  value={composerData.body}
+                  onChange={e => setComposerData({...composerData, body: e.target.value})}
+                  placeholder="Escriu el missatge aquí..."
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-medium text-slate-700 outline-none focus:border-blue-400 min-h-[200px]"
+                />
+              </div>
+
+              <div className="p-6 bg-slate-50 border-t flex space-x-3">
+                <button 
+                  onClick={() => setShowEmailComposer(false)}
+                  className="px-6 py-3 text-slate-500 font-bold text-sm hover:text-slate-700"
+                >
+                  Cancel·lar
+                </button>
+                <button 
+                  onClick={handleSendEmail}
+                  disabled={sendingEmail || !composerData.to || !composerData.subject || !composerData.body}
+                  className="flex-1 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-black text-sm transition-all disabled:opacity-50 flex items-center justify-center space-x-2 shadow-lg"
+                >
+                  {sendingEmail ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+                  <span>Enviar Email ara</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
