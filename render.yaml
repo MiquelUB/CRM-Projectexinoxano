@@ -13,6 +13,9 @@ services:
       - key: SECRET_KEY
         sync: false
         description: "Secret key for JWT"
+      - key: PYTHON_VERSION
+        value: "3.12"
+        description: "Force Render to use Python 3.12 to solve Pydantic crash on 3.14"
       - key: ALGORITHM
         value: "HS256"
       - key: ACCESS_TOKEN_EXPIRE_MINUTES
