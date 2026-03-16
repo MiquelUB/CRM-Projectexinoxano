@@ -1,0 +1,49 @@
+services:
+  - type: web
+    name: crm-pxx-backend
+    env: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+        description: "Supabase connection string"
+      - key: SECRET_KEY
+        sync: false
+        description: "Secret key for JWT"
+      - key: ALGORITHM
+        value: "HS256"
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "1440"
+      - key: OPENROUTER_API_KEY
+        sync: false
+        description: "OpenRouter API Key for AI features"
+      - key: OPENROUTER_BASE_URL
+        value: "https://openrouter.ai/api/v1"
+      - key: IMAP_HOST
+        sync: false
+      - key: IMAP_PORT
+        value: "993"
+      - key: IMAP_USER
+        sync: false
+      - key: IMAP_PASSWORD
+        sync: false
+      - key: IMAP_SSL
+        value: "true"
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "465"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_TLS
+        value: "false"
+      - key: SMTP_SSL
+        value: "true"
+      - key: BASE_URL
+        value: "http://localhost:8000"
+        description: "Keep as placeholder or set to public URL if needed for specific internal redirects"
