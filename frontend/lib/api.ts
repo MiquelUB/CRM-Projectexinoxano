@@ -1,4 +1,6 @@
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+const isBrowser = typeof window !== "undefined";
+const defaultHost = isBrowser ? window.location.hostname : "127.0.0.1";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || `http://${defaultHost}:8000`;
 
 function getToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -18,26 +20,29 @@ export function removeToken() {
 
 async function fetchAPI(endpoint: string, options?: RequestInit) {
   const token = getToken();
-  const res = await fetch(`${BASE_URL}${endpoint}`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...(token && { Authorization: `Bearer ${token}` }),
-    },
-    ...options,
-  });
-  if (res.status === 401 && typeof window !== "undefined" && !window.location.pathname.includes("/login")) {
-    removeToken();
-    window.location.href = "/login";
-    return;
+  const fullUrl = `${BASE_URL}${endpoint}`;
+  console.log(`[fetchAPI] Crida a URL:`, fullUrl, `| Method:`, options?.method || "GET", `| isBrowser:`, typeof window !== "undefined");
+  try {
+    const res = await fetch(fullUrl, {
+      headers: {
+        "Content-Type": "application/json",
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+      ...options,
+    });
+    
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({ detail: "Error desconegut" }));
+      const message = typeof error.detail === "object" 
+        ? JSON.stringify(error.detail) 
+        : (error.detail || "Error del servidor");
+      throw new Error(message);
+    }
+    return res.json();
+  } catch (err) {
+    console.error("[fetchAPI] Error complet: ", err);
+    throw err;
   }
-  if (!res.ok) {
-    const error = await res.json().catch(() => ({ detail: "Error desconegut" }));
-    const message = typeof error.detail === "object" 
-      ? JSON.stringify(error.detail) 
-      : (error.detail || "Error del servidor");
-    throw new Error(message);
-  }
-  return res.json();
 }
 
 const api = {
@@ -127,13 +132,14 @@ const api = {
     eliminar: (id: string) => fetchAPI(`/usuaris/${id}`, { method: "DELETE" }),
   },
   alertes: {
-    totes: () => fetchAPI("/alertes"),
+    totes: () => fetchAPI("/alertes/"),
     count: () => fetchAPI("/alertes/count"),
   },
   agent: {
     redactarEmail: (data: any) => fetchAPI("/agent/redactar-email", { method: "POST", body: JSON.stringify(data) }),
     analitzarDeal: (data: any) => fetchAPI("/agent/analitzar-deal", { method: "POST", body: JSON.stringify(data) }),
     resumirDeal: (data: any) => fetchAPI("/agent/resum-deal", { method: "POST", body: JSON.stringify(data) }),
+    chatMunicipi: (data: any) => fetchAPI("/agent/chat_municipi", { method: "POST", body: JSON.stringify(data) }),
   },
   tasques: {
     llistar: (params?: Record<string, string>) =>
@@ -141,6 +147,9 @@ const api = {
     crear: (data: any) => fetchAPI("/tasques", { method: "POST", body: JSON.stringify(data) }),
     editar: (id: string, data: any) => fetchAPI(`/tasques/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
     eliminar: (id: string) => fetchAPI(`/tasques/${id}`, { method: "DELETE" }),
+  },
+  dashboard: {
+    diari: () => fetchAPI("/dashboard/diari"),
   },
 };
 
