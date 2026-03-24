@@ -40,8 +40,9 @@ try:
         except Exception as e:
             # Ignorem errors d'existència prèvia de taules/schemas
             error_count += 1
+            print(f"⚠️ Error executant '{stmt[:60]}...': {e}")
             
-    print(f"✅ Restauració completada! Sentències correctes: {success_count}, Ignorades (ja existents): {error_count}")
+    print(f"✅ Restauració completada! Sentències correctes: {success_count}, Ignorades (ja existents/errors): {error_count}")
     cur.close()
     conn.close()
 
