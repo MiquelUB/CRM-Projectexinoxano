@@ -41,6 +41,15 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+from fastapi import Request
+
+@app.middleware("http")
+async def force_https_middleware(request: Request, call_next):
+    if request.headers.get("x-forwarded-proto") == "https":
+        request.scope["scheme"] = "https"
+    response = await call_next(request)
+    return response
+
 # CORS configuration
 origins = [
     "http://localhost:3000",
