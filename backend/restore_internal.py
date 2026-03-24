@@ -12,6 +12,11 @@ if not db_url:
 print("--- INICIANT RESTAURACIÓ INTERNA ---")
 print(f"Llegint l'arxiu {file_path}...")
 
+# Amagar la contrasenya i imprimir el Host de connexió per saber on estem
+parts = db_url.split("@")
+host_part = parts[-1] if len(parts) > 1 else db_url
+print(f"🔗 ADREÇA DE DESTÍ: {host_part}")
+
 try:
     # Connectar a la base de dades utilitzant la cadena de connexió
     conn = psycopg2.connect(db_url)
