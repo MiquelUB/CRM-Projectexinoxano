@@ -3,7 +3,7 @@ import psycopg2
 
 # Carregar la URL de connexió d'Easypanel
 db_url = os.getenv("DATABASE_URL")
-file_path = "copia_supabase_v2.sql"
+file_path = "copia_supabase_v3.sql"
 
 if not db_url:
     print("❌ Error: No s'ha trobat la variable DATABASE_URL d'Easypanel.")
@@ -19,7 +19,8 @@ try:
     cur = conn.cursor()
     
     with open(file_path, "r", encoding="utf-8") as f:
-        sql = f.read()
+        # Filtrar comandos de psql que comencen amb \ (especialment al principi de la línia)
+        sql = "".join([line for line in f if not line.strip().startswith("\\")])
     
     print("Executant l'SQL a la base de dades interna...")
     cur.execute(sql)
