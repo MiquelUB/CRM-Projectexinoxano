@@ -3,7 +3,7 @@ import psycopg2
 
 # Carregar la URL de connexió d'Easypanel
 db_url = os.getenv("DATABASE_URL")
-file_path = "copia_supabase_v3.sql"
+file_path = "copia_supabase_v4.sql"
 
 if not db_url:
     print("❌ Error: No s'ha trobat la variable DATABASE_URL d'Easypanel.")
