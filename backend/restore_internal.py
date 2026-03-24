@@ -1,12 +1,12 @@
 import os
 import psycopg2
 
-# Carregar la URL de connexió d'Easypanel
-db_url = os.getenv("DATABASE_URL")
+# URL de connexió d'Easypanel HARDCODEJADA PER A MIGRIACIÓ SEGURA (Es demanarà esborrat després)
+db_url = "postgresql://pxx_admin:b86f95465942a859661e@crmpxx_db-crmpxx:5432/crm_pxx?sslmode=disable"
 file_path = "copia_supabase_v4.sql"
 
 if not db_url:
-    print("❌ Error: No s'ha trobat la variable DATABASE_URL d'Easypanel.")
+    print("❌ Error: No s'ha trobat la variable DATABASE_URL.")
     exit(1)
 
 print("--- INICIANT RESTAURACIÓ INTERNA ---")
