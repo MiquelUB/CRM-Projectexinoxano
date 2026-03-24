@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 OPENROUTER_BASE_URL = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
 
-async def call_openrouter(messages, model="anthropic/claude-3.5-sonnet", json_mode=False):
+async def call_openrouter(messages, model="anthropic/claude-3.5-sonnet", json_mode=False, temperature=None):
     if not OPENROUTER_API_KEY:
         logger.error("OPENROUTER_API_KEY is missing in environment variables.")
         raise ValueError("Configuració de IA incompleta (falta API Key)")
@@ -24,6 +24,9 @@ async def call_openrouter(messages, model="anthropic/claude-3.5-sonnet", json_mo
         "messages": messages,
     }
     
+    if temperature is not None:
+        payload["temperature"] = temperature
+        
     if json_mode:
         payload["response_format"] = {"type": "json_object"}
 

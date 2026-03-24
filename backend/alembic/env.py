@@ -13,6 +13,7 @@ dotenv_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
 load_dotenv(dotenv_path)
 
 from models import Base
+import models_v2
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

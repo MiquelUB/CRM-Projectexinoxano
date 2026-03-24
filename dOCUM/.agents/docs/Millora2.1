@@ -1,0 +1,1277 @@
+ Aquí tens l'especificació completa en un únic arxiu `.md`:
+
+```markdown
+# CRM PXX v2.0 - Especificació Tècnica Completa
+
+## 1. MODEL DE DADES
+
+### 1.1 MunicipiLifecycle
+
+```python
+class MunicipiLifecycle(Base):
+    __tablename__ = "municipis_lifecycle"
+    
+    # IDENTITAT
+    id = Column(Integer, primary_key=True)
+    nom = Column(String(100), nullable=False, index=True)
+    comarca = Column(String(50))
+    poblacio = Column(Integer)
+    geografia = Column(Enum('muntanya', 'mar', 'interior', 'city', name='geografia'))
+    
+    # DIAGNÒSTIC
+    diagnostic_digital = Column(JSONB)  # app_propia, google_maps_pois, wikiloc_rutes, buit_digital
+    patrimoni = Column(JSONB)  # POIs, BICs, rutes
+    context_politic = Column(JSONB)  # projectes, subvencions, eleccions
+    angle_personalitzacio = Column(Text)
+    
+    # FUNNEL
+    etapa_actual = Column(Enum(
+        'research', 'contacte', 'demo_pendent', 'demo_ok',
+        'oferta', 'documentacio', 'aprovacio', 'contracte',
+        'client', 'pausa', 'perdut',
+        name='etapa_funnel'
+    ), default='research', index=True)
+    
+    historial_etapes = Column(JSONB)  # [{etapa, data_inici, data_fi, notes}]
+    blocker_actual = Column(Enum('alcalde', 'tecnic', 'cfo', 'temporitzacio', 'cap', name='blocker'))
+    temperatura = Column(Enum('fred', 'templat', 'calent', 'bullent', name='temperatura'), default='fred')
+    dies_etapa_actual = Column(Integer, default=0)
+    
+    # POST-CONVERSIÓ (només per arxiu, no gestió)
+    data_conversio = Column(DateTime, nullable=True)
+    pla_contractat = Column(Enum('Roure', 'Mirador', 'Territori', name='pla'), nullable=True)
+    estat_final = Column(Enum('client', 'perdut', 'pausa', name='estat_final'), nullable=True)
+    
+    # RELACIONS
+    actor_principal_id = Column(Integer, ForeignKey("contactes.id"), nullable=True)
+    contactes = relationship("Contacte", back_populates="municipi")
+    emails = relationship("Email", back_populates="municipi")
+    trucades = relationship("Trucada", back_populates="municipi")
+    reunions = relationship("Reunio", back_populates="municipi")
+    email_drafts = relationship("EmailDraft", back_populates="municipi")
+    sequencia_emails = relationship("EmailSequencia", order_by="EmailSequencia.numero_email")
+    
+    # METADADES
+    data_creacio = Column(DateTime, default=datetime.utcnow)
+    data_ultima_accio = Column(DateTime)
+```
+
+### 1.2 Contacte (Taula Relacional)
+
+```python
+class Contacte(Base):
+    __tablename__ = "contactes"
+    
+    id = Column(Integer, primary_key=True)
+    municipi_id = Column(Integer, ForeignKey("municipis_lifecycle.id"))
+    
+    nom = Column(String(100), nullable=False)
+    carrec = Column(Enum('alcalde', 'regidor_turisme', 'tecnic', 'cfo', 
+                         'regidor_cultura', 'altre', name='carrec'))
+    email = Column(String(100))
+    telefon = Column(String(20))
+    
+    actiu = Column(Boolean, default=True)
+    principal = Column(Boolean, default=False)
+    
+    # Memòria individual
+    angles_exitosos = Column(JSONB, default=[])
+    angles_fallits = Column(JSONB, default=[])
+    moment_optimal = Column(String(10))  # "10:00"
+    to_preferit = Column(Enum('formal', 'proxim', 'tecnic', name='to'))
+    
+    data_creacio = Column(DateTime, default=datetime.utcnow)
+    
+    municipi = relationship("MunicipiLifecycle", back_populates="contactes")
+```
+
+### 1.3 Comunicacions
+
+```python
+class Email(Base):
+    __tablename__ = "emails"
+    
+    id = Column(Integer, primary_key=True)
+    municipi_id = Column(Integer, ForeignKey("municipis_lifecycle.id"))
+    
+    data_enviament = Column(DateTime, default=datetime.utcnow)
+    assumpte = Column(String(200))
+    cos = Column(Text)
+    
+    # Tracking
+    obert = Column(Boolean, default=False)
+    data_obertura = Column(DateTime)
+    cops_obert = Column(Integer, default=0)
+    respost = Column(Boolean, default=False)
+    data_resposta = Column(DateTime)
+    
+    # Anàlisi IA
+    sentiment_resposta = Column(Enum('positiu', 'neutre', 'negatiu', 'confus', name='sentiment'))
+    intents_detectats = Column(JSONB)
+    actor_probable = Column(Enum('alcalde', 'tecnic', 'cfo', name='actor'))
+    
+    municipi = relationship("MunicipiLifecycle", back_populates="emails")
+
+class Trucada(Base):
+    __tablename__ = "trucades"
+    
+    id = Column(Integer, primary_key=True)
+    municipi_id = Column(Integer, ForeignKey("municipis_lifecycle.id"))
+    
+    data = Column(DateTime, default=datetime.utcnow)
+    durada_minuts = Column(Integer)
+    qui_va_contestar = Column(Enum('alcalde', 'tecnic', 'cfo', 'buzon', 'no_contesta', name='contestador'))
+    
+    notes_breus = Column(Text)
+    resum_ia = Column(Text)
+    seguent_accio_sugerida = Column(Text)
+    
+    resultat = Column(Enum('demo_programada', 'info_enviada', 'seguiment', 'no_interes', 'perdut', name='resultat_trucada'))
+    
+    municipi = relationship("MunicipiLifecycle", back_populates="trucades")
+
+class Reunio(Base):
+    __tablename__ = "reunions"
+    
+    id = Column(Integer, primary_key=True)
+    municipi_id = Column(Integer, ForeignKey("municipis_lifecycle.id"))
+    
+    data = Column(DateTime)
+    tipus = Column(Enum('demo', 'seguiment', 'negociacio', name='tipus_reunio'))
+    assistents = Column(JSONB)
+    
+    aar_completat = Column(Boolean, default=False)
+    notes_aar = Column(Text)
+    poi_mes_reaccio = Column(String(100))
+    objeccio_principal = Column(String(100))
+    cta_final = Column(String(200))
+    temperatura_post = Column(Enum('fred', 'templat', 'calent', 'bullent', name='temperatura'))
+    
+    municipi = relationship("MunicipiLifecycle", back_populates="reunions")
+```
+
+### 1.4 EmailDraft (Editor Integrat)
+
+```python
+class EmailDraft(Base):
+    __tablename__ = "email_drafts"
+    
+    id = Column(Integer, primary_key=True)
+    municipi_id = Column(Integer, ForeignKey("municipis_lifecycle.id"))
+    contacte_id = Column(Integer, ForeignKey("contactes.id"))
+    
+    estat = Column(Enum('esborrany', 'revisat', 'enviat', 'programat', name='estat_email'))
+    
+    subject = Column(String(200))
+    cos = Column(Text)
+    
+    # IA
+    generat_per_ia = Column(Boolean, default=True)
+    prompt_utilitzat = Column(Text)
+    variants_generades = Column(JSONB)  # 3 variants
+    variant_seleccionada = Column(Integer, default=0)
+    
+    # Edició
+    editat_per_usuari = Column(Boolean, default=False)
+    canvis_respecte_ia = Column(JSONB)
+    
+    # Programació/Enviament
+    data_enviament = Column(DateTime, nullable=True)
+    enviat_des_de = Column(String(100))
+    email_enviat_id = Column(Integer, ForeignKey("emails.id"), nullable=True)
+    
+    data_creacio = Column(DateTime, default=datetime.utcnow)
+    
+    municipi = relationship("MunicipiLifecycle", back_populates="email_drafts")
+    contacte = relationship("Contacte")
+```
+
+### 1.5 EmailSequencia (Calendari Màrqueting)
+
+```python
+class EmailSequencia(Base):
+    __tablename__ = "email_sequencies"
+    
+    id = Column(Integer, primary_key=True)
+    municipi_id = Column(Integer, ForeignKey("municipis_lifecycle.id"))
+    
+    numero_email = Column(Integer)
+    tipus_sequencia = Column(Enum('prospeccio', 'seguiment', 'nurture', 'recuperacio', name='tipus_seq'))
+    
+    estat = Column(Enum('pendent', 'preparant', 'preparat', 'programat', 'enviat', 'obert', 'respost', 'no_obert', 'cancelat', name='estat_seq'))
+    
+    data_programada = Column(DateTime)
+    data_enviada = Column(DateTime)
+    
+    draft_id = Column(Integer, ForeignKey("email_drafts.id"), nullable=True)
+    
+    obert = Column(Boolean, default=False)
+    data_obertura = Column(DateTime)
+    respost = Column(Boolean, default=False)
+    
+    seguent_accio = Column(String(50), nullable=True)
+    
+    municipi = relationship("MunicipiLifecycle", back_populates="sequencia_emails")
+    draft = relationship("EmailDraft")
+    
+    __table_args__ = (
+        UniqueConstraint('municipi_id', 'numero_email', name='uix_seq_municipi_numero'),
+    )
+```
+
+### 1.6 Memòria i Patrons
+
+```python
+class MemoriaMunicipi(Base):
+    __tablename__ = "memoria_municipis"
+    
+    municipi_id = Column(Integer, ForeignKey("municipis_lifecycle.id"), primary_key=True)
+    
+    ganxos_exitosos = Column(JSONB, default=[])
+    angles_fallits = Column(JSONB, default=[])
+    moment_optimal = Column(JSONB)
+    llenguatge_preferit = Column(JSONB, default=[])
+    blockers_resolts = Column(JSONB, default=[])
+    
+    data_actualitzacio = Column(DateTime, default=datetime.utcnow)
+
+class PatroMunicipi(Base):
+    __tablename__ = "patrons_municipis"
+    
+    id = Column(Integer, primary_key=True)
+    
+    rang_poblacio = Column(Enum('petit', 'mitja', 'gran', name='rang_poblacio'))
+    tipus_geografia = Column(Enum('muntanya', 'mar', 'interior', 'city', name='geografia'))
+    context_politic = Column(Enum('majoria', 'minoria', 'pacte', name='context_politic'))
+    
+    probabilitat_conversio = Column(Float)
+    temps_mitja_cicle_dies = Column(Integer)
+    etapa_bloqueig_frequent = Column(String(50))
+    estrategia_recomanada = Column(Text)
+    objeccions_frequents = Column(JSONB)
+    casos_exit_referencia = Column(JSONB)
+    
+    cops_aplicat = Column(Integer, default=0)
+    exitosos = Column(Integer, default=0)
+```
+
+---
+
+## 2. SERVEIS BACKEND
+
+### 2.1 Prioritizer Service
+
+```python
+# services/prioritizer.py
+
+def calcular_prioritat(municipi: MunicipiLifecycle) -> int:
+    score = 0
+    
+    # Urgència temporal
+    urgencia = {
+        'documentacio': (5, 100),
+        'aprovacio': (14, 90),
+        'demo_ok': (2, 80),
+        'oferta': (7, 70),
+        'demo_pendent': (5, 60),
+        'contacte': (7, 50),
+    }
+    
+    if municipi.etapa_actual in urgencia:
+        max_dies, punts = urgencia[municipi.etapa_actual]
+        if municipi.dies_etapa_actual > max_dies:
+            score += punts + (municipi.dies_etapa_actual - max_dies) * 5
+        elif municipi.dies_etapa_actual > max_dies * 0.5:
+            score += punts * 0.7
+    
+    # Refredament
+    dies_ultim = (datetime.utcnow() - municipi.data_ultima_accio).days if municipi.data_ultima_accio else 999
+    if dies_ultim > 7:
+        score += 80
+    elif dies_ultim > 3:
+        score += 40
+    
+    # Valor deal
+    if municipi.pla_contractat == 'Territori':
+        score += 50
+    if municipi.poblacio and municipi.poblacio > 10000:
+        score += 40
+    
+    return int(score)
+
+def generar_dashboard_diari(db_session) -> Dict:
+    municipis_actius = db_session.query(MunicipiLifecycle).filter(
+        MunicipiLifecycle.etapa_actual.notin_(['client', 'perdut', 'pausa'])
+    ).all()
+    
+    puntuats = [(m, calcular_prioritat(m)) for m in municipis_actius]
+    puntuats.sort(key=lambda x: x[1], reverse=True)
+    
+    accions = []
+    for i, (municipi, score) in enumerate(puntuats[:3], 1):
+        accio = determinar_accio(municipi)
+        accions.append({
+            'ordre': i,
+            'prioritat': 'critica' if score > 80 else 'alta' if score > 50 else 'media',
+            'municipi_id': municipi.id,
+            'municipi_nom': municipi.nom,
+            'etapa': municipi.etapa_actual,
+            'blocker': municipi.blocker_actual,
+            'dies_etapa': municipi.dies_etapa_actual,
+            'tipus_accio': accio['tipus'],
+            'titol': accio['titol'],
+            'descripcio': accio['descripcio'],
+            'executable': accio['executable'],
+            'dades_execucio': accio.get('dades_execucio', {}),
+            'contacte_sugerit_id': accio.get('contacte_id'),
+            'subject_sugerit': accio.get('subject'),
+            'cos_esborrany': accio.get('cos'),
+            'guio_trucada': accio.get('guio'),
+            'pla_b': accio.get('pla_b'),
+            'score': score
+        })
+    
+    return {
+        'data': datetime.utcnow().isoformat(),
+        'accions_prioritaries': accions,
+        'preparar_si_sobra': generar_llista_preparacio(puntuats[3:]) if len(puntuats) > 3 else []
+    }
+```
+
+### 2.2 Action Recommender Service
+
+```python
+# services/action_recommender.py
+
+def determinar_accio(municipi: MunicipiLifecycle) -> Dict:
+    etapa = municipi.etapa_actual
+    blocker = municipi.blocker_actual
+    dies = municipi.dies_etapa_actual
+    
+    # CONTACTE
+    if etapa == 'contacte':
+        ultim_email = get_ultim_email(municipi)
+        
+        if not ultim_email:
+            contacte = get_contacte_principal(municipi, 'alcalde')
+            return {
+                'tipus': 'email',
+                'executable': True,
+                'titol': f'Preparar email inicial a {contacte.nom if contacte else "Alcalde"}',
+                'descripcio': 'Angle patrimoni específic, zero enllaços',
+                'dades_execucio': {
+                    'obre_editor': True,
+                    'contacte_id': contacte.id if contacte else None,
+                    'tipus_email': 'email_1_prospeccio'
+                },
+                'pla_b': 'Esperar 2 dies, revisar si obert'
+            }
+        
+        if ultim_email.respost:
+            return {
+                'tipus': 'trucada',
+                'executable': True,
+                'titol': 'Trucada de seguiment urgent',
+                'descripcio': 'Respondre dubtes, proposar demo curta',
+                'dades_execucio': {
+                    'obre_formulari_trucada': True,
+                    'contacte_id': ultim_email.contacte_id,
+                    'urgencia': 'alta'
+                },
+                'guio': 'Hola, he vist el teu email...',
+                'pla_b': 'Email proposant hora concreta'
+            }
+        
+        if ultim_email.obert and not ultim_email.respost:
+            if ultim_email.cops_obert > 2:
+                return {
+                    'tipus': 'email',
+                    'executable': True,
+                    'titol': 'Email 2: El micròfon apagat',
+                    'descripcio': 'Angle dolor, FOMO suau',
+                    'dades_execucio': {
+                        'obre_editor': True,
+                        'tipus_email': 'email_2_dolor'
+                    },
+                    'pla_b': 'Trucada dia 5 si no resposta'
+                }
+            else:
+                return {
+                    'tipus': 'esperar',
+                    'executable': False,
+                    'titol': 'Esperar més engagement',
+                    'descripcio': f'Email obert {ultim_email.cops_obert} cops, poc engagement',
+                    'pla_b': f'Email 2 preparat per enviar dia {dies + 2}'
+                }
+        
+        if not ultim_email.obert and dies > 3:
+            return {
+                'tipus': 'email',
+                'executable': True,
+                'titol': 'Email 2: Subject alternatiu',
+                'descripcio': 'Mateix angle, subject diferent',
+                'dades_execucio': {
+                    'obre_editor': True,
+                    'tipus_email': 'email_2_subject_alt'
+                },
+                'pla_b': 'Trucada al tècnic (no alcalde) dia 5'
+            }
+    
+    # DEMO_PENDENT
+    if etapa == 'demo_pendent':
+        return {
+            'tipus': 'preparar_demo',
+            'executable': True,
+            'titol': 'Confirmar i preparar demo',
+            'descripcio': 'Verificar assistents, preparar contingut específic',
+            'dades_execucio': {
+                'obre_checklist': True,
+                'accions': ['Confirmar hora', 'Verificar POIs', 'Preparar Time Slider']
+            },
+            'pla_b': 'Reprogramar si no confirmen 24h abans'
+        }
+    
+    # DEMO_OK
+    if etapa == 'demo_ok':
+        if dies > 2:
+            return {
+                'tipus': 'email',
+                'executable': True,
+                'titol': 'Seguiment post-demo',
+                'descripcio': 'Referenciar moment concret de la demo',
+                'dades_execucio': {
+                    'obre_editor': True,
+                    'tipus_email': 'seguiment_post_demo'
+                },
+                'pla_b': 'Trucada si no obert en 24h'
+            }
+        else:
+            return {
+                'tipus': 'completar_aar',
+                'executable': True,
+                'titol': 'Completar After Action Review',
+                'descripcio': 'Omplir notes de la reunió mentre és fresca',
+                'dades_execucio': {
+                    'obre_formulari_aar': True
+                },
+                'pla_b': None
+            }
+    
+    # OFERTA
+    if etapa == 'oferta':
+        if blocker == 'cfo':
+            contacte = get_contacte_principal(municipi, 'cfo')
+            return {
+                'tipus': 'email',
+                'executable': True,
+                'titol': 'Documentació compliance a CFO',
+                'descripcio': 'RGPD, servidors UE, protocol offboarding',
+                'dades_execucio': {
+                    'obre_editor': True,
+                    'contacte_id': contacte.id if contacte else None,
+                    'tipus_email': 'compliance_cfo'
+                },
+                'pla_b': 'Trucada oferint resoldre dubtes legals'
+            }
+        elif blocker == 'alcalde':
+            return {
+                'tipus': 'email',
+                'executable': True,
+                'titol': 'Cas èxit similar',
+                'descripcio': 'Angle polític, FOMO temporal',
+                'dades_execucio': {
+                    'obre_editor': True,
+                    'tipus_email': 'cas_exit_politic'
+                },
+                'pla_b': 'Proposar trucada amb alcalde de cas èxit'
+            }
+    
+    # APROVACIÓ
+    if etapa == 'aprovacio' and dies > 10:
+        return {
+            'tipus': 'escalat',
+            'executable': True,
+            'titol': 'Escalat a fundador',
+            'descripcio': 'Revisar si cal contacte directe o altre actor',
+            'dades_execucio': {
+                'tipus': 'revisio_manual',
+                'alerta': True
+            },
+            'pla_b': 'Proposar prova pilot reduïda'
+        }
+    
+    # Default
+    return {
+        'tipus': 'nurture',
+        'executable': True,
+        'titol': 'Nurture suau',
+        'descripcio': f'Mantenir calor sense pressió. Etapa {etapa}, dia {dies}',
+        'dades_execucio': {
+            'obre_editor': True,
+            'tipus_email': 'nurture'
+        },
+        'pla_b': None
+    }
+```
+
+### 2.3 Sequenciador Service
+
+```python
+# services/sequenciador.py
+
+def generar_sequencia_prospeccio(municipi_id: int, db_session) -> List[EmailSequencia]:
+    municipi = db_session.query(MunicipiLifecycle).get(municipi_id)
+    dia0 = datetime.utcnow()
+    
+    seq = []
+    
+    # EMAIL 1: Disparador patrimoni (generar immediatament)
+    draft1 = generar_draft(
+        municipi=municipi,
+        tipus='email_1_prospeccio',
+        contacte=get_contacte_principal(municipi, 'alcalde')
+    )
+    
+    seq.append(EmailSequencia(
+        municipi_id=municipi_id,
+        numero_email=1,
+        tipus_sequencia='prospeccio',
+        estat='preparat',
+        data_programada=dia0,
+        draft_id=draft1.id
+    ))
+    
+    # EMAIL 2: Dolor (programat, draft es genera dinàmicament quan toqui)
+    seq.append(EmailSequencia(
+        municipi_id=municipi_id,
+        numero_email=2,
+        tipus_sequencia='prospeccio',
+        estat='pendent',
+        data_programada=dia0 + timedelta(days=4)
+    ))
+    
+    # EMAIL 3: FOMO veí
+    seq.append(EmailSequencia(
+        municipi_id=municipi_id,
+        numero_email=3,
+        tipus_sequencia='prospeccio',
+        estat='pendent',
+        data_programada=dia0 + timedelta(days=8)
+    ))
+    
+    # EMAIL 4: Tancament suau
+    seq.append(EmailSequencia(
+        municipi_id=municipi_id,
+        numero_email=4,
+        tipus_sequencia='recuperacio',
+        estat='pendent',
+        data_programada=dia0 + timedelta(days=14)
+    ))
+    
+    db_session.add_all(seq)
+    db_session.commit()
+    
+    return seq
+
+def actualitzar_sequencia_segons_event(municipi_id: int, email_num: int, event: str, db_session):
+    seq = db_session.query(EmailSequencia).filter_by(
+        municipi_id=municipi_id
+    ).order_by(EmailSequencia.numero_email).all()
+    
+    email_actual = seq[email_num - 1]
+    
+    if event == 'resposta_positiva':
+        email_actual.estat = 'respost'
+        email_actual.seguent_accio = 'trucada_rapida'
+        
+        # Cancel·lar resta prospecció
+        for e in seq[email_num:]:
+            if e.tipus_sequencia == 'prospeccio':
+                e.estat = 'cancelat'
+        
+        # Afegir seguiment immediat
+        municipi = db_session.query(MunicipiLifecycle).get(municipi_id)
+        draft = generar_draft(municipi, 'seguiment_urgent')
+        
+        nou = EmailSequencia(
+            municipi_id=municipi_id,
+            numero_email=len(seq) + 1,
+            tipus_sequencia='seguiment',
+            estat='preparat',
+            data_programada=datetime.utcnow() + timedelta(hours=2),
+            draft_id=draft.id
+        )
+        db_session.add(nou)
+        
+    elif event == 'obert_no_resposta':
+        email_actual.estat = 'obert'
+        # Deixar següent programat
+        
+    elif event == 'no_obert':
+        email_actual.estat = 'no_obert'
+        # Accelerar següent
+        if email_num < len(seq):
+            seq[email_num].data_programada -= timedelta(days=1)
+    
+    db_session.commit()
+
+def preparar_email_sequencia(municipi_id: int, numero_email: int, db_session):
+    seq = db_session.query(EmailSequencia).filter_by(
+        municipi_id=municipi_id,
+        numero_email=numero_email
+    ).first()
+    
+    if seq.estat != 'pendent':
+        return  # Ja preparat o enviat
+    
+    municipi = db_session.query(MunicipiLifecycle).get(municipi_id)
+    
+    # Determinar tipus segons context
+    if numero_email == 2:
+        ultim = get_ultim_email(municipi)
+        if ultim and ultim.obert:
+            tipus = 'email_2_interes' if ultim.cops_obert > 2 else 'email_2_suau'
+        else:
+            tipus = 'email_2_subject_alt'
+    elif numero_email == 3:
+        tipus = 'email_3_fomo_vei'
+    elif numero_email == 4:
+        tipus = 'email_4_tancament'
+    else:
+        tipus = 'nurture'
+    
+    contacte = get_contacte_principal(municipi, 'alcalde')
+    draft = generar_draft(municipi, tipus, contacte)
+    
+    seq.draft_id = draft.id
+    seq.estat = 'preparat'
+    db_session.commit()
+    
+    return draft
+```
+
+### 2.4 Memory Engine Service
+
+```python
+# services/memory_engine.py
+
+def actualitzar_memoria_post_interaccio(municipi_id: int, tipus: str, dades: dict, db_session):
+    memoria = db_session.query(MemoriaMunicipi).get(municipi_id)
+    if not memoria:
+        memoria = MemoriaMunicipi(municipi_id=municipi_id)
+        db_session.add(memoria)
+    
+    if tipus == 'email_enviat':
+        # Analitzar si va obrir, respost, paraules clau
+        pass  # Actualitzar en rebre webhook/email tracking
+        
+    elif tipus == 'email_respost':
+        text = dades.get('text_resposta', '')
+        paraules = extreure_paraules_clau(text)
+        
+        # Actualitzar llenguatge preferit
+        memoria.llenguatge_preferit = list(set(
+            (memoria.llenguatge_preferit or []) + paraules
+        ))[:10]  # Màxim 10
+        
+        # Actualitzar moment òptim
+        hora = dades.get('hora_resposta')
+        if hora:
+            memoria.moment_optimal = actualitzar_moment_optimal(
+                memoria.moment_optimal, hora
+            )
+    
+    elif tipus == 'demo_realitzada':
+        if dades.get('poi_mes_reaccio'):
+            memoria.ganxos_exitosos = (memoria.ganxos_exitosos or []) + [dades['poi_mes_reaccio']]
+            memoria.ganxos_exitosos = memoria.ganxos_exitosos[-5:]  # Últims 5
+        
+        if dades.get('angle_fallit'):
+            memoria.angles_fallits = (memoria.angles_fallits or []) + [dades['angle_fallit']]
+            memoria.angles_fallits = memoria.angles_fallits[-3:]
+    
+    elif tipus == 'blocker_resolt':
+        memoria.blockers_resolts = (memoria.blockers_resolts or []) + [{
+            'tipus': dades['blocker'],
+            'estrategia': dades['com'],
+            'data': datetime.utcnow().isoformat()
+        }]
+    
+    memoria.data_actualitzacio = datetime.utcnow()
+    db_session.commit()
+
+def trobar_patro_similar(municipi: MunicipiLifecycle, db_session) -> Optional[PatroMunicipi]:
+    rang = 'petit' if (municipi.poblacio or 0) < 5000 else 'mitja' if (municipi.poblacio or 0) < 20000 else 'gran'
+    
+    return db_session.query(PatroMunicipi).filter_by(
+        rang_poblacio=rang,
+        tipus_geografia=municipi.geografia,
+        context_politic=municipi.context_politic.get('tipus', 'majoria') if municipi.context_politic else 'majoria'
+    ).first()
+```
+
+### 2.5 Draft Generator Service (IA)
+
+```python
+# services/draft_generator.py
+
+def generar_draft(municipi: MunicipiLifecycle, tipus: str, contacte: Contacte = None) -> EmailDraft:
+    # Seleccionar prompt segons tipus i actor
+    actor = detectar_actor(tipus, contacte)
+    prompt_base = get_prompt_base()
+    prompt_actor = get_prompt_actor(actor)
+    prompt_situacio = get_prompt_situacio(tipus)
+    
+    # Construir context complet
+    context = {
+        'municipi': municipi.nom,
+        'poblacio': municipi.poblacio,
+        'patrimoni': (municipi.patrimoni or {}).get('pois_principals', [])[:2],
+        'angle': municipi.angle_personalitzacio,
+        'contacte': contacte.nom if contacte else 'Alcalde',
+        'carrec': contacte.carrec if contacte else 'alcalde',
+        'to': contacte.to_preferit if contacte else 'proxim',
+        'historia': get_historia_email(municipi, limit=3)
+    }
+    
+    # Cridar IA (OpenRouter)
+    variants = []
+    for i in range(3):
+        resposta = cridar_ia(
+            prompt_base + prompt_actor + prompt_situacio,
+            context,
+            temperatura=0.7 + (i * 0.1)  # Varietat
+        )
+        variants.append({
+            'subject': resposta['subject'],
+            'cos': resposta['cos'],
+            'angle': resposta.get('angle', 'general'),
+            'score': resposta.get('score', 0.8)
+        })
+    
+    # Seleccionar millor variant inicial
+    millor = max(variants, key=lambda x: x['score'])
+    
+    draft = EmailDraft(
+        municipi_id=municipi.id,
+        contacte_id=contacte.id if contacte else None,
+        estat='esborrany',
+        subject=millor['subject'],
+        cos=millor['cos'],
+        generat_per_ia=True,
+        prompt_utilitzat=f"{prompt_base}\n{prompt_actor}\n{prompt_situacio}",
+        variants_generades=variants,
+        variant_seleccionada=0
+    )
+    
+    return draft
+
+def get_prompt_actor(actor: str) -> str:
+    prompts = {
+        'alcalde': """
+        Actor: Alcalde (Visionari). Vol llegat, visibilitat, guanyar eleccions.
+        Missatge: sobirania digital, control del relat, "el teu municipi al mapa".
+        Mai funcionalitats tècniques. Sempre impacte polític i territorial.
+        To: proximitat, "tu", company de trinxera.
+        """,
+        'tecnic': """
+        Actor: Tècnic de Turisme (Gatekeeper). Abrumado, por a obsolescència.
+        Missatge: IA Punt d'Or estalvia temps, pàgina en blanc, autonomia.
+        To: empatia, "sé que tens masses projectes", alleujament.
+        """,
+        'cfo': """
+        Actor: CFO/Interventor (Blocker). Busca dir NO de forma segura.
+        Missatge: contracte menor LCSP, RGPD, servidors UE, offboarding ZIP.
+        To: formal, legal, sense ornaments, risc zero.
+        """
+    }
+    return prompts.get(actor, prompts['alcalde'])
+
+def get_prompt_situacio(tipus: str) -> str:
+    prompts = {
+        'email_1_prospeccio': """
+        Situació: Primer contacte. Ganxo patrimoni específic.
+        Regles: Màxim 120 paraules. Zero enllaços. Zero emojis.
+        Estructura: Ganxo personalitzat → Dolor sutil → CTA binari.
+        """,
+        'email_2_dolor': """
+        Situació: No resposta a email 1. Angle "micròfon apagat".
+        Regles: Màxim 120 paraules. Zero enllaços.
+        Estructura: Constatar silenci → Articular dolor → FOMO suau → CTA.
+        """,
+        'email_2_interes': """
+        Situació: Obert múltiples cops, no resposta. Interès latent.
+        Regles: Màxim 120 paraules.
+        Estructura: Notar interès → Ofrir ajuda → Proposar trucada curta.
+        """,
+        'seguiment_post_demo': """
+        Situació: Demo realitzada, cal mantenir calor.
+        Regles: Referenciar moment concret de la demo.
+        Estructura: Recordar moment clau → Proposar següent pas → CTA temporal.
+        """,
+        'compliance_cfo': """
+        Situació: Blocker legal, necessita seguretat.
+        Regles: Documentació adjunta esmentada, no tot al cos.
+        Estructura: Reconèixer preocupació → Llistar garanties → Ofrir trucada tècnica.
+        """
+    }
+    return prompts.get(tipus, prompts['email_1_prospeccio'])
+```
+
+---
+
+## 3. ENDPOINTS API
+
+### 3.1 Dashboard
+
+```python
+# routers/dashboard.py
+
+@router.get("/diari")
+def get_dashboard_diari(db: Session = Depends(get_db)):
+    """
+    Retorna dashboard amb accions prioritàries executables
+    """
+    return generar_dashboard_diari(db)
+
+@router.get("/calendari")
+def get_calendari_setmanal(
+    setmana: Optional[str] = Query(None, description="YYYY-WXX"),
+    db: Session = Depends(get_db)
+):
+    """
+    Retorna vista setmanal de seqüències programades
+    """
+    if not setmana:
+        setmana = datetime.utcnow().strftime("%Y-W%U")
+    
+    inici, fi = get_rang_setmana(setmana)
+    
+    sequencies = db.query(EmailSequencia).filter(
+        EmailSequencia.data_programada.between(inici, fi),
+        EmailSequencia.estat.in_(['preparat', 'programat', 'enviat'])
+    ).order_by(EmailSequencia.data_programada).all()
+    
+    return {
+        'setmana': setmana,
+        'dies': agrupar_per_dia(sequencies)
+    }
+```
+
+### 3.2 Municipis - Accions
+
+```python
+# routers/municipis.py
+
+@router.post("/{municipi_id}/accio")
+def resoldre_accio(
+    municipi_id: int,
+    accio: AccioResolucio,
+    db: Session = Depends(get_db)
+):
+    """
+    Registrar resolució d'acció del dashboard
+    """
+    municipi = db.query(MunicipiLifecycle).get(municipi_id)
+    
+    if accio.resultat == 'completada':
+        # Actualitzar municipi
+        municipi.data_ultima_accio = datetime.utcnow()
+        
+        if accio.nova_etapa:
+            canviar_etapa(municipi, accio.nova_etapa, accio.notes)
+        
+        if accio.nova_temperatura:
+            municipi.temperatura = accio.nova_temperatura
+        
+        # Actualitzar memòria
+        actualitzar_memoria_post_interaccio(
+            municipi_id, 
+            accio.tipus_interaccio,
+            accio.dades_memoria,
+            db
+        )
+        
+    elif accio.resultat == 'reprogramada':
+        # Deixar a dashboard amb nova prioritat
+        pass
+        
+    elif accio.resultat == 'no_aplicable':
+        # Moure a "preparar si sobra" o arxivar
+        pass
+    
+    db.commit()
+    
+    # Retornar dashboard actualitzat
+    return generar_dashboard_diari(db)
+
+@router.post("/{municipi_id}/contactes")
+def gestionar_contacte(
+    municipi_id: int,
+    contacte: ContacteCreate,
+    db: Session = Depends(get_db)
+):
+    """
+    Afegir o actualitzar contacte del municipi
+    """
+    pass
+
+@router.put("/{municipi_id}/actor_principal")
+def canviar_actor_principal(
+    municipi_id: int,
+    actor_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Canviar qui lidera el procés (alcalde → regidor, etc.)
+    """
+    municipi = db.query(MunicipiLifecycle).get(municipi_id)
+    municipi.actor_principal_id = actor_id
+    db.commit()
+    return {'actor_principal': actor_id}
+```
+
+### 3.3 Emails - Editor
+
+```python
+# routers/emails.py
+
+@router.post("/drafts/nou")
+def crear_draft(
+    municipi_id: int,
+    tipus: str,
+    contacte_id: Optional[int] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Genera nou esborrany amb IA
+    """
+    municipi = db.query(MunicipiLifecycle).get(municipi_id)
+    contacte = db.query(Contacte).get(contacte_id) if contacte_id else None
+    
+    draft = generar_draft(municipi, tipus, contacte)
+    db.add(draft)
+    db.commit()
+    
+    return {
+        'draft_id': draft.id,
+        'variants': draft.variants_generades,
+        'restriccions_verificades': verificar_restriccions(draft)
+    }
+
+@router.get("/drafts/{draft_id}")
+def obtenir_draft(draft_id: int, db: Session = Depends(get_db)):
+    """
+    Obtenir esborrany per editar
+    """
+    draft = db.query(EmailDraft).get(draft_id)
+    return {
+        'draft': draft,
+        'variant_actual': draft.variants_generades[draft.variant_seleccionada],
+        'variants_disponibles': len(draft.variants_generades)
+    }
+
+@router.post("/drafts/{draft_id}/editar")
+def editar_draft(
+    draft_id: int,
+    edicio: DraftEdicio,
+    db: Session = Depends(get_db)
+):
+    """
+    Guardar edicions de l'usuari
+    """
+    draft = db.query(EmailDraft).get(draft_id)
+    
+    draft.subject = edicio.subject
+    draft.cos = edicio.cos
+    draft.editat_per_usuari = True
+    draft.canvis_respecte_ia = edicio.canvis
+    
+    db.commit()
+    return {'status': 'guardat'}
+
+@router.post("/drafts/{draft_id}/seleccionar-variant")
+def seleccionar_variant(
+    draft_id: int,
+    variant_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Canviar a variant IA diferent
+    """
+    draft = db.query(EmailDraft).get(draft_id)
+    draft.variant_seleccionada = variant_id
+    
+    variant = draft.variants_generades[variant_id]
+    draft.subject = variant['subject']
+    draft.cos = variant['cos']
+    
+    db.commit()
+    return {'variant_seleccionada': variant_id}
+
+@router.post("/drafts/{draft_id}/enviar")
+def enviar_draft(
+    draft_id: int,
+    mode: EnvioMode,  # immediat | programat
+    data_programada: Optional[datetime] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Enviar email o programar-lo
+    """
+    draft = db.query(EmailDraft).get(draft_id)
+    
+    if mode == 'immediat':
+        # Enviar via SMTP/IMAP
+        email_enviat = enviar_email_real(draft)
+        
+        draft.estat = 'enviat'
+        draft.data_enviament = datetime.utcnow()
+        draft.email_enviat_id = email_enviat.id
+        
+    else:
+        draft.estat = 'programat'
+        draft.data_enviament = data_programada
+    
+    # Actualitzar municipi
+    municipi = draft.municipi
+    municipi.data_ultima_accio = datetime.utcnow()
+    
+    db.commit()
+    return {'status': 'enviat' if mode == 'immediat' else 'programat'}
+```
+
+### 3.4 Seqüències
+
+```python
+# routers/sequencies.py (o dins emails.py)
+
+@router.post("/sequencia/generar")
+def generar_sequencia(
+    municipi_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Genera seqüència completa de prospecció per nou municipi
+    """
+    seq = generar_sequencia_prospeccio(municipi_id, db)
+    return {
+        'municipi_id': municipi_id,
+        'emails_generats': len(seq),
+        'calendari': [{'numero': s.numero_email, 'data': s.data_programada} for s in seq]
+    }
+
+@router.post("/sequencia/{municipi_id}/actualitzar")
+def actualitzar_sequencia(
+    municipi_id: int,
+    email_num: int,
+    event: str,  # resposta_positiva | obert_no_resposta | no_obert
+    db: Session = Depends(get_db)
+):
+    """
+    Actualitzar seqüència segons event rebut
+    """
+    actualitzar_sequencia_segons_event(municipi_id, email_num, event, db)
+    return {'status': 'actualitzat'}
+
+@router.post("/sequencia/preparar-email")
+def preparar_email_pendent(
+    municipi_id: int,
+    numero_email: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Genera draft per email de seqüència que estava pendent
+    """
+    draft = preparar_email_sequencia(municipi_id, numero_email, db)
+    return {
+        'draft_id': draft.id,
+        'estat': 'preparat',
+        'subject': draft.subject
+    }
+```
+
+---
+
+## 4. CRON JOBS
+
+```python
+# tasks/daily.py
+
+from apscheduler.schedulers.background import BackgroundScheduler
+
+scheduler = BackgroundScheduler()
+
+@scheduler.scheduled_job('cron', hour=8, minute=0)
+def job_dashboard_matí():
+    """
+    8:00 - Generar dashboards per a tots els usuaris (futur) o enviar notificació
+    """
+    pass
+
+@scheduler.scheduled_job('cron', hour=9, minute=0)
+def job_preparar_emails_sequencia():
+    """
+    9:00 - Preparar drafts per emails de seqüència programats avui
+    """
+    db = next(get_db())
+    
+    avui = datetime.utcnow().date()
+    dema = avui + timedelta(days=1)
+    
+    # Emails programats per demà que encara estan 'pendent'
+    pendents = db.query(EmailSequencia).filter(
+        EmailSequencia.data_programada >= dema,
+        EmailSequencia.data_programada < dema + timedelta(days=1),
+        EmailSequencia.estat == 'pendent'
+    ).all()
+    
+    for seq in pendents:
+        preparar_email_sequencia(seq.municipi_id, seq.numero_email, db)
+
+@scheduler.scheduled_job('cron', hour=23, minute=0)
+def job_actualitzar_dies_etapa():
+    """
+    23:00 - Incrementar comptador dies_etapa_actual per tots els actius
+    """
+    db = next(get_db())
+    
+    actius = db.query(MunicipiLifecycle).filter(
+        MunicipiLifecycle.etapa_actual.notin_(['client', 'perdut', 'pausa'])
+    ).all()
+    
+    for m in actius:
+        m.dies_etapa_actual += 1
+    
+    db.commit()
+
+@scheduler.scheduled_job('cron', hour=23, minute=30)
+def job_actualitzar_memories():
+    """
+    23:30 - Processar events del dia i actualitzar memòries
+    """
+    pass
+
+# Inicialitzar
+scheduler.start()
+```
+
+---
+
+## 5. MIGRACIÓ DES DE V1.0
+
+```python
+# migrate_to_v2.py
+
+def migrar_municipi(municipi_v1: dict) -> MunicipiLifecycle:
+    """
+    Mapeig de v1 a v2
+    """
+    return MunicipiLifecycle(
+        nom=municipi_v1['nom'],
+        comarca=municipi_v1.get('comarca'),
+        poblacio=municipi_v1.get('poblacio'),
+        geografia=detectar_geografia(municipi_v1.get('descripcio', '')),
+        
+        diagnostic_digital={
+            'app_propia': municipi_v1.get('te_app', False),
+            'google_maps_pois': municipi_v1.get('pois_gmaps', 0),
+            'wikiloc_rutes': municipi_v1.get('rutes_wikiloc', 0),
+            'buit_digital': municipi_v1.get('observacions', '')
+        },
+        
+        etapa_actual=mapear_etapa(municipi_v1.get('estat', 'nou')),
+        data_creacio=municipi_v1.get('data_alta', datetime.utcnow())
+    )
+
+def mapear_etapa(etapa_v1: str) -> str:
+    mapping = {
+        'nou': 'research',
+        'contactat': 'contacte',
+        'interessat': 'demo_pendent',
+        'reunio_feta': 'demo_ok',
+        'proposta_enviada': 'oferta',
+        'negociacio': 'documentacio',
+        'aprovacio': 'aprovacio',
+        'contracte': 'contracte',
+        'client': 'client',
+        'perdut': 'perdut',
+        'congelat': 'pausa'
+    }
+    return mapping.get(etapa_v1, 'research')
+
+def run_migration():
+    db_v2 = next(get_db_v2())
+    db_v1 = next(get_db_v1())
+    
+    # 1. Migrar municipis
+    for m_v1 in db_v1.query(MunicipiV1).all():
+        m_v2 = migrar_municipi(m_v1.__dict__)
+        db_v2.add(m_v2)
+        db_v2.flush()  # Per obtenir ID
+        
+        # 2. Migrar contactes a taula relacional
+        for c_v1 in m_v1.contactes:
+            contacte = Contacte(
+                municipi_id=m_v2.id,
+                nom=c_v1['nom'],
+                carrec=c_v1.get('carrec', 'altre'),
+                email=c_v1.get('email'),
+                telefon=c_v1.get('telefon'),
+                actiu=True,
+                principal=c_v1.get('principal', False)
+            )
+            db_v2.add(contacte)
+        
+        # 3. Marcar actor principal
+        principal = db_v2.query(Contacte).filter_by(
+            municipi_id=m_v2.id, 
+            principal=True
+        ).first()
+        if principal:
+            m_v2.actor_principal_id = principal.id
+    
+    db_v2.commit()
+    print(f"Migrats {db_v2.query(MunicipiLifecycle).count()} municipis")
+
+if __name__ == "__main__":
+    run_migration()
+```
+
+---
+
+## 6. CHECKLIST IMPLEMENTACIÓ
+
+### Fase 1: Models i Base de Dades
+- [ ] Crear totes les taules (MunicipiLifecycle, Contacte, Email, Trucada, Reunio, EmailDraft, EmailSequencia, MemoriaMunicipi, PatroMunicipi)
+- [ ] Índexs: municipi.nom, email.estat, sequencia.data_programada
+- [ ] Migració v1 → v2
+
+### Fase 2: Serveis Core
+- [ ] `prioritizer.py` - Motor de puntuació
+- [ ] `action_recommender.py` - Arbre de decisions
+- [ ] `sequenciador.py` - Calendari automàtic
+- [ ] `memory_engine.py` - Aprenentatge
+- [ ] `draft_generator.py` - IA generativa
+
+### Fase 3: API
+- [ ] `dashboard.py` - GET /diari, GET /calendari
+- [ ] `municipis.py` - POST /accio, POST /contactes, PUT /actor_principal
+- [ ] `emails.py` - POST /drafts/nou, GET /drafts/{id}, POST /editar, POST /enviar
+- [ ] `sequencies.py` - POST /generar, POST /actualitzar
+
+### Fase 4: Cron Jobs
+- [ ] 08:00 - Dashboard matí
+- [ ] 09:00 - Preparar emails seqüència
+- [ ] 23:00 - Actualitzar dies etapa
+- [ ] 23:30 - Actualitzar memòries
+
+### Fase 5: Frontend
+- [ ] Dashboard amb accions clicables
+- [ ] Editor email integrat (3 variants, comptador paraules)
+- [ ] Calendari seqüències setmanal
+- [ ] Formulari trucada amb timer
+
+---
+
+**Especificació completa. Lliure per a implementació.**

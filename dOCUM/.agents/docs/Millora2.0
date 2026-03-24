@@ -1,0 +1,194 @@
+ Entesos. Ajusto l'especificació tècnica:
+
+---
+
+## **MODIFICACIONS CLAU**
+
+### **1. Contactes: Taula Relacional (no JSONB)**
+
+```python
+# Taula independent per contactes (permet múltiples actors per municipi)
+
+class Contacte(Base):
+    __tablename__ = "contactes"
+    
+    id = Column(Integer, primary_key=True)
+    municipi_id = Column(Integer, ForeignKey("municipis_lifecycle.id"))
+    
+    nom = Column(String(100), nullable=False)
+    carrec = Column(Enum('alcalde', 'regidor_turisme', 'tecnic', 'cfo', 
+                         'regidor_cultura', 'altre', name='carrec'))
+    email = Column(String(100))
+    telefon = Column(String(20))
+    
+    # Per diferenciar actors actius vs històrics
+    actiu = Column(Boolean, default=True)
+    principal = Column(Boolean, default=False)  # Qui lidera el procés
+    
+    # Memòria específica d'aquest contacte
+    angles_exitosos = Column(JSONB, default=[])  # ["llegat", "veu del poble"]
+    angles_fallits = Column(JSONB, default=[])
+    moment_optimal = Column(String(10))  # "10:00", "16:00"
+    to_preferit = Column(Enum('formal', 'proxim', 'tecnic', name='to'))
+
+class MunicipiLifecycle(Base):
+    # ... resta igual ...
+    
+    # Relació
+    contactes = relationship("Contacte", back_populates="municipi")
+    
+    # Actor principal del moment (calculat dinàmicament)
+    actor_principal_id = Column(Integer, ForeignKey("contactes.id"), nullable=True)
+```
+
+**Consulta fàcil:** `SELECT * FROM contactes WHERE carrec = 'alcalde'` ✅
+
+---
+
+### **2. Post-Venda Fora del CRM**
+
+Eliminar completament secció POST-VENDA:
+
+```python
+class MunicipiLifecycle(Base):
+    # ... IDENTITAT, DIAGNÒSTIC, FUNNEL, COMUNICACIONS ...
+    
+    # ELIMINAT: llicencia, us_real, alerta_renovacio
+    # Només guardem data de conversió per estadístiques
+    
+    data_conversio = Column(DateTime, nullable=True)  # Quan passa a 'client'
+    pla_contractat = Column(Enum('Roure', 'Mirador', 'Territori', name='pla'), nullable=True)
+    
+    # Estat final
+    estat_final = Column(Enum('client', 'perdut', 'pausa', name='estat_final'), nullable=True)
+    
+    # NOTA: Gestió de renovacions, rutes actives, MAU 
+    # → Eina externa (config app ja instaurada)
+```
+
+**Quan un municipi passa a 'client':**
+- CRM: Arxiva el funnel (etapa = 'client', no apareix al dashboard diari)
+- Eina externa: Pren el relleu de gestió de llicència, renovacions, suport
+
+---
+
+### **3. Dashboard Diari: Només Funnel Actiu**
+
+```python
+def generar_llista_diaria(db_session):
+    # FILTRE: Només funnel actiu (no clients, no perduts definitius)
+    municipis_actius = db_session.query(MunicipiLifecycle).filter(
+        MunicipiLifecycle.etapa_actual.notin_([
+            'client',           # Ja convertit, fora del CRM
+            'perdut',           # Arxivat
+            'pausa'             # Congelat, revisió mensual manual
+        ])
+    ).all()
+    
+    # Resta igual...
+```
+
+---
+
+## **ESPECIFICACIÓ ACTUALITZADA (Resum Canvis)**
+
+| **Element** | **Abans** | **Ara** |
+|-------------|-----------|---------|
+| Contactes | JSONB dins Municipi | Taula `Contacte` relacional |
+| Múltiples actors | Difícil | Fàcil (varis contactes per municipi) |
+| Post-venda | Dins CRM | FORA (eina externa) |
+| Client convertit | Etapa 'client' actiu | 'client' = arxivat al CRM |
+| Renovacions | Alerta CRM | Gestió externa |
+
+---
+
+## **NOU MODEL COMPLET (Text Pla)**
+
+```
+MUNICIPIS_LIFECYCLE
+├── id (PK)
+├── nom, comarca, poblacio, geografia
+├── diagnostic_digital (JSONB) - digital, patrimoni, context
+├── angle_personalitzacio (Text)
+├── etapa_actual (Enum 11 valors)
+├── historial_etapes (JSONB)
+├── blocker_actual (Enum)
+├── temperatura (Enum)
+├── dies_etapa_actual (Int)
+├── data_conversio (DateTime, nullable)  # Només si 'client'
+├── pla_contractat (Enum, nullable)       # Només si 'client'
+├── estat_final (Enum, nullable)          # 'client' | 'perdut' | 'pausa'
+├── actor_principal_id (FK → contactes.id, nullable)
+└── data_creacio, data_ultima_accio
+
+CONTACTES
+├── id (PK)
+├── municipi_id (FK)
+├── nom, carrec (Enum), email, telefon
+├── actiu (Bool), principal (Bool)
+├── angles_exitosos (JSONB)
+├── angles_fallits (JSONB)
+├── moment_optimal (String)
+├── to_preferit (Enum)
+└── data_creacio
+
+EMAILS, TRUCADES, REUNIONS  # Igual que abans
+
+MEMORIA_MUNICIPI  # Igual que abans (però sense post-venda)
+
+PATRO_MUNICIPI    # Igual que abans
+```
+
+---
+
+## **PLA DE TREBALL ACTUALITZAT**
+
+### **Fase 1: Backend & Data**
+
+```
+[MODIFY] backend/models.py
+  - Crear Contacte (taula relacional)
+  - Modificar MunicipiLifecycle (treure post-venda, afegir data_conversio)
+  - Resta igual (Email, Trucada, Reunio, MemoriaMunicipi, PatroMunicipi)
+
+[NEW] backend/services/prioritizer.py  # Igual
+[NEW] backend/services/action_recommender.py  # Igual
+[NEW] backend/services/memory_engine.py  # Igual
+[NEW] backend/migrate_to_v2.py  # Adaptat a nova estructura
+```
+
+### **Fase 2: API**
+
+```
+[NEW] backend/routers/dashboard.py
+  - GET /dashboard/diari
+  - Filtre: excloure 'client', 'perdut', 'pausa'
+
+[MODIFY] backend/routers/municipis.py
+  - POST /{id}/accio
+  - Nou: POST /{id}/contactes (gestionar múltiples actors)
+  - Nou: PUT /{id}/actor_principal (canviar qui lidera)
+```
+
+### **Fase 3: Crons**
+
+```
+[NEW] tasks/daily.py  # Igual (sense renovacions)
+```
+
+### **Fase 4: Frontend**
+
+```
+[MODIFY] Vista municipi: Llista de contactes amb selector d'actor principal
+[NEW] Dashboard: Només funnel actiu (sense secció "clients actius")
+```
+
+---
+
+## **PREGUNTA FINAL**
+
+**Confirmem:**
+- ✅ Contactes: taula relacional, múltiples per municipi (alcalde + regidor simultanis)
+- ✅ Post-venda: FORA del CRM, gestió externa
+- ✅ Dashboard: només funnel actiu (fins a conversió o pèrdua)
+

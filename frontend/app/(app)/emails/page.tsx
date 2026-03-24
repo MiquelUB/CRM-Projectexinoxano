@@ -15,11 +15,15 @@ export default function EmailsPage() {
   const [showComposer, setShowComposer] = useState(false);
   const [selectedEmail, setSelectedEmail] = useState<any>(null);
   const [composerConfig, setComposerConfig] = useState<any>({ to: "", subject: "", dealId: "" });
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     setIsClient(true);
-    fetchEmails();
-  }, [filter]);
+    const timer = setTimeout(() => {
+        fetchEmails();
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [filter, search]);
 
   const fetchEmails = async () => {
     setLoading(true);
@@ -27,6 +31,7 @@ export default function EmailsPage() {
       const params: Record<string, string> = { page: "1" };
       if (filter === "IN" || filter === "OUT") params.direccio = filter;
       if (filter === "UNREAD") params.llegit = "false";
+      if (search) params.cerca = search;
       
       const res = await api.emails.llistar(params);
       setEmails(res.items || []);
@@ -131,6 +136,20 @@ export default function EmailsPage() {
              <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Sincronitzat fa poc</p>
              {isClient && <p className="text-xs font-bold text-slate-500">{format(new Date(), "HH:mm:ss")}</p>}
           </div>
+      </div>
+
+      <div className="glass-card p-4 flex items-center space-x-4 border-white/60 shadow-lg shadow-slate-200/40">
+        <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center">
+            {/* Using Eye Icon or similar as eye but let's just use Mail for general searches or search icon */}
+            <Eye className="text-slate-400 w-5 h-5" />
+        </div>
+        <input 
+          type="text" 
+          placeholder="Cerca per assumpte, cos o destinatari..." 
+          className="flex-1 bg-transparent outline-none font-bold text-slate-700 placeholder:text-slate-300"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
       </div>
 
       <div className="glass-card overflow-hidden border-white/60 shadow-xl shadow-slate-200/30">

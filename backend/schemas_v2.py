@@ -1,0 +1,71 @@
+from pydantic import BaseModel, EmailStr
+from typing import Optional, List, Any
+from uuid import UUID
+from datetime import datetime
+from models_v2 import EtapaFunnelEnum, TemperaturaEnum, CarrecEnum, ToComunicacioEnum
+
+class ContacteCreate(BaseModel):
+    nom: str
+    carrec: CarrecEnum
+    email: Optional[EmailStr] = None
+    telefon: Optional[str] = None
+    principal: bool = False
+
+class ContacteOut(BaseModel):
+    id: UUID
+    municipi_id: UUID
+    nom: str
+    carrec: CarrecEnum
+    email: Optional[str] = None
+    telefon: Optional[str] = None
+    principal: bool
+    actiu: bool
+
+    class Config:
+        from_attributes = True
+
+class MunicipiLifecycleOut(BaseModel):
+    id: UUID
+    nom: str
+    comarca: Optional[str] = None
+    poblacio: Optional[int] = None
+    geografia: Optional[str] = None
+    diagnostic_digital: Optional[dict] = None
+    angle_personalitzacio: Optional[str] = None
+    etapa_actual: EtapaFunnelEnum
+    temperatura: TemperaturaEnum
+    dies_etapa_actual: int
+    actor_principal_id: Optional[UUID] = None
+    data_creacio: datetime
+
+    class Config:
+        from_attributes = True
+
+class MunicipiLifecycleDetailOut(MunicipiLifecycleOut):
+    contactes: List[ContacteOut] = []
+    # communication counts optional
+    # emails: List[Any] = []
+
+class AccioCreate(BaseModel):
+    accio: str # e.g., 'trucar', 'enviar_email'
+    notes: Optional[str] = None
+    detall: Optional[dict] = None # holds parsed details
+
+class EmailDraftCreateRequest(BaseModel):
+    tipus: str # email_1_prospeccio, email_2_dolor, etc.
+    contacte_id: Optional[UUID] = None
+
+class EmailDraftEditRequest(BaseModel):
+    subject: str
+    cos: str
+    canvis: Optional[dict] = {}
+
+class EmailDraftSelectVariantRequest(BaseModel):
+    variant_id: int
+
+class EmailDraftSendRequest(BaseModel):
+    mode: str # 'immediat', 'programat'
+    data_programada: Optional[datetime] = None
+
+class EmailSequenciaGenerateRequest(BaseModel):
+    contacte_id: Optional[UUID] = None

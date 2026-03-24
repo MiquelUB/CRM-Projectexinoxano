@@ -52,8 +52,27 @@ export default function KanbanBoard() {
     }
   };
 
-  const handleDragStart = (event: any) => {
-    setActiveId(event.active.id);
+  const handleDragOver = (event: any) => {
+    const { active, over } = event;
+    if (!over) return;
+
+    const activeId = active.id;
+    const overId = over.id;
+
+    if (activeId === overId) return;
+
+    // Find target stage
+    let targetStage = overId;
+    if (!STAGES.find((s) => s.id === targetStage)) {
+       const overDeal = deals.find((d) => d.id === overId);
+       if (overDeal) targetStage = overDeal.etapa;
+    }
+
+    const currentDeal = deals.find((d) => d.id === activeId);
+    if (!currentDeal || currentDeal.etapa === targetStage) return;
+
+    // Optimistically update etapa in real-time
+    setDeals(deals.map(d => d.id === activeId ? { ...d, etapa: targetStage } : d));
   };
 
   const handleDragEnd = async (event: any) => {
@@ -63,32 +82,24 @@ export default function KanbanBoard() {
     if (!over) return;
 
     const dealId = active.id;
-    const newStage = over.id; // Either hovering a column or another card
-    
-    // Find dropping stage (could be dropping over a column or another item)
-    let targetStage = newStage;
-    if (!STAGES.find((s) => s.id === targetStage)) {
-       const overDeal = deals.find((d) => d.id === newStage);
-       if (overDeal) targetStage = overDeal.etapa;
-    }
-
     const currentDeal = deals.find((d) => d.id === dealId);
-    if (!currentDeal || currentDeal.etapa === targetStage) return;
-
-    // Optimistic update
-    setDeals(deals.map(d => d.id === dealId ? { ...d, etapa: targetStage } : d));
+    
+    if (!currentDeal) return;
 
     try {
-      await api.deals.canviarEtapa(dealId, targetStage);
+      await api.deals.canviarEtapa(dealId, currentDeal.etapa);
     } catch (e) {
       console.error(e);
-      // Revert on error
-      fetchDeals();
+      fetchDeals(); // Revert on error
     }
   };
 
   const handleCardClick = (deal: any) => {
     setSelectedDeal(deal);
+  };
+
+  const handleDragStart = (event: any) => {
+    setActiveId(event.active.id);
   };
 
   if (loading) return <div>Carregant pipeline...</div>;
@@ -99,10 +110,10 @@ export default function KanbanBoard() {
         sensors={sensors}
         collisionDetection={closestCorners}
         onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
       >
         <div className="flex gap-4 h-full p-2 items-stretch">
-          <SortableContext items={STAGES.map(s => s.id)} strategy={horizontalListSortingStrategy}>
             {STAGES.map((stage) => {
               const stageDeals = deals.filter((d) => d.etapa === stage.id);
               
@@ -122,7 +133,6 @@ export default function KanbanBoard() {
                 />
               );
             })}
-          </SortableContext>
         </div>
 
         <DragOverlay>

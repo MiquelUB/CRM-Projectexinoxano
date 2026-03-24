@@ -24,7 +24,8 @@ class Municipi(Base):
     nom = Column(String(200), nullable=False)
     tipus = Column(String(50), nullable=False) # 'ajuntament' | 'diputacio' | 'consell_comarcal'
     provincia = Column(String(100))
-    poblacio = Column(Integer)
+    poblacio = Column(String(255))
+    codi_postal = Column(String(10), nullable=True)
     web = Column(String(255))
     telefon = Column(String(50))
     adreca = Column(Text)

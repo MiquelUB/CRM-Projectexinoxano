@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from database import get_db
 from models import Email, Deal
-from schemas import EmailResponse, EmailCreate, EmailUpdate
+from schemas import EmailResponse, EmailPendentsResponse, EmailCreate, EmailUpdate
 import uuid
 import math
 
@@ -12,7 +12,7 @@ from services.email_sync import sync_all_emails
 
 router = APIRouter(prefix="/emails", tags=["Emails"])
 
-@router.get("/pendents")
+@router.get("/pendents", response_model=EmailPendentsResponse)
 def get_emails_pendents(db: Session = Depends(get_db)):
     emails = db.query(Email).filter(Email.deal_id.is_(None)).order_by(desc(Email.data_email)).all()
     return {"items": emails, "total": len(emails)}
@@ -53,8 +53,10 @@ def get_email_stats(db: Session = Depends(get_db)):
         "total_emails": total_rebuts
     }
 
-@router.get("/")
-def get_emails(deal_id: str = None, direccio: str = None, llegit: bool = None, page: int = 1, db: Session = Depends(get_db)):
+from typing import Optional
+
+@router.get("/", response_model=EmailResponse)
+def get_emails(deal_id: str = None, direccio: str = None, llegit: bool = None, cerca: Optional[str] = None, page: int = 1, db: Session = Depends(get_db)):
     query = db.query(Email)
     if deal_id:
         query = query.filter(Email.deal_id == deal_id)
@@ -62,6 +64,13 @@ def get_emails(deal_id: str = None, direccio: str = None, llegit: bool = None, p
         query = query.filter(Email.direccio == direccio)
     if llegit is not None:
         query = query.filter(Email.llegit == llegit)
+    if cerca:
+        from sqlalchemy import or_
+        query = query.filter(or_(
+            Email.assumpte.ilike(f"%{cerca}%"),
+            Email.cos.ilike(f"%{cerca}%"),
+            Email.to_address.ilike(f"%{cerca}%")
+        ))
         
     total = query.count()
     limit = 50

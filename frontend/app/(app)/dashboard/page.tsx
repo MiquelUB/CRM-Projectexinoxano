@@ -3,9 +3,11 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import api from "@/lib/api";
+import { Mail } from "lucide-react";
 import { CalendarWidget } from "@/components/CalendarWidget";
 import { TaskModal } from "@/components/TaskModal";
 import DealDrawer from "@/components/DealDrawer";
+import { EmailDraftModal } from "@/components/EmailDraftModal";
 
 export default function DashboardPage() {
   const [isClient, setIsClient] = useState(false);
@@ -13,25 +15,29 @@ export default function DashboardPage() {
   const [alertes, setAlertes] = useState<any>(null);
   const [emailStats, setEmailStats] = useState<any>(null);
   const [tasques, setTasques] = useState<any[]>([]);
+  const [accions, setAccions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [selectedTaskDate, setSelectedTaskDate] = useState<Date | undefined>(undefined);
   const [selectedDeal, setSelectedDeal] = useState<any>(null);
   const [selectedTaskForEdit, setSelectedTaskForEdit] = useState<any>(null);
   const [dealLoading, setDealLoading] = useState(false);
+  const [selectedDraft, setSelectedDraft] = useState<any>(null);
 
   const fetchDashboardData = async () => {
     try {
-      const [kpisData, alertesData, statsData, tasquesData] = await Promise.all([
+      const [kpisData, alertesData, statsData, tasquesData, accionsData] = await Promise.all([
         api.deals.kpis(),
         api.alertes.totes(),
         api.emails.getStats(),
-        api.tasques.llistar({ estat: "pendent" })
+        api.tasques.llistar({ estat: "pendent" }),
+        api.dashboard.diari()
       ]);
       setKpis(kpisData);
       setAlertes(alertesData);
       setEmailStats(statsData);
       setTasques(tasquesData.items || []);
+      setAccions(accionsData || []);
     } catch (error) {
       console.error("Failed to load dashboard data", error);
     } finally {
@@ -136,6 +142,94 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+      
+      {/* Bloc Accions IA de l'Agent */}
+      <div className="glass-card p-8 flex flex-col min-h-[250px] border-l-4 border-l-blue-600">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center space-x-2">
+            <span className="text-xl">🤖</span>
+            <h2 className="text-xl font-black text-slate-800 tracking-tight">Accions Prioritzades del Funnel</h2>
+          </div>
+          <span className="text-xs font-bold text-slate-400 bg-slate-100 px-3 py-1 rounded-full uppercase">Motor d'Agent v2</span>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {accions.map((a: any) => (
+            <div 
+              key={a.municipi_id} 
+              onClick={() => {
+                 if (a.tipus_accio === 'email') {
+                    setSelectedDraft({ municipi_id: a.municipi_id, tipus: 'email', contacte_id: a.contacte_sugerit_id });
+                 } else if (a.tipus_accio === 'trucada') {
+                    // Placeholder per a log de trucada
+                    alert("Obrint formulari de log de trucada... (Pròximament)");
+                 }
+              }}
+              className="p-5 bg-gradient-to-br from-white to-slate-50/20 border border-slate-100 rounded-2xl flex flex-col shadow-sm hover:shadow-md hover:scale-[1.01] transition-all cursor-pointer group border-l-4 border-l-blue-500"
+            >
+              <div className="flex justify-between items-start mb-3">
+                <div className="max-w-[70%]">
+                   <p className="text-sm font-black text-slate-800 group-hover:text-blue-600 transition-colors">
+                     {a.nom}
+                   </p>
+                   <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">{a.etapa}</p>
+                </div>
+                {a.score >= 30 ? (
+                     <span className="text-[10px] font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">Prioritari</span>
+                ) : (
+                     <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-2 py-0.5 rounded-full">Score: {a.score}</span>
+                )}
+              </div>
+              <div className="flex-1 mt-1 border-t border-slate-100/60 pt-3 flex flex-col justify-between">
+                   <div>
+                        <p className="text-sm font-bold text-blue-600 flex items-center space-x-1">
+                            {a.tipus_accio === 'email' ? <Mail className="w-3.5 h-3.5 inline mr-1" /> : ""}
+                            <span>{a.accio_recomanada}</span>
+                        </p>
+                   </div>
+                        <div className="mt-4 flex justify-end">
+                            <button 
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    const tipusAccio = a.tipus_accio?.toLowerCase() || 'altre';
+                                    
+                                    // Obrir el Control Hub Modal per a qualsevol Acció/Tasca
+                                    setSelectedDraft({ 
+                                        municipi_id: a.municipi_id, 
+                                        tipus: tipusAccio === 'email' ? 'email' : 'altre', 
+                                        contacte_id: a.contacte_sugerit_id, 
+                                        rao: a.rao, 
+                                        accio_recomanada: a.accio_recomanada 
+                                    });
+                                }}
+                                className="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-blue-600 transition-colors bg-white px-3 py-1.5 rounded-xl border border-slate-100 hover:border-blue-100 shadow-sm"
+                            >
+                                Executar Tasca →
+                            </button>
+                       </div>
+                  </div>
+                </div>
+              ))}
+              {accions.length === 0 && (
+                 <div className="col-span-3 flex items-center justify-center p-8 text-neutral-400 italic text-sm">
+                    No hi ha municipis actius al funnel ara mateix.
+                 </div>
+              )}
+            </div>
+          </div>
+    
+          {selectedDraft && (
+             <EmailDraftModal 
+                  municipiId={selectedDraft.municipi_id}
+                  tipus={selectedDraft.tipus === 'email' ? 'email_1_prospeccio' : 'email_1_prospeccio'}
+                  contacteId={selectedDraft.contacte_id}
+                  accioRecomanada={selectedDraft.accio_recomanada}
+                  rao={selectedDraft.rao}
+                  onClose={() => setSelectedDraft(null)}
+                  onSent={() => fetchDashboardData()}
+             />
+          )}
+    
 
       {/* Agenda & Calendari Section */}
       <CalendarWidget 

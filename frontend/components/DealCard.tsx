@@ -25,9 +25,16 @@ export function DealCard({ deal, isOverlay = false }: any) {
       }`}
     >
       <div className="flex justify-between items-start mb-3 gap-2">
-        <h4 className="font-extrabold text-slate-800 text-[14px] leading-snug tracking-tight mb-1 flex-1" title={deal.titol}>
-          {deal.titol}
-        </h4>
+        <div className="flex-1">
+          <h4 className="font-extrabold text-slate-800 text-[14px] leading-snug tracking-tight mb-1" title={deal.titol}>
+            {deal.titol}
+          </h4>
+          {deal.municipi?.nom && (
+            <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest">
+              {deal.municipi.nom}
+            </p>
+          )}
+        </div>
         <div className={`text-[9px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded-md border shrink-0 ${priorityStyles[deal.prioritat] || priorityStyles.baixa}`}>
             {deal.prioritat}
         </div>

@@ -19,11 +19,31 @@ export default function MunicipisPage() {
     tipus: "ajuntament",
     provincia: "Barcelona",
     poblacio: "",
+    codi_postal: "",
     web: "",
     telefon: "",
     adreca: "",
     notes: ""
   });
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  const handleEdit = (m: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setEditingId(m.id);
+    setFormData({
+      nom: m.nom || "",
+      tipus: m.tipus || "ajuntament",
+      provincia: m.provincia || "Barcelona",
+      poblacio: m.poblacio?.toString() || "",
+      codi_postal: m.codi_postal || "",
+      web: m.web || "",
+      telefon: m.telefon || "",
+      adreca: m.adreca || "",
+      notes: m.notes || ""
+    });
+    setIsModalOpen(true);
+  };
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -52,21 +72,30 @@ export default function MunicipisPage() {
     setIsSubmitting(true);
     try {
       const dataToSave = {
-        ...formData,
-        poblacio: formData.poblacio ? parseInt(formData.poblacio) : null,
+        nom: formData.nom,
+        tipus: formData.tipus,
+        provincia: formData.provincia,
+        poblacio: formData.poblacio || null,
+        codi_postal: formData.codi_postal || null,
         web: formData.web || null,
         telefon: formData.telefon || null,
         adreca: formData.adreca || null,
         notes: formData.notes || null,
       };
       
-      await api.municipis.crear(dataToSave);
+      if (editingId) {
+        await api.municipis.editar(editingId, dataToSave);
+      } else {
+        await api.municipis.crear(dataToSave);
+      }
       setIsModalOpen(false);
+      setEditingId(null);
       setFormData({
         nom: "",
         tipus: "ajuntament",
         provincia: "Barcelona",
         poblacio: "",
+        codi_postal: "",
         web: "",
         telefon: "",
         adreca: "",
@@ -75,9 +104,20 @@ export default function MunicipisPage() {
       fetchData(search);
     } catch (error: any) {
       console.error(error);
-      alert(`Error en crear el municipi: ${error.message}`);
+      alert(`Error en desar el municipi: ${error.message}`);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!window.confirm("Estàs segur que vols eliminar aquest municipi?")) return;
+    try {
+      await api.municipis.eliminar(id);
+      fetchData(search);
+    } catch (error: any) {
+      alert(`Error en eliminar: ${error.message}`);
     }
   };
 
@@ -95,7 +135,21 @@ export default function MunicipisPage() {
                 </Button>
             </Link>
             <Button 
-                onClick={() => setIsModalOpen(true)}
+                onClick={() => {
+                  setEditingId(null);
+                  setFormData({
+                    nom: "",
+                    tipus: "ajuntament",
+                    provincia: "Barcelona",
+                    poblacio: "",
+                    codi_postal: "",
+                    web: "",
+                    telefon: "",
+                    adreca: "",
+                    notes: ""
+                  });
+                  setIsModalOpen(true);
+                }}
                 className="h-12 px-6 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl font-bold shadow-xl shadow-slate-200 transition-all active:scale-[0.98] flex items-center space-x-2"
             >
                 <Building2 className="w-4 h-4" />
@@ -130,7 +184,8 @@ export default function MunicipisPage() {
                 <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Nom</th>
                 <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Tipus</th>
                 <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Provincia</th>
-                <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Poblacio</th>
+                <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Poble / Nucli</th>
+                <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] text-right">Accions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white/40">
@@ -154,8 +209,26 @@ export default function MunicipisPage() {
                   <td className="px-8 py-5 text-xs font-black text-slate-400 uppercase tracking-tight">{m.provincia}</td>
                   <td className="px-8 py-5">
                     <span className="text-sm font-black text-slate-700">
-                        {m.poblacio?.toLocaleString('es-ES') || '—'}
+                        {m.poblacio || '—'}
                     </span>
+                  </td>
+                  <td className="px-8 py-5 text-right">
+                    <div className="flex items-center justify-end space-x-2">
+                        <Button 
+                          variant="outline" 
+                          onClick={(e) => handleEdit(m, e)}
+                          className="h-8 w-8 p-0 rounded-xl hover:bg-slate-100 flex items-center justify-center border-slate-200"
+                        >
+                          <Settings className="w-4 h-4 text-slate-500" />
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          onClick={(e) => handleDelete(m.id, e)}
+                          className="h-8 w-8 p-0 rounded-xl hover:bg-rose-50 hover:border-rose-200 flex items-center justify-center border-slate-200"
+                        >
+                          <X className="w-4 h-4 text-rose-500" />
+                        </Button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -177,15 +250,17 @@ export default function MunicipisPage() {
       {/* Modal Creació */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="glass-card w-full max-w-2xl p-8 shadow-2xl border-white/80 animate-in zoom-in-95 duration-300">
+          <div className="glass-card w-full max-w-2xl p-8 shadow-2xl border-white/80 animate-in zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
               <div className="flex items-center space-x-3">
                   <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600">
                       <Building2 className="w-6 h-6" />
                   </div>
-                  <h2 className="text-2xl font-black text-slate-800 tracking-tight">Nou Municipi</h2>
+                  <h2 className="text-2xl font-black text-slate-800 tracking-tight">
+                      {editingId ? "Editar Municipi" : "Nou Municipi"}
+                  </h2>
               </div>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors"><X /></button>
+              <button onClick={() => { setIsModalOpen(false); setEditingId(null); }} className="text-slate-400 hover:text-slate-600 transition-colors"><X /></button>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -212,13 +287,21 @@ export default function MunicipisPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Població (Habitants)</label>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Poble / Nucli Principal</label>
                   <div className="relative">
                       <UsersIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                      <input type="number" value={formData.poblacio} onChange={e => setFormData({...formData, poblacio: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-12 pr-4 py-3 font-bold text-slate-700 outline-none focus:border-blue-400 transition-colors" placeholder="0" />
+                      <input type="text" value={formData.poblacio} onChange={e => setFormData({...formData, poblacio: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-12 pr-4 py-3 font-bold text-slate-700 outline-none focus:border-blue-400 transition-colors" placeholder="Nom del nucli/poble principal" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Codi Postal (CP)</label>
+                  <div className="relative">
+                      <MapIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input type="text" value={formData.codi_postal} onChange={e => setFormData({...formData, codi_postal: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-12 pr-4 py-3 font-bold text-slate-700 outline-none focus:border-blue-400 transition-colors" placeholder="Ex: 08001" />
                   </div>
                 </div>
               </div>
+
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
@@ -256,7 +339,7 @@ export default function MunicipisPage() {
                     ) : (
                         <>
                             <Save className="w-4 h-4" />
-                            <span>Crear Municipi</span>
+                            <span>{editingId ? "Guardar Canvis" : "Crear Municipi"}</span>
                         </>
                     )}
                 </Button>

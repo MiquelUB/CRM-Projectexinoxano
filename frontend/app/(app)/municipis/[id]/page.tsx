@@ -76,7 +76,7 @@ export default function MunicipiDetailPage() {
             <div className="flex items-center space-x-6 text-sm">
                 <div className="flex flex-col">
                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Població</span>
-                    <span className="text-slate-700 font-extrabold">{data.poblacio?.toLocaleString('es-ES') || 'Desconeguda'}</span>
+                    <span className="text-slate-700 font-extrabold">{data.poblacio || 'Desconeguda'}</span>
                 </div>
                 <div className="w-px h-8 bg-slate-100" />
                 <div className="flex flex-col">

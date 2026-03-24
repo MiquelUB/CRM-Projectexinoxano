@@ -42,6 +42,14 @@ def get_municipi(id: UUID, db: Session = Depends(get_db), current_user: models.U
 
 @router.post("", response_model=schemas.MunicipiOut, status_code=status.HTTP_201_CREATED)
 def create_municipi(municipi: schemas.MunicipiCreate, db: Session = Depends(get_db), current_user: models.Usuari = Depends(get_current_user)):
+    # Validació de duplicats per Nom + CP
+    query = db.query(models.Municipi).filter(models.Municipi.nom == municipi.nom)
+    if municipi.codi_postal:
+        query = query.filter(models.Municipi.codi_postal == municipi.codi_postal)
+        
+    if query.first():
+        raise HTTPException(status_code=400, detail="Aquest municipi ja està registrat amb aquest nom/CP.")
+        
     db_municipi = models.Municipi(**municipi.model_dump())
     db.add(db_municipi)
     db.commit()

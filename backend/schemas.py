@@ -27,7 +27,8 @@ class MunicipiBase(BaseModel):
     nom: str
     tipus: str
     provincia: Optional[str] = None
-    poblacio: Optional[int] = None
+    poblacio: Optional[str] = None
+    codi_postal: Optional[str] = None
     web: Optional[str] = None
     telefon: Optional[str] = None
     adreca: Optional[str] = None
@@ -40,7 +41,8 @@ class MunicipiUpdate(BaseModel):
     nom: Optional[str] = None
     tipus: Optional[str] = None
     provincia: Optional[str] = None
-    poblacio: Optional[int] = None
+    poblacio: Optional[str] = None
+    codi_postal: Optional[str] = None
     web: Optional[str] = None
     telefon: Optional[str] = None
     adreca: Optional[str] = None
@@ -246,6 +248,10 @@ class EmailResponse(BaseModel):
     total: int
     page: int
     total_pages: int
+
+class EmailPendentsResponse(BaseModel):
+    items: List[EmailOut]
+    total: int
 
 # --- Agent IA ---
 class AgentRedactarEmailRequest(BaseModel):

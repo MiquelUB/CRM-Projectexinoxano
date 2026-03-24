@@ -56,6 +56,62 @@ async def resum_deal(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error d'IA: {str(e)}")
 
+from pydantic import BaseModel
+from typing import List, Dict
+from models_v2 import MunicipiLifecycle, EmailV2, TrucadaV2
+
+class AgentChatRequest(BaseModel):
+    municipi_id: str
+    messages: List[Dict[str, str]]
+
+@router.post("/chat_municipi")
+async def chat_municipi(
+    payload: AgentChatRequest,
+    db: Session = Depends(get_db),
+    current_user: models.Usuari = Depends(get_current_user)
+):
+    """
+    Chat amb l'Agent d'IA vinculat a un Municipi de manera continuada.
+    """
+    from services.openrouter_client import call_openrouter
+
+    m = db.query(MunicipiLifecycle).filter(MunicipiLifecycle.id == payload.municipi_id).first()
+    if not m:
+         raise HTTPException(status_code=404, detail="Municipi no trobat")
+
+    notes = m.angle_personalitzacio or "Cap nota registrada encara."
+    
+    # 1. Carregar darreres interaccions per a donar context actualitzat
+    recent_emails = db.query(EmailV2).filter(EmailV2.municipi_id == m.id).order_by(EmailV2.data_enviament.desc()).limit(3).all()
+    recent_calls = db.query(TrucadaV2).filter(TrucadaV2.municipi_id == m.id).order_by(TrucadaV2.data.desc()).limit(3).all()
+
+    historic_summary = ""
+    for e in reversed(recent_emails): 
+         historic_summary += f"- [Email] `{e.assumpte}`: {e.cos[:120].strip()}...\n"
+    for c in reversed(recent_calls):
+         historic_summary += f"- [Trucada] Notes: {c.notes_breus or 'Sense notes'}\n"
+
+    system_prompt = f"""Ets un expert assessor comercial en vendes B2G (administració pública) a Catalunya. El teu objectiu és ajudar al comercial a guanyar aquest Deal.
+Aproximació: Sigues estratègic, resolutiu i dóna consells tàctics (què oferir, quines objeccions poden tenir, arguments de venda).
+
+CONTEXT DEL MUNICIPI ACTUAL:
+Nom: {m.nom}
+Etapa actual: {m.etapa_actual.value}
+Temperatura: {m.temperatura.value}
+Anotacions/Angles: {notes}
+
+HISTORIAL RECENT:
+{historic_summary if historic_summary else 'Cap interacció recent registrada.'}
+"""
+
+    messages = [{"role": "system", "content": system_prompt}] + payload.messages
+    
+    try:
+         ai_res = await call_openrouter(messages)
+         return {"role": "assistant", "content": ai_res["content"]}
+    except Exception as e:
+         raise HTTPException(status_code=500, detail=f"Error d'IA: {str(e)}")
+
 # --- Tracking Pixel (Move prefix to root as /tracking) ---
 tracking_router = APIRouter(prefix="/tracking", tags=["tracking"])
 
