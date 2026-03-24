@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from database import engine, Base, SessionLocal
 import models
 from auth import get_password_hash
-from routers import municipis, contactes, deals, auth, emails, llicencies, pagaments, alertes, usuaris, agent, tasques
+from routers import municipis, contactes, deals, auth, emails, llicencies, pagaments, alertes, usuaris, agent, tasques, dashboard, municipis_v2, emails_v2
 import scheduler
 
 @asynccontextmanager
@@ -51,17 +51,24 @@ origins = [
     "http://127.0.0.1:3002",
     "http://localhost:8000",
     "http://127.0.0.1:8000",
+    "http://192.168.10.106:3000",
+    "https://crm.projectexinoxano.cat",
+    "https://api.projectexinoxano.cat",
+    "https://crmpxx-crm-frontend.80opze.easypanel.host",
 ]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # Include routers
+app.include_router(dashboard.router)
+app.include_router(municipis_v2.router)
+app.include_router(emails_v2.router)
 app.include_router(auth.router)
 app.include_router(usuaris.router)
 app.include_router(municipis.router)
