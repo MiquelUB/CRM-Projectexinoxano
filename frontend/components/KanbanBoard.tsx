@@ -53,26 +53,8 @@ export default function KanbanBoard() {
   };
 
   const handleDragOver = (event: any) => {
-    const { active, over } = event;
-    if (!over) return;
-
-    const activeId = active.id;
-    const overId = over.id;
-
-    if (activeId === overId) return;
-
-    // Find target stage
-    let targetStage = overId;
-    if (!STAGES.find((s) => s.id === targetStage)) {
-       const overDeal = deals.find((d) => d.id === overId);
-       if (overDeal) targetStage = overDeal.etapa;
-    }
-
-    const currentDeal = deals.find((d) => d.id === activeId);
-    if (!currentDeal || currentDeal.etapa === targetStage) return;
-
-    // Optimistically update etapa in real-time
-    setDeals(deals.map(d => d.id === activeId ? { ...d, etapa: targetStage } : d));
+    // Disable real-time state updates to prevent React DOM re-shuffles 
+    // mid-drag which break the dnd-kit pointer tracking.
   };
 
   const handleDragEnd = async (event: any) => {
@@ -82,12 +64,29 @@ export default function KanbanBoard() {
     if (!over) return;
 
     const dealId = active.id;
-    const currentDeal = deals.find((d) => d.id === dealId);
-    
-    if (!currentDeal) return;
+    const overId = over.id;
+
+    // Resolve exactly which stage we dropped on
+    let targetStage = overId;
+    if (!STAGES.find((s) => s.id === targetStage)) {
+       const overDeal = deals.find((d) => d.id === overId);
+       if (overDeal) targetStage = overDeal.etapa;
+    }
+
+    // Ensure it's valid
+    if (!STAGES.find((s) => s.id === targetStage)) return;
+
+    // Check if it actually moved to a different stage
+    const currentDeal = deals.find(d => d.id === dealId);
+    if (!currentDeal || currentDeal.etapa === targetStage) return;
+
+    // Visually update immediately
+    setDeals(currentDeals => currentDeals.map(d => 
+        d.id === dealId ? { ...d, etapa: targetStage } : d
+    ));
 
     try {
-      await api.deals.canviarEtapa(dealId, currentDeal.etapa);
+      await api.deals.canviarEtapa(dealId, targetStage);
     } catch (e) {
       console.error(e);
       fetchDeals(); // Revert on error
@@ -110,7 +109,6 @@ export default function KanbanBoard() {
         sensors={sensors}
         collisionDetection={closestCorners}
         onDragStart={handleDragStart}
-        onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
       >
         <div className="flex gap-4 h-full p-2 items-stretch">
