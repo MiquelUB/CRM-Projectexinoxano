@@ -26,14 +26,20 @@ export function DealCard({ deal, isOverlay = false }: any) {
     >
       <div className="flex justify-between items-start mb-3 gap-2">
         <div className="flex-1">
+          <div className="mb-2">
+            {deal.municipi?.nom ? (
+              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black bg-blue-100 text-blue-700 uppercase tracking-widest">
+                🏢 {deal.municipi.nom}
+              </span>
+            ) : (
+              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black bg-slate-100 text-slate-500 uppercase tracking-widest">
+                🏢 MUNICIP DESCONEGUT
+              </span>
+            )}
+          </div>
           <h4 className="font-extrabold text-slate-800 text-[14px] leading-snug tracking-tight mb-1" title={deal.titol}>
             {deal.titol}
           </h4>
-          {deal.municipi?.nom && (
-            <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest">
-              {deal.municipi.nom}
-            </p>
-          )}
         </div>
         <div className={`text-[9px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded-md border shrink-0 ${priorityStyles[deal.prioritat] || priorityStyles.baixa}`}>
             {deal.prioritat}
