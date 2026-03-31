@@ -92,12 +92,12 @@ def sync_mailbox(folder="INBOX", direccio="IN", search_criteria="UNSEEN"):
         status, messages = mail.select(folder)
         if status != "OK":
             if folder != "INBOX":
-                for alt_name in ["Sent", "Enviados", "Enviats", "&AOk-nviats", "Sent Items"]:
+                for alt_name in ["Sent", "Enviados", "Enviats", "&AOk-nviats", "Sent Items", "INBOX.Sent"]:
                     status, messages = mail.select(f'"{alt_name}"')
                     if status == "OK":
                         break
             if status != "OK":
-                logger.error(f"Could not select folder {folder}")
+                logger.error(f"Could not select folder {folder} or its alternatives.")
                 return
 
         status, response = mail.search(None, search_criteria)
