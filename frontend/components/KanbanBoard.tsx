@@ -52,44 +52,48 @@ export default function KanbanBoard() {
     }
   };
 
+  const findContainer = (id: string) => {
+    if (STAGES.find((s) => s.id === id)) return id;
+    const deal = deals.find((d) => d.id === id);
+    return deal ? deal.etapa : null;
+  };
+
   const handleDragOver = (event: any) => {
-    // Disable real-time state updates to prevent React DOM re-shuffles 
-    // mid-drag which break the dnd-kit pointer tracking.
+    const { active, over } = event;
+    if (!over) return;
+
+    const activeId = active.id;
+    const overId = over.id;
+
+    if (activeId === overId) return;
+
+    const overContainer = findContainer(overId);
+    if (!overContainer) return;
+
+    const activeDeal = deals.find((d) => d.id === activeId);
+    if (activeDeal && activeDeal.etapa !== overContainer) {
+      setDeals((prev) =>
+        prev.map((d) => (d.id === activeId ? { ...d, etapa: overContainer } : d))
+      );
+    }
   };
 
   const handleDragEnd = async (event: any) => {
-    setActiveId(null);
-    const { active, over } = event;
-
-    if (!over) return;
-
+    const { active } = event;
     const dealId = active.id;
-    const overId = over.id;
 
-    // Resolve exactly which stage we dropped on
-    let targetStage = overId;
-    if (!STAGES.find((s) => s.id === targetStage)) {
-       const overDeal = deals.find((d) => d.id === overId);
-       if (overDeal) targetStage = overDeal.etapa;
-    }
+    setActiveId(null);
 
-    // Ensure it's valid
-    if (!STAGES.find((s) => s.id === targetStage)) return;
-
-    // Check if it actually moved to a different stage
-    const currentDeal = deals.find(d => d.id === dealId);
-    if (!currentDeal || currentDeal.etapa === targetStage) return;
-
-    // Visually update immediately
-    setDeals(currentDeals => currentDeals.map(d => 
-        d.id === dealId ? { ...d, etapa: targetStage } : d
-    ));
+    // Trobar l'estat final tal com ha quedat a la UI després del DragOver
+    const currentDeal = deals.find((d) => d.id === dealId);
+    if (!currentDeal) return;
 
     try {
-      await api.deals.canviarEtapa(dealId, targetStage);
-    } catch (e) {
-      console.error(e);
-      fetchDeals(); // Revert on error
+      // Persistir el canvi a la base de dades
+      await api.deals.canviarEtapa(dealId as string, currentDeal.etapa);
+    } catch (error) {
+      console.error("Error actualitzant etapa:", error);
+      fetchDeals(); // Revertir a l'estat del servidor
     }
   };
 
@@ -109,6 +113,7 @@ export default function KanbanBoard() {
         sensors={sensors}
         collisionDetection={closestCorners}
         onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
       >
         <div className="flex gap-4 h-full p-2 items-stretch">

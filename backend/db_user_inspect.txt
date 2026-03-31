@@ -1,4 +1,0 @@
-Email: 'admin@projectexinoxano.cat'
-Role: 'admin'
-Nom: 'Miquel'
-Password hash: '$2b$12$CMYzXn91Y5LRR3f3rj70duKl6c0ZD8KacoiAtbVUTWJ.nR1elY45i'

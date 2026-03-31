@@ -32,7 +32,7 @@ export function Column({ stage, deals, totalValue, onCardClick }: any) {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto space-y-4 custom-scrollbar pr-1 pb-4">
+      <div className="flex-1 overflow-y-auto space-y-4 custom-scrollbar pr-1 pb-4 min-h-[150px]">
         <SortableContext items={deals.map((d: any) => d.id)} strategy={verticalListSortingStrategy}>
           {deals.map((deal: any) => (
             <SortableDealCard key={deal.id} deal={deal} onClick={() => onCardClick(deal)} />

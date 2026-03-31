@@ -29,7 +29,10 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 def get_url():
-    return os.getenv("DATABASE_URL")
+    return os.getenv(
+        "DATABASE_URL", 
+        "postgresql://pxx_admin:b86f95465942a859661e@crmpxx_db-crmpxx:5432/crm_pxx?sslmode=disable"
+    )
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:

@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from typing import List, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from database import get_db
@@ -86,20 +87,35 @@ def get_emails(deal_id: str = None, direccio: str = None, llegit: bool = None, c
     }
 
 @router.post("/enviar")
-def enviar_email(payload: dict, db: Session = Depends(get_db)): # Simplified payload for quick impl
-    to_address = payload.get("to")
-    assumpte = payload.get("assumpte")
-    cos = payload.get("cos")
-    deal_id = payload.get("deal_id")
-    contacte_id = payload.get("contacte_id")
-    
-    if not to_address or not assumpte or not cos:
-        raise HTTPException(status_code=400, detail="Missing required fields")
-        
+async def enviar_email(
+    to: str = Form(...),
+    assumpte: str = Form(...),
+    cos: str = Form(...),
+    deal_id: Optional[str] = Form(None),
+    contacte_id: Optional[str] = Form(None),
+    files: List[UploadFile] = File(None),
+    db: Session = Depends(get_db)
+):
+    # Process files
+    attachments = []
+    if files:
+        for f in files:
+            try:
+                content = await f.read()
+                if content:
+                    attachments.append({
+                        "filename": f.filename,
+                        "content": content
+                    })
+            except Exception as e:
+                print(f"Error reading file {f.filename}: {e}")
+
     try:
-        email_enviat = send_email_from_crm(to_address, assumpte, cos, deal_id, contacte_id)
+        email_enviat = send_email_from_crm(to, assumpte, cos, deal_id, contacte_id, attachments)
         return {"message": "S'ha enviat correctament", "email_id": email_enviat.id}
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Failed to send email: {str(e)}")
 
 @router.get("/{id}")

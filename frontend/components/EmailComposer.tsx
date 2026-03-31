@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { X, Mail, Sparkles, Bot, Loader2, Send } from "lucide-react";
+import { useState, useRef } from "react";
+import { X, Mail, Sparkles, Bot, Loader2, Send, Paperclip, File as FileIcon, Trash2 } from "lucide-react";
 import api from "@/lib/api";
 
 interface EmailComposerProps {
@@ -26,10 +26,12 @@ export function EmailComposer({
   const [to, setTo] = useState(initialTo);
   const [subject, setSubject] = useState(initialSubject);
   const [body, setBody] = useState(initialBody);
+  const [attachments, setAttachments] = useState<File[]>([]);
   const [instruccionsIA, setInstruccionsIA] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [selectedModel, setSelectedModel] = useState("anthropic/claude-3.5-sonnet");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleRedactarIA = async () => {
     setAiLoading(true);
@@ -50,21 +52,36 @@ export function EmailComposer({
     }
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setAttachments(prev => [...prev, ...Array.from(e.target.files!)]);
+    }
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleSend = async () => {
     setSending(true);
     try {
-      await api.emails.enviar({
-        to,
-        assumpte: subject,
-        cos: body, // For now sending as plain text or simple HTML
-        deal_id: dealId || null,
-        contacte_id: contacteId || null
+      const formData = new FormData();
+      formData.append("to", to);
+      formData.append("assumpte", subject);
+      formData.append("cos", body);
+      if (dealId) formData.append("deal_id", dealId);
+      if (contacteId) formData.append("contacte_id", contacteId);
+      
+      attachments.forEach(file => {
+        formData.append("files", file);
       });
+
+      await api.emails.enviar(formData);
       if (onSent) onSent();
       onClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error enviant email", error);
-      alert("Error enviant el correu. Revisa la configuració SMTP.");
+      alert(error.message || "Error desconegut enviant el correu.");
     } finally {
       setSending(false);
     }
@@ -149,12 +166,54 @@ export function EmailComposer({
             </button>
           </div>
 
-          <textarea 
-            value={body}
-            onChange={e => setBody(e.target.value)}
-            placeholder="Escriu el missatge aquí..."
-            className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 font-medium text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-h-[250px] leading-relaxed"
-          />
+          <div className="space-y-4">
+            <textarea 
+              value={body}
+              onChange={e => setBody(e.target.value)}
+              placeholder="Escriu el missatge aquí..."
+              className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-6 py-4 font-medium text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 min-h-[200px] leading-relaxed"
+            />
+
+            {/* Attachments Section */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2 text-slate-400">
+                  <Paperclip className="w-4 h-4" />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Adjunts ({attachments.length})</span>
+                </div>
+                <button 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:text-blue-700 transition-colors"
+                >
+                  Afegir fitxer
+                </button>
+                <input 
+                  type="file"
+                  multiple
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  className="hidden"
+                />
+              </div>
+
+              {attachments.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {attachments.map((file, idx) => (
+                    <div key={idx} className="group flex items-center space-x-2 bg-slate-100 border border-slate-200 rounded-lg px-3 py-1.5 transition-all hover:bg-slate-200">
+                      <FileIcon className="w-3.5 h-3.5 text-slate-500" />
+                      <span className="text-xs font-bold text-slate-600 truncate max-w-[150px]">{file.name}</span>
+                      <button 
+                        onClick={() => removeAttachment(idx)}
+                        className="p-1 hover:bg-red-100 hover:text-red-500 rounded-md transition-colors opacity-0 group-hover:opacity-100"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Footer */}
@@ -178,3 +237,4 @@ export function EmailComposer({
     </div>
   );
 }
+

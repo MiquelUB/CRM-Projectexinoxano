@@ -1,10 +1,15 @@
 import smtplib
+import socket
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import os
 import uuid
 from datetime import datetime
 import sys
+from dotenv import load_dotenv
+
+# Ensure .env is loaded
+load_dotenv()
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -13,14 +18,22 @@ from database import SessionLocal
 import models
 from models import Email
 
-SMTP_HOST = os.getenv("SMTP_HOST", "mail.cdmon.com")
-SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
-SMTP_USER = os.getenv("SMTP_USER")
+SMTP_HOST = os.getenv("SMTP_HOST", "smtp.projectexinoxano.cat")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "465"))
+SMTP_USER = os.getenv("SMTP_USER", "miquel@projectexinoxano.cat")
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
-SMTP_SSL = str(os.getenv("SMTP_SSL", "false")).lower() == "true"
-BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
+SMTP_SSL = str(os.getenv("SMTP_SSL", "true")).lower() == "true"
+SMTP_TLS = str(os.getenv("SMTP_TLS", "false")).lower() == "true"
+BASE_URL = os.getenv("BASE_URL", "https://crm.projectexinoxano.cat")
 
-def send_email_from_crm(to_address: str, assumpte: str, cos: str, deal_id: str = None, contacte_id: str = None) -> Email:
+print(f"[SMTP Config] Host={SMTP_HOST}, Port={SMTP_PORT}, User={SMTP_USER}, SSL={SMTP_SSL}, TLS={SMTP_TLS}")
+
+from email.mime.base import MIMEBase
+from email import encoders
+
+def send_email_from_crm(to_address: str, assumpte: str, cos: str, deal_id: str = None, contacte_id: str = None, attachments: list = None) -> Email:
+    to_address = to_address.strip()
+    print(f"[send_email_from_crm] Iniciant enviament a: {to_address} | Assumpte: {assumpte}")
     tracking_token = str(uuid.uuid4()).replace('-', '')
     pixel_url = f"{BASE_URL}/tracking/{tracking_token}"
     pixel_html = f'<img src="{pixel_url}" width="1" height="1" style="display:none;" />'
@@ -34,18 +47,52 @@ def send_email_from_crm(to_address: str, assumpte: str, cos: str, deal_id: str =
     
     msg.attach(MIMEText(cos_final, 'html'))
     
+    if attachments:
+        for attachment in attachments:
+            part = MIMEBase('application', 'octet-stream')
+            part.set_payload(attachment['content'])
+            encoders.encode_base64(part)
+            part.add_header(
+                'Content-Disposition',
+                f'attachment; filename="{attachment["filename"]}"',
+            )
+            msg.attach(part)
+    
     server = None
     try:
-        if SMTP_SSL:
-            server = smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT)
-        else:
-            server = smtplib.SMTP(SMTP_HOST, SMTP_PORT)
-            if SMTP_TLS:
-                server.starttls()
-        
-        server.login(SMTP_USER, SMTP_PASSWORD)
-        server.send_message(msg)
+        # PRIMER INTENT: SEGONS CONFIGURACIÓ (Normalment SSL a 465)
+        print(f"[SMTP] Primer intent: {SMTP_HOST}:{SMTP_PORT} (SSL: {SMTP_SSL}, TLS: {SMTP_TLS})")
+        try:
+            if SMTP_SSL:
+                server = smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, timeout=20)
+            else:
+                server = smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=20)
+                if SMTP_TLS:
+                    print("[SMTP] Iniciant STARTTLS...")
+                    server.starttls()
+            
+            print(f"[SMTP] Logging in com a {SMTP_USER}...")
+            server.login(SMTP_USER, SMTP_PASSWORD)
+            print("[SMTP] Enviant missatge...")
+            server.send_message(msg)
+            print("[SMTP] Missatge enviat correctament (Intent 1).")
+        except (smtplib.SMTPConnectError, socket.timeout, ConnectionRefusedError, OSError) as e:
+            print(f"[SMTP] Intent 1 ha fallat: {e}. Provant alternativa...")
+            # ALTERNATIVA: Port 587 amb STARTTLS (sovint disponible quan 465 està bloquejat)
+            alt_port = 587
+            print(f"[SMTP] Segon intent: {SMTP_HOST}:{alt_port} (STARTTLS)")
+            if server: 
+                try: server.close()
+                except: pass
+            
+            server = smtplib.SMTP(SMTP_HOST, alt_port, timeout=20)
+            server.starttls()
+            server.login(SMTP_USER, SMTP_PASSWORD)
+            server.send_message(msg)
+            print("[SMTP] Missatge enviat correctament en el Segon Intent (587)!")
+            
     except Exception as e:
+        print(f"[SMTP] ERROR FINAL EN ENVIAMENT: {e}")
         import traceback
         traceback.print_exc()
         raise e

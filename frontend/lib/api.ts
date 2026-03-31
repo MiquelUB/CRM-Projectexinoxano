@@ -22,13 +22,24 @@ async function fetchAPI(endpoint: string, options?: RequestInit) {
   const token = getToken();
   const fullUrl = `${BASE_URL}${endpoint}`;
   console.log(`[fetchAPI] Crida a URL:`, fullUrl, `| Method:`, options?.method || "GET", `| isBrowser:`, typeof window !== "undefined");
+
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  // Only set Content-Type to JSON if it's not already set and body is not FormData
+  if (!(options?.body instanceof FormData)) {
+    headers["Content-Type"] = "application/json";
+  }
+
   try {
     const res = await fetch(fullUrl, {
-      headers: {
-        "Content-Type": "application/json",
-        ...(token && { Authorization: `Bearer ${token}` }),
-      },
       ...options,
+      headers: {
+        ...headers,
+        ...options?.headers as Record<string, string>,
+      },
     });
     
     if (!res.ok) {
@@ -100,7 +111,18 @@ const api = {
   emails: {
     llistar: (params?: Record<string, string>) =>
       fetchAPI(`/emails?${new URLSearchParams(params || {})}`),
-    enviar: (data: unknown) => fetchAPI("/emails/enviar", { method: "POST", body: JSON.stringify(data) }),
+    enviar: (data: any) => {
+      const body = data instanceof FormData ? data : (() => {
+        const fd = new FormData();
+        Object.entries(data).forEach(([key, value]) => {
+          if (value !== null && value !== undefined) {
+            fd.append(key, value as any);
+          }
+        });
+        return fd;
+      })();
+      return fetchAPI("/emails/enviar", { method: "POST", body });
+    },
     vincular: (id: string, dealId: string) =>
       fetchAPI(`/emails/${id}/deal`, { method: "PATCH", body: JSON.stringify({ deal_id: dealId }) }),
     marcarLlegit: (id: string, llegit: boolean) =>

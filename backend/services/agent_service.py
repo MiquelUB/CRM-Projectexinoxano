@@ -81,7 +81,9 @@ async def redactar_email(db: Session, deal_id: Optional[UUID], instruccions: str
     
     system_prompt = """Ets un expert en comunicació B2G amb administracions públiques catalanes. Redactes emails professionals, formals però propers, en català correcte i sense tecnicismes. L'objectiu sempre és avançar el deal cap al tancament.
 Mai menciones que ets una IA. Escrius en nom del comercial de Projecte Xino Xano (PXX).
-Respon ÚNICAMENT amb el text prose del correu, sense cap format JSON ni etiquetes addicionals. No incloguis l'assumpte dins del cos."""
+Respon SEMPRE en format JSON vàlid en català amb els següents camps:
+- 'assumpte': Un assumpte de correu professional, curt i atractiu que resumeixi l'objectiu del correu.
+- 'cos': El contingut del correu en format plain text (sense HTML). No incloguis l'assumpte dins del cos."""
 
     user_prompt = f"{context}\n\nINSTRUCCIONS DE L'USUARI: {instruccions or 'Redacta un email de seguiment professional.'}\n\nSi et plau, redacta l'email adreçat a {to_address or 'al contacte'}."
     
@@ -90,13 +92,20 @@ Respon ÚNICAMENT amb el text prose del correu, sense cap format JSON ni etiquet
         {"role": "user", "content": user_prompt}
     ]
     
-    ai_response = await call_openrouter(messages, model=model, json_mode=False)
+    ai_response = await call_openrouter(messages, model=model, json_mode=True)
     
-    # We now expect pure text. The subject can be a generic one or we can try to "guess" it from the first line if the AI 
-    # included it despite instructions, but for simplicity we keep it clean.
+    try:
+        content = json.loads(ai_response["content"])
+        assumpte = content.get("assumpte", instruccions[:50] if instruccions else "Seguiment Projecte Xino Xano")
+        cos = content.get("cos", ai_response["content"])
+    except:
+        # Fallback si no és JSON o falta algun camp
+        assumpte = instruccions[:50] if instruccions else "Seguiment Projecte Xino Xano"
+        cos = ai_response["content"]
+
     return {
-        "assumpte": instruccions[:50] if instruccions else "Seguiment Projecte Xino Xano",
-        "cos_text": ai_response["content"],
+        "assumpte": assumpte,
+        "cos_text": cos,
         "model_usat": ai_response["model_usat"],
         "tokens_usats": ai_response["tokens_usats"]
     }

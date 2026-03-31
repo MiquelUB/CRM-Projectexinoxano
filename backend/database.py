@@ -5,8 +5,13 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+DATABASE_URL = os.getenv(
+    "DATABASE_URL", 
+    "postgresql://pxx_admin:b86f95465942a859661e@crmpxx_db-crmpxx:5432/crm_pxx?sslmode=disable"
+)
+
 engine = create_engine(
-    os.getenv("DATABASE_URL"),
+    DATABASE_URL,
     connect_args={"options": "-csearch_path=public"}
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
