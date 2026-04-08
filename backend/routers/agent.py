@@ -4,6 +4,9 @@ from sqlalchemy.orm import Session
 from uuid import UUID
 from datetime import datetime
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 from database import get_db
 import models
@@ -58,7 +61,7 @@ async def resum_deal(
         raise HTTPException(status_code=500, detail=f"Error d'IA: {str(e)}")
 
 from pydantic import BaseModel
-from typing import List, Dict
+from typing import List, Dict, Optional
 from models_v2 import MunicipiLifecycle, EmailV2, TrucadaV2
 
 class AgentChatRequest(BaseModel):
