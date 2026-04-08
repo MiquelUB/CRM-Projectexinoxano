@@ -30,10 +30,14 @@ async def call_openrouter(messages, model="anthropic/claude-3.5-sonnet", json_mo
     if json_mode:
         payload["response_format"] = {"type": "json_object"}
 
+    # Normalitzar URL per evitar dobles slashes o slashes faltants
+    base_url = OPENROUTER_BASE_URL.rstrip("/")
+    url = f"{base_url}/chat/completions"
+
     async with httpx.AsyncClient(timeout=60.0) as client:
         try:
             response = await client.post(
-                f"{OPENROUTER_BASE_URL}/chat/completions",
+                url,
                 headers=headers,
                 json=payload
             )
