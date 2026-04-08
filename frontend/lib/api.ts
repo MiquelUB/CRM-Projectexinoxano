@@ -158,6 +158,9 @@ const api = {
     count: () => fetchAPI("/alertes/count"),
   },
   agent: {
+    chat: (data: any) => fetchAPI("/agent/chat", { method: "POST", body: JSON.stringify(data) }),
+    getMemory: (params?: { deal_id?: string; contacte_id?: string }) => 
+      fetchAPI(`/agent/memory?${new URLSearchParams(params as any)}`),
     redactarEmail: (data: any) => fetchAPI("/agent/redactar-email", { method: "POST", body: JSON.stringify(data) }),
     analitzarDeal: (data: any) => fetchAPI("/agent/analitzar-deal", { method: "POST", body: JSON.stringify(data) }),
     resumirDeal: (data: any) => fetchAPI("/agent/resum-deal", { method: "POST", body: JSON.stringify(data) }),

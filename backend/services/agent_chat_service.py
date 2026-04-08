@@ -78,6 +78,11 @@ Missatge Clau / Ganxo: (La frase exacta que el comercial ha de dir o enviar).
 
 Propers Passos Recomanats: (Llista de 2-3 accions immediates).
 
+[ACCIONS SUGGERIDES]: Si calen accions ràpides, afegeix-les al final en aquest format exactament (una per línia):
+>>> Redactar email de seguiment
+>>> Analitzar proper pas
+>>> Trucar ara
+
 ---
 DADES REALS DEL CRM PER A L'ANÀLISI:
 """
@@ -150,8 +155,23 @@ DADES REALS DEL CRM PER A L'ANÀLISI:
 
         self.db.commit()
         
+        # Extreure accions suggerides (línies que comencen amb >>>)
+        accions = []
+        lines = response["content"].splitlines()
+        clean_content = []
+        for line in lines:
+            if line.strip().startswith(">>>"):
+                accio_text = line.replace(">>>", "").strip()
+                if accio_text:
+                    accions.append(accio_text)
+            else:
+                clean_content.append(line)
+        
+        final_content = "\n".join(clean_content).strip()
+
         return {
-            "response": response["content"],
+            "response": final_content,
+            "accions_suggerides": accions,
             "model": response["model_usat"],
             "history_count": len(new_history)
         }

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import api from "@/lib/api";
 import { format } from "date-fns";
 import { X, Mail, CreditCard, Trash2, Save, Euro, Building2, User, Sparkles, Eye, Bot, Loader2, ArrowRight } from "lucide-react";
+import { useChatContext } from "@/contexts/ChatContext";
 
 export default function DealDrawer({ deal, onClose, onUpdate }: any) {
   // State per a camps editables
@@ -25,7 +26,8 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
   const [aiResult, setAiResult] = useState<any>(null);
   const [aiError, setAiError] = useState<string | null>(null);
   const [showAiModal, setShowAiModal] = useState(false);
-  const [selectedModel, setSelectedModel] = useState("anthropic/claude-3.5-sonnet");
+  
+  const { setDealContext, clearDealContext } = useChatContext();
 
   // Email Composer State
   const [showEmailComposer, setShowEmailComposer] = useState(false);
@@ -63,7 +65,6 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
       const res = await api.agent.redactarEmail({
         deal_id: deal.id,
         instruccions: composerData.instruccionsIA,
-        model: selectedModel,
         to_address: composerData.to
       });
       setComposerData(prev => ({
@@ -82,7 +83,7 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
     setAiLoading(true);
     setAiError(null);
     try {
-      const res = await api.agent.resumirDeal({ deal_id: deal.id, model: selectedModel });
+      const res = await api.agent.resumirDeal({ deal_id: deal.id });
       setAiResult({ type: 'summary', data: res });
       setShowAiModal(true);
     } catch (e: any) {
@@ -96,7 +97,7 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
     setAiLoading(true);
     setAiError(null);
     try {
-      const res = await api.agent.analitzarDeal({ deal_id: deal.id, model: selectedModel });
+      const res = await api.agent.analitzarDeal({ deal_id: deal.id });
       setAiResult({ type: 'analysis', data: res });
       setShowAiModal(true);
     } catch (e: any) {
@@ -108,12 +109,22 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
 
   useEffect(() => {
     if (deal.id) {
+      setDealContext({ 
+        id: deal.id, 
+        titol: deal.titol, 
+        municipiNom: deal.municipi?.nom 
+      });
+
       api.emails.llistar({ deal_id: deal.id }).then((res: any) => setEmails(res.items || []));
       api.llicencies.llistar({ deal_id: deal.id }).then((res: any) => {
          if (res.items && res.items.length > 0) setLlicencia(res.items[0]);
       });
     }
-  }, [deal.id]);
+
+    return () => {
+      clearDealContext();
+    };
+  }, [deal.id, setDealContext, clearDealContext]);
 
   const handleSaveAll = async () => {
     setSaving(true);
@@ -195,18 +206,7 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
             <div className="text-slate-400 text-sm font-medium">ID: {deal.id.substring(0,8)}...</div>
           </div>
           <div className="flex items-center space-x-3">
-            <select 
-                value={selectedModel}
-                onChange={(e) => setSelectedModel(e.target.value)}
-                className="bg-slate-800 text-white text-[10px] font-bold px-2 py-1 rounded border border-slate-700 outline-none"
-            >
-                <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet</option>
-                <option value="openai/gpt-4o">GPT-4o (Premium)</option>
-                <option value="openai/gpt-4o-mini">GPT-4o mini (Ràpid)</option>
-                <option value="google/gemini-pro-1.5">Gemini 1.5 Pro</option>
-                <option value="mistralai/mistral-small-3.1-24b-instruct">Mistral Small</option>
-                <option value="meta-llama/llama-3.1-70b-instruct">Llama 3.1 70B</option>
-            </select>
+
             <button 
                 onClick={handleResumIA}
                 disabled={aiLoading}
@@ -570,18 +570,6 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
                         <Sparkles className="w-4 h-4" />
                         <span className="text-[10px] font-black uppercase tracking-widest">Redactar amb IA</span>
                     </div>
-                    <select 
-                        value={selectedModel}
-                        onChange={(e) => setSelectedModel(e.target.value)}
-                        className="bg-white/50 text-[10px] font-bold px-2 py-0.5 rounded border border-blue-200 outline-none"
-                    >
-                        <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet</option>
-                        <option value="openai/gpt-4o">GPT-4o (Premium)</option>
-                        <option value="openai/gpt-4o-mini">GPT-4o mini (Ràpid)</option>
-                        <option value="google/gemini-pro-1.5">Gemini 1.5 Pro</option>
-                        <option value="mistralai/mistral-small-3.1-24b-instruct">Mistral Small</option>
-                        <option value="meta-llama/llama-3.1-70b-instruct">Llama 3.1 70B</option>
-                    </select>
                   </div>
                   <textarea 
                     placeholder="Instruccions per a la IA (ex: 'Demana una reunió per dimarts per tancar el setup')"
