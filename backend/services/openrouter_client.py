@@ -32,6 +32,8 @@ async def call_openrouter(messages, model="anthropic/claude-3.5-sonnet", json_mo
 
     # Normalitzar URL per evitar dobles slashes o slashes faltants
     base_url = OPENROUTER_BASE_URL.rstrip("/")
+    if not base_url.endswith("/v1"):
+        base_url = f"{base_url}/v1"
     url = f"{base_url}/chat/completions"
 
     async with httpx.AsyncClient(timeout=60.0) as client:
