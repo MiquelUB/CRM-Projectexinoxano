@@ -129,7 +129,7 @@ export function AIChatPanel() {
     return (
       <div 
         onClick={togglePanel}
-        className="fixed bottom-6 right-6 z-50 group transition-all duration-300 transform hover:scale-105"
+        className="fixed bottom-6 right-6 z-[60] group transition-all duration-300 transform hover:scale-105"
       >
         <div className="relative">
           <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
