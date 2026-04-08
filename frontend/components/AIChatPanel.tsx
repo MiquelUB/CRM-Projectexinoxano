@@ -74,7 +74,7 @@ export function AIChatPanel() {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages, isLoading, isExpanded]);
+  }, [messages, isLoading, isChatOpen]);
 
   const handleSendMessage = async (e?: React.FormEvent, customText?: string) => {
     if (e) e.preventDefault();
@@ -118,13 +118,14 @@ export function AIChatPanel() {
   };
 
   const togglePanel = () => {
-    setIsExpanded(!isExpanded);
-    if (!isExpanded) {
+    const nextState = !isChatOpen;
+    setIsChatOpen(nextState);
+    if (nextState) {
       setTimeout(() => inputRef.current?.focus(), 100);
     }
   };
 
-  if (!isExpanded) {
+  if (!isChatOpen) {
     return (
       <div 
         onClick={togglePanel}
@@ -150,7 +151,7 @@ export function AIChatPanel() {
   }
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 w-[400px] h-[600px] flex flex-col bg-white rounded-3xl shadow-2xl border border-blue-100/50 overflow-hidden animate-in slide-in-from-bottom-4 duration-300">
+    <div className="fixed bottom-6 right-6 z-[60] w-[400px] h-[600px] flex flex-col bg-white rounded-3xl shadow-2xl border border-blue-100/50 overflow-hidden animate-in slide-in-from-bottom-4 duration-300">
       {/* Header */}
       <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-5 flex items-center justify-between text-white shrink-0">
         <div className="flex items-center space-x-3">
