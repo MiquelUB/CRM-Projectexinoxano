@@ -10,6 +10,7 @@ import models
 import schemas
 from auth import get_current_user
 from services import agent_service
+from services.agent_chat_service import AgentChatService
 
 router = APIRouter(prefix="/agent", tags=["agent"])
 
@@ -111,6 +112,51 @@ HISTORIAL RECENT:
          return {"role": "assistant", "content": ai_res["content"]}
     except Exception as e:
          raise HTTPException(status_code=500, detail=f"Error d'IA: {str(e)}")
+
+class ChatMessageRequest(BaseModel):
+    message: str
+    deal_id: Optional[UUID] = None
+    municipi_id: Optional[UUID] = None
+    model: str = "deepseek/deepseek-chat"
+
+@router.post("/chat")
+async def agent_chat(
+    payload: ChatMessageRequest,
+    db: Session = Depends(get_db),
+    current_user: models.Usuari = Depends(get_current_user)
+):
+    """
+    Endpoint principal del xat persistent de l'Agent Kimi K2.
+    Gestiona la memòria automàticament a la base de dades.
+    """
+    try:
+        service = AgentChatService(db)
+        res = await service.chat(
+            usuari_id=current_user.id,
+            message=payload.message,
+            deal_id=payload.deal_id,
+            municipi_id=payload.municipi_id,
+            model=payload.model
+        )
+        return res
+    except Exception as e:
+        logger.error(f"Error en el xat de l'agent: {e}")
+        raise HTTPException(status_code=500, detail=f"Error en el servei de xat: {str(e)}")
+
+@router.get("/memory")
+async def get_agent_memory(
+    deal_id: Optional[UUID] = None,
+    municipi_id: Optional[UUID] = None,
+    db: Session = Depends(get_db),
+    current_user: models.Usuari = Depends(get_current_user)
+):
+    """Retorna l'historial guardat per a un context concret."""
+    service = AgentChatService(db)
+    memory = await service.get_or_create_memory(current_user.id, deal_id, municipi_id)
+    return {
+        "history": memory.history,
+        "summary": memory.summary
+    }
 
 # --- Tracking Pixel (Move prefix to root as /tracking) ---
 tracking_router = APIRouter(prefix="/tracking", tags=["tracking"])

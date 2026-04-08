@@ -2,8 +2,23 @@ import uuid
 from sqlalchemy import Column, String, Boolean, Integer, Text, Numeric, Date, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from database import Base
+
+class AgentMemory(Base):
+    __tablename__ = "agent_memories"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    usuari_id = Column(UUID(as_uuid=True), ForeignKey("usuaris.id"), nullable=False)
+    deal_id = Column(UUID(as_uuid=True), ForeignKey("deals.id"), nullable=True)
+    municipi_id = Column(UUID(as_uuid=True), ForeignKey("municipis.id"), nullable=True)
+    history = Column(JSONB, default=[])
+    summary = Column(Text)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    
+    usuari = relationship("Usuari", backref="agent_memories")
+    deal = relationship("Deal", backref="agent_memories")
+    municipi = relationship("Municipi", backref="agent_memories")
 
 class Usuari(Base):
     __tablename__ = "usuaris"
