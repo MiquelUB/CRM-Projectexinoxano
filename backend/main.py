@@ -109,12 +109,29 @@ app.include_router(agent.tracking_router)
 app.include_router(tasques.router)
 
 @app.get("/db-check")
-def db_check(db: Session = Depends(get_db)):
+def db_check():
+    from database import SessionLocal
+    from sqlalchemy import text
+    import traceback
     try:
-        db.execute(text("SELECT 1"))
-        return {"status": "connected", "database": "ok"}
+        db = SessionLocal()
+        try:
+            db.execute(text("SELECT 1"))
+            return {"status": "connected", "database": "ok"}
+        except Exception as conn_e:
+            return {
+                "status": "error",
+                "detail": str(conn_e),
+                "traceback": traceback.format_exc()
+            }
+        finally:
+            db.close()
     except Exception as e:
-        return {"status": "error", "detail": str(e)}
+        return {
+            "status": "session_init_error",
+            "detail": str(e),
+            "traceback": traceback.format_exc()
+        }
 
 @app.get("/")
 def read_root():
