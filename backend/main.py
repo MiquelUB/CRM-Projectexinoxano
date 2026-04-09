@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from database import engine, Base, SessionLocal, get_db
 import models
 from auth import get_password_hash
-from routers import municipis, contactes, deals, auth, emails, llicencies, pagaments, alertes, usuaris, agent, tasques, dashboard, municipis_v2, emails_v2
+from routers import municipis, contactes, deals, auth, emails, llicencies, pagaments, alertes, usuaris, agent, tasques, dashboard, municipis_v2, emails_v2, activitats_v2
 import scheduler
 
 @asynccontextmanager
@@ -98,7 +98,8 @@ async def force_https_middleware(request: Request, call_next):
 # Include routers
 app.include_router(dashboard.router)
 app.include_router(municipis_v2.router)
-app.include_router(emails_v2.router)
+app.include_router(emails_v2.router, prefix="/api/v2")
+app.include_router(activitats_v2.router, prefix="/api/v2")
 app.include_router(auth.router)
 app.include_router(usuaris.router)
 app.include_router(municipis.router)

@@ -69,3 +69,44 @@ class EmailDraftSendRequest(BaseModel):
 
 class EmailSequenciaGenerateRequest(BaseModel):
     contacte_id: Optional[UUID] = None
+
+# --- Activitats V2 ---
+
+from models_v2 import TipusActivitat
+
+class ActivitatCreate(BaseModel):
+    municipi_id: UUID
+    contacte_id: Optional[UUID] = None
+    deal_id: Optional[UUID] = None
+    tipus_activitat: TipusActivitat
+    data_activitat: Optional[datetime] = None
+    contingut: Optional[dict] = {}
+    notes_comercial: Optional[str] = None
+    generat_per_ia: bool = False
+    etiquetes: List[str] = []
+
+class ActivitatUpdate(BaseModel):
+    notes_comercial: Optional[str] = None
+    etiquetes: Optional[List[str]] = None
+
+class ActivitatOut(BaseModel):
+    id: UUID
+    municipi_id: UUID
+    contacte_id: Optional[UUID] = None
+    tipus_activitat: TipusActivitat
+    data_activitat: datetime
+    contingut: dict
+    notes_comercial: Optional[str] = None
+    generat_per_ia: bool
+    etiquetes: List[str]
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class ActivitatPaginationOut(BaseModel):
+    items: List[ActivitatOut]
+    total: int
+    page: int
+    pages: int
