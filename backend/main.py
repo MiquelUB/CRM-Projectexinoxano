@@ -19,18 +19,21 @@ async def lifespan(app: FastAPI):
     # Schema migrations handled exclusively by Alembic
     
     # Create default admin user if not exists
-    db = SessionLocal()
-    admin_user = db.query(models.Usuari).filter(models.Usuari.email == "admin@projectexinoxano.cat").first()
-    if not admin_user:
-        admin = models.Usuari(
-            email="admin@projectexinoxano.cat",
-            password_hash=get_password_hash("pxx_admin_2026!"),
-            nom="Admin PXX",
-            rol="admin"
-        )
-        db.add(admin)
-        db.commit()
-    db.close()
+    try:
+        db = SessionLocal()
+        admin_user = db.query(models.Usuari).filter(models.Usuari.email == "admin@projectexinoxano.cat").first()
+        if not admin_user:
+            admin = models.Usuari(
+                email="admin@projectexinoxano.cat",
+                password_hash=get_password_hash("pxx_admin_2026!"),
+                nom="Admin PXX",
+                rol="admin"
+            )
+            db.add(admin)
+            db.commit()
+        db.close()
+    except Exception as e:
+        print(f"Error during lifespan DB initialization: {e}")
     
     yield
     
