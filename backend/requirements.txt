@@ -13,4 +13,5 @@ httpx
 python-dateutil
 apscheduler
 email-validator
+PyYAML
 
