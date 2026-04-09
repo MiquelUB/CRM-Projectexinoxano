@@ -55,24 +55,20 @@ origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "http://localhost:3001",
-    "http://127.0.0.1:3001",
-    "http://localhost:3002",
-    "http://127.0.0.1:3002",
-    "http://localhost:8000",
-    "http://127.0.0.1:8000",
-    "http://192.168.10.106:3000",
-    "https://crm.projectexinoxano.cat",
-    "https://api.projectexinoxano.cat",
     "https://crmpxx-crm-frontend.80opze.easypanel.host",
     "https://crmpxx-crm-frontend.80opze.easypanel.host/",
+    "https://crm.projectexinoxano.com",
+    "https://crm.projectexinoxano.com/",
 ]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=origins + ["*"] if os.getenv("ENV") != "production" else origins,
+    allow_origin_regex=r"https://.*\.easypanel\.host", # Catch-all per Easypanel
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"]
 )
 
 @app.middleware("http")

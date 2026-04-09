@@ -6,9 +6,11 @@ from uuid import UUID
 from datetime import datetime, timedelta
 
 from .prompt_manager import prompt_manager
-from .openrouter_client import call_openrouter
 import models_v2
-import models  # Encara necessari per algunes relacions fins que acabem Fase 2
+import models
+import logging
+
+logger = logging.getLogger(__name__)
 
 class AgentKimiK2:
     def __init__(self, db: Session):
@@ -24,6 +26,7 @@ class AgentKimiK2:
 
     async def _call_llm(self, messages: List[Dict[str, str]], skill: str, temperature: float = 0.7, json_mode: bool = False, model: Optional[str] = None):
         """Wrapper per cridar a OpenRouter amb una configuració específica."""
+        from .openrouter_client import call_openrouter
         model_to_use = model or "moonshotai/kimi-k2-thinking"
         return await call_openrouter(messages, model=model_to_use, temperature=temperature, json_mode=json_mode)
 

@@ -1,14 +1,58 @@
+import uuid
 from sqlalchemy.orm import Session
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
 import models_v2 as m2
 from .agent_manager import kimi_agent
+import json
+from uuid import UUID
 
 class MemoryEngine:
     """
     Motor de Memòria Jeràrquica per a l'Agent Kimi K2.
     Gestiona la recuperació i síntesi de context en 3 nivells.
     """
+
+    async def get_or_create_memory(self, db: Session, usuari_id: UUID, municipi_id: Optional[UUID] = None) -> m2.AgentMemoryV2:
+        """Recupera o crea una instància de memòria per a l'usuari i context."""
+        query = db.query(m2.AgentMemoryV2).filter(
+            m2.AgentMemoryV2.usuari_id == usuari_id
+        )
+        if municipi_id:
+            query = query.filter(m2.AgentMemoryV2.municipi_id == municipi_id)
+        
+        # Agafem la més recent
+        memory = query.order_by(m2.AgentMemoryV2.updated_at.desc()).first()
+        
+        if not memory:
+            memory = m2.AgentMemoryV2(
+                id=uuid.uuid4(),
+                usuari_id=usuari_id,
+                municipi_id=municipi_id,
+                history=[],
+                summary=""
+            )
+            db.add(memory)
+            db.commit()
+            db.refresh(memory)
+            
+        return memory
+
+    @classmethod
+    async def _get_full_timeline(cls, db: Session, target_id: str) -> List[Dict[str, Any]]:
+        """Recupera totes les activitats d'un municipi per a l'anàlisi estratègica."""
+        activitats = db.query(m2.ActivitatsMunicipi).filter(
+            m2.ActivitatsMunicipi.municipi_id == target_id
+        ).order_by(m2.ActivitatsMunicipi.data_activitat.asc()).all()
+        
+        return [
+            {
+                "data": a.data_activitat.isoformat() if a.data_activitat else "",
+                "tipus": a.tipus_activitat.value if hasattr(a.tipus_activitat, 'value') else str(a.tipus_activitat),
+                "contingut": getattr(a, 'contingut', ''),
+                "notes": a.notes_comercial
+            } for a in activitats
+        ]
 
     @staticmethod
     async def get_tactical_summary(db: Session, municipi_id: Any) -> str:

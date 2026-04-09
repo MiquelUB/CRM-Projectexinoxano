@@ -1,18 +1,29 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Body, Request
-from fastapi.responses import Response
+from fastapi import APIRouter, Depends, HTTPException, status, Body, Request, Response
 from sqlalchemy.orm import Session
 from uuid import UUID
 from datetime import datetime
-import os
+from typing import Optional, List, Dict, Any
+from pydantic import BaseModel
 import logging
-
-logger = logging.getLogger(__name__)
+import os
 
 from database import get_db
 import models
 import schemas
 from auth import get_current_user
 from services.agent_kimi_k2 import AgentKimiK2
+from services.memory_engine import memory_engine
+
+logger = logging.getLogger(__name__)
+
+# Configurar el router amb el prefix adequat
+router = APIRouter(prefix="/agent", tags=["agent"])
+
+# Esquema per al xat (V2)
+class ChatMessageRequest(BaseModel):
+    message: str
+    municipi_id: Optional[UUID] = None
+    model: str = "moonshotai/kimi-k2-thinking"
 
 @router.post("/redactar-email", response_model=schemas.AgentRedactarEmailResponse)
 async def redactar_email(
@@ -59,7 +70,9 @@ async def agent_chat(
         return res
     except Exception as e:
         logger.error(f"Error en el xat de l'agent: {e}")
-        raise HTTPException(status_code=500, detail=f"Error en el servei de xat: {str(e)}")
+        # Capturem el NameError de call_openrouter si encara passa per debugar
+        detail_msg = f"Error en el servei de xat: {str(e)}"
+        raise HTTPException(status_code=500, detail=detail_msg)
 
 @router.get("/memory")
 async def get_agent_memory(
@@ -69,8 +82,8 @@ async def get_agent_memory(
     current_user: models.Usuari = Depends(get_current_user)
 ):
     """Retorna l'historial guardat per a un context concret."""
-    service = AgentChatService(db)
-    memory = await service.get_or_create_memory(current_user.id, deal_id, municipi_id)
+    # Utilitzem directament el memory_engine
+    memory = await memory_engine.get_or_create_memory(db, current_user.id, municipi_id)
     return {
         "history": memory.history,
         "summary": memory.summary
