@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, Boolean, Integer, Text, Numeric, Date, ForeignKey, DateTime, Enum, Float, ARRAY
+from sqlalchemy import Column, String, Boolean, Integer, Text, Numeric, Date, ForeignKey, DateTime, Enum, Float, ARRAY, Index
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from sqlalchemy.dialects.postgresql import UUID, JSONB
@@ -359,17 +359,25 @@ class ActivitatsMunicipi(Base):
     __tablename__ = "activitats_municipi"
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    municipi_id = Column(UUID(as_uuid=True), ForeignKey("municipis_lifecycle.id"), nullable=False)
+    municipi_id = Column(UUID(as_uuid=True), ForeignKey("municipis_lifecycle.id"), nullable=False, index=True)
     contacte_id = Column(UUID(as_uuid=True), ForeignKey("contactes_v2.id"), nullable=True)
     deal_id = Column(UUID(as_uuid=True), ForeignKey("deals.id"), nullable=True)
     
-    tipus_activitat = Column(Enum(TipusActivitat, name="tipus_activitat", native_enum=False), nullable=False)
-    data_activitat = Column(DateTime(timezone=True), server_default=func.now())
+    tipus_activitat = Column(Enum(TipusActivitat, name="tipus_activitat", native_enum=False), nullable=False, index=True)
+    data_activitat = Column(DateTime(timezone=True), server_default=func.now(), index=True)
     
     contingut = Column(JSONB, default={})
     notes_comercial = Column(Text)
     generat_per_ia = Column(Boolean, default=False)
     etiquetes = Column(ARRAY(String), default=[])
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Índex GIN per a cerques ràpides en JSONB
+    __table_args__ = (
+        Index('ix_activitats_contingut_gin', 'contingut', postgresql_using='gin'),
+    )
     
     # Relacions
     municipi = relationship("MunicipiLifecycle", back_populates="activitats")
