@@ -1,8 +1,10 @@
-from fastapi import FastAPI, Request, JSONResponse
+from fastapi import FastAPI, Request, JSONResponse, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
-from database import engine, Base, SessionLocal
+from sqlalchemy import text
+from sqlalchemy.orm import Session
+from database import engine, Base, SessionLocal, get_db
 import models
 from auth import get_password_hash
 from routers import municipis, contactes, deals, auth, emails, llicencies, pagaments, alertes, usuaris, agent, tasques, dashboard, municipis_v2, emails_v2
@@ -105,6 +107,14 @@ app.include_router(alertes.router)
 app.include_router(agent.router)
 app.include_router(agent.tracking_router)
 app.include_router(tasques.router)
+
+@app.get("/db-check")
+def db_check(db: Session = Depends(get_db)):
+    try:
+        db.execute(text("SELECT 1"))
+        return {"status": "connected", "database": "ok"}
+    except Exception as e:
+        return {"status": "error", "detail": str(e)}
 
 @app.get("/")
 def read_root():
