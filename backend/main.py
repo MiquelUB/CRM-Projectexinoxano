@@ -133,6 +133,11 @@ def db_check():
             "traceback": traceback.format_exc()
         }
 
+@app.get("/env-check")
+def env_check():
+    import os
+    return {"keys": list(os.environ.keys())}
+
 @app.get("/")
 def read_root():
     return {"message": "Benvingut a l'API del CRM PXX"}
