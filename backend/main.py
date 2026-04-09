@@ -44,6 +44,31 @@ app = FastAPI(
 import logging
 logger = logging.getLogger("uvicorn.error")
 
+# CORS configuration - MUST BE FIRST
+origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3001",
+    "http://localhost:3002",
+    "http://127.0.0.1:3002",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    "http://192.168.10.106:3000",
+    "https://crm.projectexinoxano.cat",
+    "https://api.projectexinoxano.cat",
+    "https://crmpxx-crm-frontend.80opze.easypanel.host",
+    "https://crmpxx-crm-frontend.80opze.easypanel.host/",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 @app.middleware("http")
 async def monitor_v1_usage(request: Request, call_next):
     # Monitorització d'endpoints obsolets
@@ -63,29 +88,6 @@ async def force_https_middleware(request: Request, call_next):
     response = await call_next(request)
     return response
 
-# CORS configuration
-origins = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:3001",
-    "http://127.0.0.1:3001",
-    "http://localhost:3002",
-    "http://127.0.0.1:3002",
-    "http://localhost:8000",
-    "http://127.0.0.1:8000",
-    "http://192.168.10.106:3000",
-    "https://crm.projectexinoxano.cat",
-    "https://api.projectexinoxano.cat",
-    "https://crmpxx-crm-frontend.80opze.easypanel.host",
-]
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 # Include routers
 app.include_router(dashboard.router)
