@@ -21,7 +21,7 @@ def get_municipis_kpis(db: Session = Depends(get_db)):
     
     # 1. Total de municipis actius al funnel (excloent paquets/perduts)
     total_deals = db.query(MunicipiLifecycle).filter(
-        MunicipiLifecycle.etapa_actual.notin_([EtapaFunnelEnum.perdut, EtapaFunnelEnum.pausa])
+        MunicipiLifecycle.etapa_actual.notin_([EtapaFunnelEnum.perdut.value, EtapaFunnelEnum.pausa.value])
     ).count()
     
     # 2. Valor Total del Pipeline (Setup + Llicència)
