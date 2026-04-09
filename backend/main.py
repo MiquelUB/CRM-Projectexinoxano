@@ -106,19 +106,6 @@ app.include_router(agent.router)
 app.include_router(agent.tracking_router)
 app.include_router(tasques.router)
 
-@app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception):
-    import traceback
-    logger.exception(f"Unhandled exception: {exc}")
-    return JSONResponse(
-        status_code=500,
-        content={
-            "detail": str(exc),
-            "traceback": traceback.format_exc(),
-            "path": request.url.path
-        }
-    )
-
 @app.get("/")
 def read_root():
     return {"message": "Benvingut a l'API del CRM PXX"}
