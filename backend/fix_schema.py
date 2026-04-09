@@ -1,97 +1,42 @@
-import os
 import psycopg2
+import os
+from dotenv import load_dotenv
 
-DATABASE_URL = os.getenv(
-    "DATABASE_URL", 
-    "postgresql://pxx_admin:b86f95465942a859661e@crmpxx_db-crmpxx:5432/crm_pxx?sslmode=disable"
-)
+load_dotenv()
 
-def fix_db():
-    print("Connecting to DB...")
-    conn = psycopg2.connect(DATABASE_URL)
-    conn.autocommit = True
-    cur = conn.cursor()
-    
-    print("Checking schemas...")
-    cur.execute("SELECT schema_name FROM information_schema.schemata;")
-    schemas = [row[0] for row in cur.fetchall()]
-    print("Schemas existents:", schemas)
-    
-    if 'public' not in schemas:
-        print("Creating public schema...")
-        cur.execute("CREATE SCHEMA public;")
-        print("Schema public created.")
-    
-    print("Granting permissions...")
-    cur.execute("GRANT ALL ON SCHEMA public TO current_user;")
-    cur.execute("GRANT ALL ON SCHEMA public TO public;")
-    print("Permissions granted.")
-    
-    # 3. Crear taules estratègiques (Timeline i Agent)
-    print("Verificant taules d'IA i Timeline...")
-    
-    # Enum activitats
-    cur.execute("""
-        DO $$ BEGIN
-            IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'tipus_activitat') THEN
-                CREATE TYPE tipus_activitat AS ENUM (
-                    'nota_manual', 'email_enviat', 'email_rebut', 'trucada', 
-                    'reunio', 'demo', 'pagament', 'canvi_etapa', 'sistema'
-                );
-            END IF;
-        END $$;
-    """)
-    
-    # Taula activitats
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS activitats_municipi (
-            id UUID PRIMARY KEY,
-            municipi_id UUID NOT NULL,
-            contacte_id UUID,
-            deal_id UUID,
-            tipus_activitat tipus_activitat NOT NULL,
-            data_activitat TIMESTAMPTZ DEFAULT NOW(),
-            contingut JSONB DEFAULT '{}',
-            notes_comercial TEXT,
-            generat_per_ia BOOLEAN DEFAULT FALSE,
-            etiquetes TEXT[] DEFAULT '{}'
-        );
-    """)
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://pxx_admin:b86f95465942a859661e@crmpxx_db-crmpxx:5432/crm_pxx?sslmode=disable")
 
-    # Taula Agent Memòries (per si no existís)
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS agent_memories (
-            id UUID PRIMARY KEY,
-            usuari_id UUID NOT NULL,
-            deal_id UUID,
-            municipi_id UUID,
-            history JSONB DEFAULT '[]',
-            summary TEXT,
-            updated_at TIMESTAMPTZ DEFAULT NOW()
-        );
-    """)
-    
-    # Taula Tasques V2
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS tasques_v2 (
-            id UUID PRIMARY KEY,
-            municipi_id UUID NOT NULL REFERENCES municipis_lifecycle(id),
-            usuari_id UUID REFERENCES usuaris(id),
-            titol VARCHAR(300) NOT NULL,
-            descripcio TEXT,
-            data_venciment DATE NOT NULL,
-            tipus VARCHAR(50) DEFAULT 'altre',
-            prioritat VARCHAR(20) DEFAULT 'mitjana',
-            estat VARCHAR(20) DEFAULT 'pendent',
-            created_at TIMESTAMPTZ DEFAULT NOW(),
-            updated_at TIMESTAMPTZ DEFAULT NOW()
-        );
-    """)
-    
-    print("Base de dades fixada i actualitzada per a Kimi K2 (Inclou Tasques V2).")
-    
-    cur.close()
-    conn.close()
+def fix_db_schema():
+    print(f"Connexi a la base de dades per correcci de schema...")
+    try:
+        conn = psycopg2.connect(DATABASE_URL)
+        cur = conn.cursor()
+
+        # 1. Assegurar Extensions
+        cur.execute("CREATE EXTENSION IF NOT EXISTS \"pgcrypto\";")
+        
+        # 2. Només mantenim correccions de columnes crítiques si falten en taules base
+        # Però NO creem taules V2 manualment, deixem que Alembic ho faci.
+        
+        # Verifiquem si municipis_lifecycle existeix abans d'afegir la columna
+        cur.execute("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'municipis_lifecycle');")
+        if cur.fetchone()[0]:
+            print("🔍 Verificant existència de columnes a municipis_lifecycle...")
+            cur.execute("""
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_name='municipis_lifecycle' AND column_name='usuari_asignat'
+            """)
+            if not cur.fetchone():
+                print("➕ Afegint columna usuari_asignat a municipis_lifecycle...")
+                cur.execute("ALTER TABLE public.municipis_lifecycle ADD COLUMN usuari_asignat VARCHAR(50);")
+
+        conn.commit()
+        print("✅ Correcció de schema finalitzada (control passat a Alembic).")
+        cur.close()
+        conn.close()
+    except Exception as e:
+        print(f"❌ Error corregint schema: {e}")
 
 if __name__ == "__main__":
-    fix_db()
+    fix_db_schema()
