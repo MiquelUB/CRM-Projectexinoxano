@@ -142,6 +142,36 @@ def env_check():
     import os
     return {"keys": list(os.environ.keys())}
 
+@app.get("/inventory")
+def get_inventory(db: Session = Depends(get_db)):
+    from sqlalchemy import text
+    results = {}
+    try:
+        # Version
+        results["pg_version"] = db.execute(text("SELECT version()")).scalar()
+        
+        # V1 Tables
+        v1_tables = ["municipis", "contactes", "deals", "emails"]
+        results["v1"] = {}
+        for table in v1_tables:
+            try:
+                results["v1"][table] = db.execute(text(f"SELECT count(*) FROM {table}")).scalar()
+            except:
+                results["v1"][table] = "Error/Missing"
+        
+        # V2 Tables
+        v2_tables = ["municipis_lifecycle", "contactes_v2", "emails_v2", "tasques_v2", "activitats_municipi", "agent_memories_v2"]
+        results["v2"] = {}
+        for table in v2_tables:
+            try:
+                results["v2"][table] = db.execute(text(f"SELECT count(*) FROM {table}")).scalar()
+            except:
+                results["v2"][table] = "Error/Missing"
+                
+        return results
+    except Exception as e:
+        return {"error": str(e)}
+
 @app.get("/")
 def read_root():
     return {"message": "Benvingut a l'API del CRM PXX - V2 DEBUG"}
