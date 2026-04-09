@@ -64,20 +64,20 @@ def get_alertes(db: Session = Depends(get_db)):
         "renovacions": [
             {
                 "id": str(l.id), 
-                "deal_id": str(l.deal_id), 
+                "deal_id": str(l.deal_id) if l.deal_id else None, 
                 "data_renovacio": l.data_renovacio,
-                "titol_deal": l.deal.titol if l.deal else "Llicència",
-                "nom_municipi": l.deal.municipi.nom if l.deal and l.deal.municipi else "Desconegut"
+                "titol_deal": l.deal.titol if (l.deal) else "Llicència",
+                "nom_municipi": (l.deal.municipi.nom if (l.deal and l.deal.municipi) else "Desconegut")
             } for l in llicencies
         ],
         "pagaments_vencuts": [
             {
                 "id": str(p.id), 
-                "import": float(p.import_), 
+                "import": float(p.import_) if p.import_ is not None else 0.0, 
                 "data_limit": p.data_limit,
-                "deal_id": str(p.llicencia.deal_id) if p.llicencia and p.llicencia.deal else None,
-                "titol_deal": p.llicencia.deal.titol if p.llicencia and p.llicencia.deal else "Pagament",
-                "nom_municipi": p.llicencia.deal.municipi.nom if p.llicencia and p.llicencia.deal and p.llicencia.deal.municipi else "Desconegut"
+                "deal_id": str(p.llicencia.deal_id) if (p.llicencia and p.llicencia.deal_id) else None,
+                "titol_deal": p.llicencia.deal.titol if (p.llicencia and p.llicencia.deal) else "Pagament",
+                "nom_municipi": (p.llicencia.deal.municipi.nom if (p.llicencia and p.llicencia.deal and p.llicencia.deal.municipi) else "Desconegut")
             } for p in pagaments_vencuts
         ],
         "tasques_urgents": [
@@ -89,7 +89,7 @@ def get_alertes(db: Session = Depends(get_db)):
                 "tipus": t.tipus,
                 "prioritat": t.prioritat,
                 "deal_id": str(t.deal_id) if t.deal_id else None,
-                "nom_municipi": t.deal.municipi.nom if t.deal and t.deal.municipi else "V1",
+                "nom_municipi": (t.deal.municipi.nom if (t.deal and t.deal.municipi) else "V1"),
                 "is_pseudo": False
             } for t in tasques_v1
         ] + [
@@ -101,7 +101,7 @@ def get_alertes(db: Session = Depends(get_db)):
                 "tipus": "tasca",
                 "prioritat": t.prioritat,
                 "municipi_id": str(t.municipi_id),
-                "nom_municipi": t.municipi.nom,
+                "nom_municipi": (t.municipi.nom if t.municipi else "V2"),
                 "is_pseudo": False
             } for t in tasques_v2
         ],
