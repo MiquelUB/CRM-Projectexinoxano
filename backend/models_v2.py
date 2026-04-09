@@ -95,24 +95,24 @@ class MunicipiLifecycle(Base):
     nom = Column(String(100), nullable=False, index=True)
     comarca = Column(String(50))
     poblacio = Column(Integer)
-    geografia = Column(Enum(GeografiaEnum, name="geografia"), nullable=True)
+    geografia = Column(Enum(GeografiaEnum, name="geografia", native_enum=False), nullable=True)
     
     # DIAGNÒSTIC
     diagnostic_digital = Column(JSONB, default={})  # app_propia, google_maps_pois, wikiloc_rutes, buit_digital, patrimoni, context_politic
     angle_personalitzacio = Column(Text)
     
     # FUNNEL
-    etapa_actual = Column(Enum(EtapaFunnelEnum, name="etapa_funnel"), default=EtapaFunnelEnum.research, index=True)
+    etapa_actual = Column(Enum(EtapaFunnelEnum, name="etapa_funnel", native_enum=False), default=EtapaFunnelEnum.research, index=True)
     historial_etapes = Column(JSONB, default=[]) # e.g. [{"etapa": "research", "data_inici": "...", "data_fi": "...", "notes": "..."}]
     
-    blocker_actual = Column(Enum(BlockerEnum, name="blocker"), default=BlockerEnum.cap)
-    temperatura = Column(Enum(TemperaturaEnum, name="temperatura"), default=TemperaturaEnum.fred)
+    blocker_actual = Column(Enum(BlockerEnum, name="blocker", native_enum=False), default=BlockerEnum.cap)
+    temperatura = Column(Enum(TemperaturaEnum, name="temperatura", native_enum=False), default=TemperaturaEnum.fred)
     dies_etapa_actual = Column(Integer, default=0)
     
     # POST-VENDA (Dades tancament)
     data_conversio = Column(DateTime, nullable=True)
-    pla_contractat = Column(Enum(PlaEnum, name="pla"), nullable=True)
-    estat_final = Column(Enum(EstatFinalEnum, name="estat_final"), nullable=True)
+    pla_contractat = Column(Enum(PlaEnum, name="pla", native_enum=False), nullable=True)
+    estat_final = Column(Enum(EstatFinalEnum, name="estat_final", native_enum=False), nullable=True)
     
     # Dades econòmiques i tàctiques (migrades de Deal)
     valor_setup = Column(Numeric(10, 2), default=0)
@@ -148,7 +148,7 @@ class ContacteV2(Base):
     municipi_id = Column(UUID(as_uuid=True), ForeignKey("municipis_lifecycle.id"), nullable=False)
     
     nom = Column(String(100), nullable=False)
-    carrec = Column(Enum(CarrecEnum, name="carrec"), nullable=False)
+    carrec = Column(Enum(CarrecEnum, name="carrec", native_enum=False), nullable=False)
     email = Column(String(100))
     telefon = Column(String(20))
     
@@ -159,7 +159,7 @@ class ContacteV2(Base):
     angles_exitosos = Column(JSONB, default=[])
     angles_fallits = Column(JSONB, default=[])
     moment_optimal = Column(String(10))  # e.g., "10:00"
-    to_preferit = Column(Enum(ToComunicacioEnum, name="to_comunicacio"), nullable=True)
+    to_preferit = Column(Enum(ToComunicacioEnum, name="to_comunicacio", native_enum=False), nullable=True)
     
     data_creacio = Column(DateTime(timezone=True), server_default=func.now())
     
@@ -187,9 +187,9 @@ class EmailV2(Base):
     data_resposta = Column(DateTime(timezone=True))
     
     # Anàlisi IA
-    sentiment_resposta = Column(Enum(SentimentEnum, name="sentiment"), nullable=True)
+    sentiment_resposta = Column(Enum(SentimentEnum, name="sentiment", native_enum=False), nullable=True)
     intents_detectats = Column(JSONB, default=[])
-    actor_probable = Column(Enum(ActorEnum, name="actor"), nullable=True)
+    actor_probable = Column(Enum(ActorEnum, name="actor", native_enum=False), nullable=True)
     
     # Relacions
     municipi = relationship("MunicipiLifecycle", back_populates="emails")
@@ -203,7 +203,7 @@ class TrucadaV2(Base):
     
     data = Column(DateTime(timezone=True), server_default=func.now())
     durada_minuts = Column(Integer, default=0)
-    qui_va_contestar = Column(Enum(ActorEnum, name="actor_respuesta"), nullable=True)  # alcalde, tecnic, cfo, etc.
+    qui_va_contestar = Column(Enum(ActorEnum, name="actor_respuesta", native_enum=False), nullable=True)  # alcalde, tecnic, cfo, etc.
     
     notes_breus = Column(Text)
     resum_ia = Column(Text)
@@ -229,7 +229,7 @@ class ReunioV2(Base):
     poi_mes_reaccio = Column(String(100))
     objeccio_principal = Column(String(100))
     cta_final = Column(String(200))
-    temperatura_post = Column(Enum(TemperaturaEnum, name="temperatura_post"), nullable=True)
+    temperatura_post = Column(Enum(TemperaturaEnum, name="temperatura_post", native_enum=False), nullable=True)
     
     # Relacions
     municipi = relationship("MunicipiLifecycle", back_populates="reunions")
@@ -267,7 +267,7 @@ class EmailDraftV2(Base):
     municipi_id = Column(UUID(as_uuid=True), ForeignKey("municipis_lifecycle.id"), nullable=False)
     contacte_id = Column(UUID(as_uuid=True), ForeignKey("contactes_v2.id"), nullable=True)
     
-    estat = Column(Enum(EstatDraftEnum, name="estat_draft"), default=EstatDraftEnum.esborrany)
+    estat = Column(Enum(EstatDraftEnum, name="estat_draft", native_enum=False), default=EstatDraftEnum.esborrany)
     
     subject = Column(String(200))
     cos = Column(Text)
@@ -296,9 +296,9 @@ class EmailSequenciaV2(Base):
     municipi_id = Column(UUID(as_uuid=True), ForeignKey("municipis_lifecycle.id"), nullable=False)
     
     numero_email = Column(Integer, nullable=False)
-    tipus_sequencia = Column(Enum(TipusSequenciaEnum, name="tipus_sequencia"), nullable=False)
+    tipus_sequencia = Column(Enum(TipusSequenciaEnum, name="tipus_sequencia", native_enum=False), nullable=False)
     
-    estat = Column(Enum(EstatSequenciaEnum, name="estat_sequencia"), default=EstatSequenciaEnum.pendent)
+    estat = Column(Enum(EstatSequenciaEnum, name="estat_sequencia", native_enum=False), default=EstatSequenciaEnum.pendent)
     
     data_programada = Column(DateTime(timezone=True))
     data_enviada = Column(DateTime(timezone=True), nullable=True)
@@ -340,7 +340,7 @@ class PatroMunicipi(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     
     rang_poblacio = Column(String(20)) # 'petit', 'mitja', 'gran'
-    tipus_geografia = Column(Enum(GeografiaEnum, name="geografia_patro"))
+    tipus_geografia = Column(Enum(GeografiaEnum, name="geografia_patro", native_enum=False))
     context_politic = Column(String(20)) # 'majoria', 'minoria', 'pacte'
     
     probabilitat_conversio = Column(Float, default=0.0)
@@ -363,7 +363,7 @@ class ActivitatsMunicipi(Base):
     contacte_id = Column(UUID(as_uuid=True), ForeignKey("contactes_v2.id"), nullable=True)
     deal_id = Column(UUID(as_uuid=True), ForeignKey("deals.id"), nullable=True)
     
-    tipus_activitat = Column(Enum(TipusActivitat, name="tipus_activitat"), nullable=False)
+    tipus_activitat = Column(Enum(TipusActivitat, name="tipus_activitat", native_enum=False), nullable=False)
     data_activitat = Column(DateTime(timezone=True), server_default=func.now())
     
     contingut = Column(JSONB, default={})
