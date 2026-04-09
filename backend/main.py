@@ -140,4 +140,4 @@ def env_check():
 
 @app.get("/")
 def read_root():
-    return {"message": "Benvingut a l'API del CRM PXX"}
+    return {"message": "Benvingut a l'API del CRM PXX - V2 DEBUG"}
