@@ -125,7 +125,7 @@ class MunicipiLifecycle(Base):
     actor_principal_id = Column(UUID(as_uuid=True), ForeignKey("contactes_v2.id"), nullable=True)
     
     # METADADES
-    data_creacio = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
     data_ultima_accio = Column(DateTime(timezone=True), server_default=func.now())
     usuari_asignat = Column(String(50), default='fundador')
     
@@ -161,7 +161,7 @@ class ContacteV2(Base):
     moment_optimal = Column(String(10))  # e.g., "10:00"
     to_preferit = Column(Enum(ToComunicacioEnum, name="to_comunicacio", native_enum=False), nullable=True)
     
-    data_creacio = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     # Relacions
     municipi = relationship("MunicipiLifecycle", back_populates="contactes", foreign_keys="[ContacteV2.municipi_id]")
@@ -284,7 +284,7 @@ class EmailDraftV2(Base):
     enviat_des_de = Column(String(100))
     email_enviat_id = Column(UUID(as_uuid=True), ForeignKey("emails_v2.id"), nullable=True)
     
-    data_creacio = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     municipi = relationship("MunicipiLifecycle", back_populates="email_drafts")
     contacte = relationship("ContacteV2")
@@ -384,7 +384,8 @@ class AgentMemoryV2(Base):
     valor = Column(Text)
     confidenca = Column(Float, default=1.0)
     
-    data_creacio = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     municipi = relationship("MunicipiLifecycle", back_populates="agent_memories")
 
 class TascaV2(Base):
@@ -398,5 +399,6 @@ class TascaV2(Base):
     prioritat = Column(String(20), default="mitjana") # 'alta', 'mitjana', 'baixa'
     estat = Column(String(20), default="pendent") # 'pendent', 'completada'
     
-    data_creacio = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     municipi = relationship("MunicipiLifecycle", back_populates="tasques")
