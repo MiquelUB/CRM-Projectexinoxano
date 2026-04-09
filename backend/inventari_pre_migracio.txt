@@ -1,0 +1,14 @@
+INVENTARI PRE-MIGRACIÓ (FASE 1.1)
+Data: now()
+
+MÓN V1:
+- Municipis: 11
+- Contactes: 19
+- Deals: 8
+- Emails: 27
+
+MÓN V2 (ESTAT ACTUAL):
+- Municipis Lifecycle: 10
+- Contactes V2: 19
+- Emails V2: 27
+- Activitats Municipi: 27

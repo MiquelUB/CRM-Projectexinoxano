@@ -54,6 +54,61 @@ def job_preparar_emails_sequencia():
     finally:
         db.close()
 
+def cleanup_expired_sessions():
+    """Elimina sessions de xat (Nivell 1) que han expirat."""
+    from database import SessionLocal
+    from models_v2 import AgentMemoryV2
+    from datetime import datetime, timezone
+    logger.info("Executant neteja de sessions de xat expirades...")
+    db = SessionLocal()
+    try:
+        now = datetime.now(timezone.utc)
+        deleted = db.query(AgentMemoryV2).filter(
+            AgentMemoryV2.session_id.isnot(None),
+            AgentMemoryV2.expires_at < now
+        ).delete()
+        db.commit()
+        if deleted > 0:
+            logger.info(f"S'han eliminat {deleted} sessions expirades.")
+    except Exception as e:
+        logger.error(f"Error cleanup_expired_sessions: {e}")
+    finally:
+        db.close()
+
+def weekly_tactical_aggregation():
+    """Genera el resum setmanal (Nivell 2) per a cada municipi."""
+    from database import SessionLocal
+    from services.memory_engine import memory_engine
+    logger.info("Executant agregació tàctica setmanal...")
+    db = SessionLocal()
+    try:
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(memory_engine.run_weekly_aggregation(db))
+        loop.close()
+    except Exception as e:
+        logger.error(f"Error weekly_tactical_aggregation: {e}")
+    finally:
+        db.close()
+
+def monthly_strategic_learning():
+    """Analitza patrons globals (Nivell 3) mensualment."""
+    from database import SessionLocal
+    from services.memory_engine import memory_engine
+    logger.info("Executant aprenentatge estratègic mensual...")
+    db = SessionLocal()
+    try:
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(memory_engine.run_monthly_strategic_learning(db))
+        loop.close()
+    except Exception as e:
+        logger.error(f"Error monthly_strategic_learning: {e}")
+    finally:
+        db.close()
+
 def start_scheduler():
     logger.info("Configuring APScheduler jobs...")
     
@@ -78,6 +133,30 @@ def start_scheduler():
         trigger=CronTrigger(hour=6, minute=0),
         id="daily_memory_cleanup",
         name="Update MunicipiLifecycle daily timers at 6AM",
+        replace_existing=True
+    )
+
+    scheduler.add_job(
+        cleanup_expired_sessions,
+        trigger=CronTrigger(hour=3, minute=0),
+        id="session_cleanup",
+        name="Neteja de sessions de xat a les 3AM",
+        replace_existing=True
+    )
+
+    scheduler.add_job(
+        weekly_tactical_aggregation,
+        trigger=CronTrigger(day_of_week='mon', hour=0, minute=0),
+        id="weekly_memory",
+        name="Agregació tàctica setmanal Dilluns 00:00",
+        replace_existing=True
+    )
+
+    scheduler.add_job(
+        monthly_strategic_learning,
+        trigger=CronTrigger(day=1, hour=1, minute=0),
+        id="monthly_learning",
+        name="Aprenentatge estratègic mensual dia 1 a la 1AM",
         replace_existing=True
     )
 

@@ -320,4 +320,22 @@ CREATE TABLE public.usuaris (
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT usuaris_pkey PRIMARY KEY (id)
 );
+
+CREATE TABLE public.activitats_municipi (
+  id uuid NOT NULL,
+  municipi_id uuid NOT NULL,
+  contacte_id uuid,
+  deal_id uuid,
+  tipus_activitat character varying NOT NULL, -- ENUM (nota_manual, email_enviat, trucada, etc.)
+  data_activitat timestamp with time zone DEFAULT now(),
+  contingut jsonb,
+  notes_comercial text,
+  generat_per_ia boolean DEFAULT false,
+  etiquetes text[], -- ARRAY[TEXT]
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT activitats_municipi_pkey PRIMARY KEY (id),
+  CONSTRAINT activitats_municipi_municipi_id_fkey FOREIGN KEY (municipi_id) REFERENCES public.municipis_lifecycle(id),
+  CONSTRAINT activitats_municipi_contacte_id_fkey FOREIGN KEY (contacte_id) REFERENCES public.contactes_v2(id)
+);
 ```

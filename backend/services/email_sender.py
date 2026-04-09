@@ -103,6 +103,7 @@ def send_email_from_crm(to_address: str, assumpte: str, cos: str, deal_id: str =
     
     db = SessionLocal()
     try:
+        # 1. Guardar a V1 (Legacy)
         nova_email = Email(
             deal_id=deal_id,
             contacte_id=contacte_id,
@@ -118,7 +119,50 @@ def send_email_from_crm(to_address: str, assumpte: str, cos: str, deal_id: str =
         )
         db.add(nova_email)
         
-        # Log activity
+        # 2. Guardar a V2 (Nova Arquitectura)
+        import models_v2
+        # Intentar trobar el municipi_id a partir del deal si no ve informat
+        found_municipi_id = None
+        if deal_id:
+            old_deal = db.query(models.Deal).filter(models.Deal.id == deal_id).first()
+            if old_deal:
+                # Buscar el MunicipiLifecycle pel nom o pel mapping si el tinguéssim
+                # En aquest flux, assumim que el deal_id encara és el vell.
+                # Per ara, busquem per nom del municipi original
+                old_muni = db.query(models.Municipi).filter(models.Municipi.id == old_deal.municipi_id).first()
+                if old_muni:
+                    new_muni = db.query(models_v2.MunicipiLifecycle).filter(models_v2.MunicipiLifecycle.nom == old_muni.nom).first()
+                    if new_muni:
+                        found_municipi_id = new_muni.id
+
+        if found_municipi_id:
+            # Crear registre a emails_v2
+            email_v2 = models_v2.EmailV2(
+                municipi_id=found_municipi_id,
+                contacte_id=contacte_id if contacte_id else None,
+                assumpte=assumpte,
+                cos=cos,
+                direccio="sortida",
+                tracking_token=tracking_token,
+                data_enviament=datetime.now()
+            )
+            db.add(email_v2)
+            
+            # Crear activitat de timeline
+            activitat_v2 = models_v2.ActivitatsMunicipi(
+                municipi_id=found_municipi_id,
+                contacte_id=contacte_id if contacte_id else None,
+                tipus_activitat=models_v2.TipusActivitat.email_enviat,
+                contingut={
+                    "assumpte": assumpte,
+                    "tracking_token": tracking_token,
+                    "to": to_address
+                },
+                notes_comercial=f"Email enviat mitjançant CRM (V1 Bridge)"
+            )
+            db.add(activitat_v2)
+
+        # Log activity (Legacy Deal)
         if deal_id:
             activitat = models.DealActivitat(
                 deal_id=deal_id,

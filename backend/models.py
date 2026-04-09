@@ -1,5 +1,5 @@
-# !!! DEPRECATED !!!
-# Aquest fitxer serà eliminat en la Fase C de la migració. 
+# DEPRECATED: Usar models_v2.py per a tot el codi nou.
+# Les taules municipis, contactes i emails estan en procés de decommissioning.
 # Si us plau, utilitza models_v2.py per a qualsevol desenvolupament nou.
 # Tots els municipis, contactes i emails s'han de consultar a través de la V2.
 

@@ -94,7 +94,7 @@ class MunicipiLifecycle(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     nom = Column(String(100), nullable=False, index=True)
     comarca = Column(String(50))
-    poblacio = Column(Integer)
+    poblacio = Column(String(100))
     geografia = Column(Enum(GeografiaEnum, name="geografia", native_enum=False), nullable=True)
     
     # DIAGNÒSTIC
@@ -174,10 +174,13 @@ class EmailV2(Base):
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     municipi_id = Column(UUID(as_uuid=True), ForeignKey("municipis_lifecycle.id"), nullable=False)
+    contacte_id = Column(UUID(as_uuid=True), ForeignKey("contactes_v2.id"), nullable=True)
     
     data_enviament = Column(DateTime(timezone=True), server_default=func.now())
     assumpte = Column(String(200))
     cos = Column(Text)
+    direccio = Column(String(10)) # 'sortida' or 'entrada'
+    tracking_token = Column(String(100), unique=True, nullable=True)
     
     # Tracking
     obert = Column(Boolean, default=False)
@@ -191,6 +194,9 @@ class EmailV2(Base):
     intents_detectats = Column(JSONB, default=[])
     actor_probable = Column(Enum(ActorEnum, name="actor", native_enum=False), nullable=True)
     
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    
     # Relacions
     municipi = relationship("MunicipiLifecycle", back_populates="emails")
 
@@ -200,6 +206,7 @@ class TrucadaV2(Base):
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     municipi_id = Column(UUID(as_uuid=True), ForeignKey("municipis_lifecycle.id"), nullable=False)
+    contacte_id = Column(UUID(as_uuid=True), ForeignKey("contactes_v2.id"), nullable=True)
     
     data = Column(DateTime(timezone=True), server_default=func.now())
     durada_minuts = Column(Integer, default=0)
@@ -208,6 +215,9 @@ class TrucadaV2(Base):
     notes_breus = Column(Text)
     resum_ia = Column(Text)
     seguent_accio_sugerida = Column(Text)
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     
     # Relacions
     municipi = relationship("MunicipiLifecycle", back_populates="trucades")
@@ -218,6 +228,7 @@ class ReunioV2(Base):
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     municipi_id = Column(UUID(as_uuid=True), ForeignKey("municipis_lifecycle.id"), nullable=False)
+    contacte_id = Column(UUID(as_uuid=True), ForeignKey("contactes_v2.id"), nullable=True)
     
     data = Column(DateTime(timezone=True))
     tipus = Column(String(20)) # 'demo', 'seguiment', 'negociacio'
@@ -230,6 +241,9 @@ class ReunioV2(Base):
     objeccio_principal = Column(String(100))
     cta_final = Column(String(200))
     temperatura_post = Column(Enum(TemperaturaEnum, name="temperatura_post", native_enum=False), nullable=True)
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     
     # Relacions
     municipi = relationship("MunicipiLifecycle", back_populates="reunions")
@@ -329,9 +343,22 @@ class MemoriaMunicipi(Base):
     
     # Nivell 2: Memòria Tàctica (Resum setmanal generat per IA)
     resum_tactic = Column(Text)
+    resum_setmanal = Column(JSONB, default={}) # {"setmana": "...", "activitats_totals": X, ...}
     data_resum = Column(DateTime(timezone=True))
     
     data_actualitzacio = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class MemoriaGlobal(Base):
+    __tablename__ = "memoria_global"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    categoria = Column(String(50), nullable=False) # estrategia_email, timing_optimal, angles_exitosos, blockers_comuns
+    llico = Column(Text, nullable=False)
+    evidencia = Column(JSONB, default={})
+    confianca = Column(Float, default=0.0)
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
 class PatroMunicipi(Base):
@@ -383,12 +410,20 @@ class ActivitatsMunicipi(Base):
     municipi = relationship("MunicipiLifecycle", back_populates="activitats")
     contacte = relationship("ContacteV2")
 
+
 class AgentMemoryV2(Base):
     __tablename__ = "agent_memories_v2"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     municipi_id = Column(UUID(as_uuid=True), ForeignKey("municipis_lifecycle.id"), nullable=False)
+    usuari_id = Column(UUID(as_uuid=True), ForeignKey("usuaris.id"), nullable=True)
     
-    clau = Column(String(50), index=True) # e.g. 'por_qué_no_compran', 'preferencia_politica'
+    # Nivell 1: Memòria de Sessió (Xat)
+    session_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+    history = Column(JSONB, default=[])
+    summary = Column(Text)
+    
+    clau = Column(String(50), index=True) 
     valor = Column(Text)
     confidenca = Column(Float, default=1.0)
     

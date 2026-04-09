@@ -5,7 +5,8 @@ import api from "@/lib/api";
 import { useParams } from "next/navigation";
 import { DealCard } from "@/components/DealCard";
 import { EmailComposer } from "@/components/EmailComposer";
-import { Mail } from "lucide-react";
+import { Mail, Sparkles } from "lucide-react";
+import Link from "next/link";
 
 export default function MunicipiDetailPage() {
   const { id } = useParams();
@@ -86,11 +87,20 @@ export default function MunicipiDetailPage() {
             </div>
           </div>
           
-          <div className="mt-8 md:mt-0 glass-card p-6 bg-white/40 border-white/20 shadow-none backdrop-blur-none text-right">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2 leading-none">Despesa Energètica Estimada</p>
-            <p className="text-4xl font-black text-slate-800 tracking-tighter">
-                {Number(data.pressupost_energia || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}
-            </p>
+          <div className="mt-8 md:mt-0 flex flex-col items-end space-y-4">
+            <Link 
+                href={`/municipis/${id}/mission-control`}
+                className="bg-slate-900 hover:bg-slate-800 text-white px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest shadow-xl flex items-center space-x-2 transition-all transform hover:scale-105"
+            >
+                <Sparkles className="w-4 h-4 text-blue-400" />
+                <span>Obrir Mission Control</span>
+            </Link>
+            <div className="glass-card p-6 bg-white/40 border-white/20 shadow-none backdrop-blur-none text-right">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2 leading-none">Despesa Energètica Estimada</p>
+              <p className="text-4xl font-black text-slate-800 tracking-tighter">
+                  {Number(data.pressupost_energia || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}
+              </p>
+            </div>
           </div>
         </div>
       </div>

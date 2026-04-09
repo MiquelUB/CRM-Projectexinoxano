@@ -90,6 +90,8 @@ const api = {
     afegirActivitat: (id: string, data: any) =>
       fetchAPI(`/municipis_v2/${id}/activitat`, { method: "POST", body: JSON.stringify(data) }),
     getTimeline: (id: string) => fetchAPI(`/municipis_v2/${id}/activitats`),
+    get_activitats: (id: string) => fetchAPI(`/municipis_v2/${id}/activitats`),
+    get_llicencia: (id: string) => fetchAPI(`/municipis_v2/${id}/llicencia`),
     kpis: () => fetchAPI("/municipis_lifecycle/kpis"),
     eliminar: (id: string) => fetchAPI(`/municipis_v2/${id}`, { method: "DELETE" }),
   },
@@ -200,6 +202,7 @@ const api = {
       fetchAPI(`/emails_v2?${new URLSearchParams(params || {})}`),
     detall: (id: string) => fetchAPI(`/emails_v2/${id}`),
     sync: () => fetchAPI("/emails_v2/sync", { method: "POST" }),
+    enviar: (data: any) => fetchAPI(`/emails_v2/enviar_manual/${data.municipi_id}`, { method: "POST", body: JSON.stringify(data) }),
   },
   tasques: {
     llistar: (params?: Record<string, string>) =>

@@ -107,4 +107,107 @@ SISTEMA DE MEMÒRIA JERÀRQUICA:
 """
         return hierarchical_prompt
 
+    @classmethod
+    async def run_weekly_aggregation(cls, db: Session):
+        """
+        Executa l'agregació de Nivell 2 per a tots els municipis.
+        Cronjob executat cada dilluns.
+        """
+        from models_v2 import MunicipiLifecycle, ActivitatsMunicipi, TipusActivitat
+        from datetime import datetime, timedelta
+        
+        avui = datetime.utcnow()
+        setmana_passada = avui - timedelta(days=7)
+        setmana_id = avui.strftime("%Y-W%W")
+        
+        municipis = db.query(MunicipiLifecycle).all()
+        for m in municipis:
+            # Comptar activitats de la setmana passada
+            activitats = db.query(ActivitatsMunicipi).filter(
+                ActivitatsMunicipi.municipi_id == m.id,
+                ActivitatsMunicipi.data_activitat >= setmana_passada
+            ).all()
+            
+            if not activitats:
+                continue
+                
+            stats = {
+                "setmana": setmana_id,
+                "activitats_totals": len(activitats),
+                "emails_enviats": len([a for a in activitats if a.tipus_activitat == TipusActivitat.email_enviat]),
+                "emails_rebuts": len([a for a in activitats if a.tipus_activitat == TipusActivitat.email_rebut]),
+                "trucades": len([a for a in activitats if a.tipus_activitat == TipusActivitat.trucada]),
+                "reunions": len([a for a in activitats if a.tipus_activitat == TipusActivitat.reunio]),
+                "sentiment_general": "neutre", # Es podria calcular amb LLM
+                "highlights": []
+            }
+            
+            # Cridar LLM per a highlights
+            if stats["activitats_totals"] > 0:
+                timeline_str = "\n".join([f"- {a.tipus_activitat.value}: {a.notes_comercial or ''}" for a in activitats])
+                try:
+                    prompt = f"Resumeix les activitats de la setmana pel municipi {m.nom} en 2-3 punts clau:\n{timeline_str}"
+                    res = await kimi_agent.call_skill("generar_highlights", prompt)
+                    stats["highlights"] = [line.strip("- ").strip() for line in res["content"].splitlines() if line.strip()]
+                except Exception as e:
+                    logger.error(f"Error generant highlights per {m.nom}: {e}")
+
+            # Guardar a resum_setmanal
+            mem = db.query(m2.MemoriaMunicipi).filter(m2.MemoriaMunicipi.municipi_id == m.id).first()
+            if not mem:
+                mem = m2.MemoriaMunicipi(municipi_id=m.id, resum_setmanal=stats)
+                db.add(mem)
+            else:
+                mem.resum_setmanal = stats
+            
+        db.commit()
+
+    @classmethod
+    async def run_monthly_strategic_learning(cls, db: Session):
+        """
+        Executa l'aprenentatge de Nivell 3 (Estratègic).
+        Analitza conversions i pèrdues de l'últim mes.
+        """
+        from models_v2 import MunicipiLifecycle, EstatFinalEnum, MemoriaGlobal
+        from datetime import datetime, timedelta
+        
+        avui = datetime.utcnow()
+        mes_passat = avui - timedelta(days=30)
+        
+        # Municipis tancats (positiu o negatiu) aquest mes
+        municipis_tancats = db.query(MunicipiLifecycle).filter(
+            MunicipiLifecycle.estat_final.isnot(None),
+            MunicipiLifecycle.data_conversio >= mes_passat
+        ).all()
+        
+        if not municipis_tancats:
+            logger.info("No hi ha municipis tancats aquest mes per analitzar.")
+            return
+
+        for m in municipis_tancats:
+            # Carregar context complet de tancament
+            timeline = await cls._get_full_timeline(db, str(m.id))
+            status = "ÈXIT" if m.estat_final == EstatFinalEnum.client else "FRACÀS"
+            
+            prompt = f"Analitza el següent timeline de tancament de {m.nom} ({status}):\n{timeline}\nExtrau una lliçó estratègica."
+            
+            try:
+                res = await kimi_agent.call_skill("aprenentatge_estrategic", prompt)
+                import json
+                llico_data = json.loads(res["content"])
+                
+                # Afegir a MemoriaGlobal
+                m_global = MemoriaGlobal(
+                    categoria=llico_data["categoria"],
+                    llico=llico_data["llico"],
+                    confianca=llico_data["confianca"],
+                    evidencia={"municipi_id": str(m.id), "nom": m.nom, "estat": status}
+                )
+                db.add(m_global)
+            except Exception as e:
+                logger.error(f"Error aprenentatge estratègic per {m.nom}: {e}")
+        
+        db.commit()
+        logger.info(f"Aprenentatge mensual completat per {len(municipis_tancats)} municipis.")
+
 memory_engine = MemoryEngine()

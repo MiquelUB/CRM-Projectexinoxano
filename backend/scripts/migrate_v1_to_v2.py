@@ -35,6 +35,7 @@ def migrate(dry_run=True):
         # 1. MAPPING DICTS
         municipi_mapping = {}  # V1_id -> V2_id
         contacte_mapping = {}  # V1_id -> V2_id
+        processed_v2_municipis = set() # Track for MemoriaMunicipi
         
         # 2. MIGRACIÓ MUNICIPIS
         logger.info("Iniciant migració de Municipis...")
@@ -65,26 +66,27 @@ def migrate(dry_run=True):
             
             municipi_mapping[v1_m.id] = v2_m.id
             
-            # Crear nota_manual si hi ha notes_humanes
-            if v1_m.notes_humanes:
+            # Crear nota_manual si hi ha notes
+            if hasattr(v1_m, 'notes') and v1_m.notes:
                 activitat = models_v2.ActivitatsMunicipi(
                     municipi_id=v2_m.id,
                     tipus_activitat=models_v2.TipusActivitat.nota_manual,
-                    notes_comercial=v1_m.notes_humanes,
+                    notes_comercial=v1_m.notes,
                     data_activitat=v1_m.created_at or datetime.now()
                 )
                 if not dry_run:
                     db.add(activitat)
             
-            # Crear MemoriaMunicipi buida
-            memoria = db.query(models_v2.MemoriaMunicipi).filter(models_v2.MemoriaMunicipi.municipi_id == v2_m.id).first()
-            if not memoria:
-                memoria = models_v2.MemoriaMunicipi(
-                    municipi_id=v2_m.id,
-                    contingut={}
-                )
-                if not dry_run:
-                    db.add(memoria)
+            # Crear MemoriaMunicipi buida (només si no l'hem processat en aquesta sessió o ja existeix)
+            if v2_m.id not in processed_v2_municipis:
+                memoria = db.query(models_v2.MemoriaMunicipi).filter(models_v2.MemoriaMunicipi.municipi_id == v2_m.id).first()
+                if not memoria:
+                    memoria = models_v2.MemoriaMunicipi(
+                        municipi_id=v2_m.id
+                    )
+                    if not dry_run:
+                        db.add(memoria)
+                processed_v2_municipis.add(v2_m.id)
 
         # 3. MIGRACIÓ CONTACTES
         logger.info("Iniciant migració de Contactes...")
@@ -104,7 +106,7 @@ def migrate(dry_run=True):
                 nom=v1_c.nom,
                 email=v1_c.email,
                 telefon=v1_c.telefon,
-                carrec=v1_c.carrec or models_v2.CarrecEnum.altres,
+                carrec=v1_c.carrec if hasattr(v1_c, 'carrec') and v1_c.carrec in models_v2.CarrecEnum.__members__ else models_v2.CarrecEnum.altre,
                 principal=v1_c.principal if hasattr(v1_c, 'principal') else False,
                 created_at=v1_c.created_at or datetime.now()
             )
@@ -122,12 +124,12 @@ def migrate(dry_run=True):
             logger.info(f"Contacte migrat: {v1_c.nom} del municipi V2 {v2_municipi_id}")
             
             # Migrar notes de contacte a activitats si n'hi ha
-            if hasattr(v1_c, 'notes') and v1_c.notes:
+            if hasattr(v1_c, 'notes_humanes') and v1_c.notes_humanes:
                 act_c = models_v2.ActivitatsMunicipi(
                     municipi_id=v2_municipi_id,
                     contacte_id=v2_c.id,
                     tipus_activitat=models_v2.TipusActivitat.nota_manual,
-                    notes_comercial=f"Nota contacte: {v1_c.notes}",
+                    notes_comercial=f"Nota contacte: {v1_c.notes_humanes}",
                     data_activitat=v1_c.created_at or datetime.now()
                 )
                 if not dry_run:
@@ -157,7 +159,7 @@ def migrate(dry_run=True):
                 contacte_id=contacte_mapping.get(v1_e.contacte_id),
                 assumpte=v1_e.assumpte,
                 cos=v1_e.cos,
-                direccio=v1_e.direccio,
+                direccio="sortida" if v1_e.direccio in ["sortida", "OUT"] else "entrada",
                 tracking_token=v1_e.tracking_token,
                 created_at=v1_e.created_at or datetime.now()
             )
@@ -166,7 +168,7 @@ def migrate(dry_run=True):
             activitat_e = models_v2.ActivitatsMunicipi(
                 municipi_id=v2_municipi_id,
                 contacte_id=v2_e.contacte_id,
-                tipus_activitat=models_v2.TipusActivitat.email_enviat if v1_e.direccio == "sortida" else models_v2.TipusActivitat.email_rebut,
+                tipus_activitat=models_v2.TipusActivitat.email_enviat if v1_e.direccio in ["sortida", "OUT"] else models_v2.TipusActivitat.email_rebut,
                 data_activitat=v1_e.created_at or datetime.now(),
                 contingut={
                     "email_id": str(v2_e.id),
@@ -196,11 +198,11 @@ def migrate(dry_run=True):
                         municipi_id=t.municipi_id,
                         contacte_id=t.contacte_id,
                         tipus_activitat=models_v2.TipusActivitat.trucada,
-                        data_activitat=t.data_trucada,
+                        data_activitat=t.data,
                         notes_comercial=t.notes_breus,
                         contingut={
                             "trucada_id": str(t.id),
-                            "duracio_minuts": t.duracio_segons // 60 if hasattr(t, 'duracio_segons') else 0,
+                            "duracio_minuts": t.durada_minuts,
                             "resum_ia": t.resum_ia
                         }
                     )
@@ -222,11 +224,11 @@ def migrate(dry_run=True):
                         municipi_id=r.municipi_id,
                         contacte_id=r.contacte_id,
                         tipus_activitat=models_v2.TipusActivitat.reunio, # O demo depenent de tipus
-                        data_activitat=r.data_reunio,
+                        data_activitat=r.data,
                         notes_comercial=r.notes_aar,
                         contingut={
                             "reunio_id": str(r.id),
-                            "tipus": r.tipus_reunio if hasattr(r, 'tipus_reunio') else "presencial"
+                            "tipus": r.tipus
                         }
                     )
                     if not dry_run:

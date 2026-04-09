@@ -77,12 +77,25 @@ app.add_middleware(
 
 @app.middleware("http")
 async def monitor_v1_usage(request: Request, call_next):
-    # Monitorització d'endpoints obsolets
-    v1_paths = ["/municipis", "/contactes", "/deals", "/emails", "/tasques"]
-    if any(request.url.path == p or request.url.path.startswith(p + "/") for p in v1_paths):
-        # Si és un endpoint V1 pur (sense v2 al path)
-        if "_v2" not in request.url.path and "emails_v2" not in request.url.path:
-            logger.warning(f"🚨 DEPRECATION WARNING: Access to V1 endpoint: {request.url.path}")
+    # Monitorització d'endpoints obsolets V1
+    v1_paths = {
+        "/municipis": "municipis",
+        "/contactes": "contactes",
+        "/deals": "deals",
+        "/emails": "emails",
+        "/tasques": "tasques"
+    }
+    
+    path = request.url.path
+    if path.startswith("/"):
+        # Extreure el primer segment del path
+        first_segment = "/" + path.split("/")[1] if len(path.split("/")) > 1 else path
+        
+        if first_segment in v1_paths:
+            # Si és un endpoint V1 pur (sense v2 al path)
+            if "_v2" not in path and "emails_v2" not in path and "api/v2" not in path:
+                taula = v1_paths[first_segment]
+                logger.warning(f"[DEPRECATED] Query a taula '{taula}' des de endpoint '{path}'")
     
     response = await call_next(request)
     return response
@@ -97,6 +110,8 @@ async def force_https_middleware(request: Request, call_next):
 
 # Include routers
 app.include_router(dashboard.router)
+from routers import municipis_api
+app.include_router(municipis_api.router, prefix="/api/v2/municipis")
 app.include_router(municipis_v2.router)
 app.include_router(emails_v2.router, prefix="/api/v2")
 app.include_router(activitats_v2.router, prefix="/api/v2")

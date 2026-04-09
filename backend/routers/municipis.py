@@ -5,7 +5,9 @@ from uuid import UUID
 
 from database import get_db
 import models
+import models_v2
 import schemas
+import schemas_v2
 from auth import get_current_user
 
 router = APIRouter(prefix="/municipis", tags=["municipis"])
@@ -30,14 +32,12 @@ def get_municipis(
     
     return {"items": items, "total": total, "page": page}
 
-@router.get("/{id}", response_model=schemas.MunicipiDetailOut)
+@router.get("/{id}", response_model=schemas_v2.MunicipiLifecycleDetailOut)
 def get_municipi(id: UUID, db: Session = Depends(get_db), current_user: models.Usuari = Depends(get_current_user)):
-    municipi = db.query(models.Municipi).options(
-        joinedload(models.Municipi.contactes),
-        joinedload(models.Municipi.deals)
-    ).filter(models.Municipi.id == id).first()
+    # Migrat a V2: MunicipiLifecycle
+    municipi = db.query(models_v2.MunicipiLifecycle).filter(models_v2.MunicipiLifecycle.id == str(id)).first()
     if not municipi:
-        raise HTTPException(status_code=404, detail="Municipi no trobat")
+        raise HTTPException(status_code=404, detail="Municipi no trobat (V2)")
     return municipi
 
 @router.post("", response_model=schemas.MunicipiOut, status_code=status.HTTP_201_CREATED)

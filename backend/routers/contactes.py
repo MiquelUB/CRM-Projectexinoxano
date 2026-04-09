@@ -5,12 +5,14 @@ from uuid import UUID
 
 from database import get_db
 import models
+import models_v2
 import schemas
+import schemas_v2
 from auth import get_current_user
 
 router = APIRouter(prefix="/contactes", tags=["contactes"])
 
-@router.get("", response_model=schemas.ContacteListResponse)
+@router.get("", response_model=schemas_v2.ContactePaginationOut)
 def get_contactes(
     municipi_id: Optional[UUID] = None,
     cerca: Optional[str] = None,
@@ -19,26 +21,28 @@ def get_contactes(
     db: Session = Depends(get_db),
     current_user: models.Usuari = Depends(get_current_user)
 ):
-    query = db.query(models.Contacte).options(joinedload(models.Contacte.municipi))
+    # Migrat a V2: ContacteV2
+    query = db.query(models_v2.ContacteV2)
     
     if municipi_id:
-        query = query.filter(models.Contacte.municipi_id == municipi_id)
+        query = query.filter(models_v2.ContacteV2.municipi_id == str(municipi_id))
     if cerca:
         query = query.filter(
-            (models.Contacte.nom.ilike(f"%{cerca}%")) | 
-            (models.Contacte.email.ilike(f"%{cerca}%"))
+            (models_v2.ContacteV2.nom.ilike(f"%{cerca}%")) | 
+            (models_v2.ContacteV2.email.ilike(f"%{cerca}%"))
         )
         
     total = query.count()
-    items = query.order_by(models.Contacte.nom).offset((page - 1) * limit).limit(limit).all()
+    items = query.order_by(models_v2.ContacteV2.nom).offset((page - 1) * limit).limit(limit).all()
     
     return {"items": items, "total": total, "page": page}
 
-@router.get("/{id}", response_model=schemas.ContacteOut)
+@router.get("/{id}", response_model=schemas_v2.ContacteOut)
 def get_contacte(id: UUID, db: Session = Depends(get_db), current_user: models.Usuari = Depends(get_current_user)):
-    contacte = db.query(models.Contacte).options(joinedload(models.Contacte.municipi)).filter(models.Contacte.id == id).first()
+    # Migrat a V2: ContacteV2
+    contacte = db.query(models_v2.ContacteV2).filter(models_v2.ContacteV2.id == id).first()
     if not contacte:
-        raise HTTPException(status_code=404, detail="Contacte no trobat")
+        raise HTTPException(status_code=404, detail="Contacte no trobat (V2)")
     return contacte
 
 @router.post("", response_model=schemas.ContacteShortOut, status_code=status.HTTP_201_CREATED)

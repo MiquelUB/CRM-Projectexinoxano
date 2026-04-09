@@ -1,6 +1,6 @@
 import { Sidebar } from "@/components/Sidebar";
 import { ChatProvider } from "@/contexts/ChatContext";
-import { AIChatPanel } from "@/components/AIChatPanel";
+import { KimiChat } from "@/components/KimiChat";
 
 export default function AppLayout({
   children,
@@ -17,7 +17,7 @@ export default function AppLayout({
           </main>
         </div>
       </div>
-      <AIChatPanel />
+      <KimiChat />
     </ChatProvider>
   );
 }

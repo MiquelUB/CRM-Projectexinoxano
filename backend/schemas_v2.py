@@ -110,3 +110,8 @@ class ActivitatPaginationOut(BaseModel):
     total: int
     page: int
     pages: int
+
+class ContactePaginationOut(BaseModel):
+    items: List[ContacteOut]
+    total: int
+    page: int

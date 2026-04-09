@@ -18,6 +18,8 @@ import { useChatContext } from "@/contexts/ChatContext";
 import api from "@/lib/api";
 import { format } from "date-fns";
 import { ca } from "date-fns/locale";
+import { EmailDraftModal } from "@/components/EmailDraftModal";
+import { ProgramarTrucadaModal } from "@/components/municipis/ProgramarTrucadaModal";
 
 interface Message {
   role: "user" | "assistant";
@@ -26,12 +28,15 @@ interface Message {
   accions_suggerides?: string[];
 }
 
-export function AIChatPanel() {
+export function KimiChat() {
   const { dealContext, isChatOpen, setIsChatOpen, clearDealContext } = useChatContext();
   const [isExpanded, setIsExpanded] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState<string | null>(null);
+  const [showCallModal, setShowCallModal] = useState<string | null>(null);
+  
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -68,6 +73,34 @@ export function AIChatPanel() {
 
     loadHistory();
   }, [dealContext]);
+
+  // Polling per a noves respostes si el xat està obert
+  useEffect(() => {
+    if (!isChatOpen) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await api.agent.getMemory({ deal_id: dealContext?.id });
+        if (res && res.history) {
+          const formattedMessages = res.history.map((m: any) => ({
+            ...m,
+            timestamp: m.timestamp ? new Date(m.timestamp) : new Date()
+          }));
+          
+          setMessages(prev => {
+            if (formattedMessages.length > prev.length) {
+              return formattedMessages;
+            }
+            return prev;
+          });
+        }
+      } catch (err) {
+        console.error("Error en polling d'historial:", err);
+      }
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [isChatOpen, dealContext]);
 
   // Scroll automàtic al final
   useEffect(() => {
@@ -117,6 +150,17 @@ export function AIChatPanel() {
     }
   };
 
+  const handleActionClick = (action: string) => {
+    const normalized = action.toLowerCase();
+    if (normalized.includes("redactar") || normalized.includes("email")) {
+      setShowEmailModal(action);
+    } else if (normalized.includes("programar") || normalized.includes("trucada")) {
+      setShowCallModal(action);
+    } else {
+      handleSendMessage(undefined, action);
+    }
+  };
+
   const togglePanel = () => {
     const nextState = !isChatOpen;
     setIsChatOpen(nextState);
@@ -129,11 +173,14 @@ export function AIChatPanel() {
     return (
       <div 
         onClick={togglePanel}
-        className="fixed bottom-6 right-6 z-[60] group transition-all duration-300 transform hover:scale-105"
+        className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[60] group transition-all duration-300 transform hover:scale-105"
+        role="button"
+        aria-label="Obrir xat amb Kimi"
+        tabIndex={0}
       >
         <div className="relative">
           <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
-          <button className="relative flex items-center space-x-3 bg-white px-5 py-3.5 rounded-2xl shadow-xl border border-blue-50">
+          <button className="relative flex items-center space-x-3 bg-white px-4 sm:px-5 py-3 sm:py-3.5 rounded-2xl shadow-xl border border-blue-50" aria-label="Parla amb Kimi">
             <div className="relative">
               <div className="w-10 h-10 bg-gradient-to-tr from-blue-600 to-indigo-700 rounded-xl flex items-center justify-center text-white shadow-lg">
                 <Bot className="w-6 h-6" />
@@ -151,7 +198,7 @@ export function AIChatPanel() {
   }
 
   return (
-    <div className="fixed bottom-6 right-6 z-[60] w-[400px] h-[600px] flex flex-col bg-white rounded-3xl shadow-2xl border border-blue-100/50 overflow-hidden animate-in slide-in-from-bottom-4 duration-300">
+    <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[60] w-[calc(100vw-2rem)] sm:w-[400px] h-[75vh] max-h-[600px] flex flex-col bg-white rounded-3xl shadow-2xl border border-blue-100/50 overflow-hidden animate-in slide-in-from-bottom-4 duration-300" aria-label="Xat Kimi">
       {/* Header */}
       <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-5 flex items-center justify-between text-white shrink-0">
         <div className="flex items-center space-x-3">
@@ -178,6 +225,7 @@ export function AIChatPanel() {
         <div className="flex items-center space-x-1">
           <button 
             onClick={togglePanel}
+            aria-label="Minimitzar xat"
             className="p-2 hover:bg-white/10 rounded-lg transition-colors"
           >
             <Minus className="w-4 h-4" />
@@ -201,7 +249,9 @@ export function AIChatPanel() {
                 ${msg.role === "user" 
                   ? "bg-blue-600 text-white rounded-tr-none" 
                   : "bg-white text-slate-700 border border-blue-50 rounded-tl-none"}
-              `}>
+              `}
+                aria-live={msg.role === "assistant" ? "polite" : "off"}
+              >
                 <div className="whitespace-pre-wrap">{msg.content}</div>
                 
                 {msg.accions_suggerides && msg.accions_suggerides.length > 0 && (
@@ -209,7 +259,7 @@ export function AIChatPanel() {
                     {msg.accions_suggerides.map((action, idx) => (
                       <button
                         key={idx}
-                        onClick={() => handleSendMessage(undefined, action)}
+                        onClick={() => handleActionClick(action)}
                         className="text-[10px] font-bold bg-blue-50 text-blue-600 px-3 py-1.5 rounded-full border border-blue-100 hover:bg-blue-600 hover:text-white transition-all flex items-center space-x-1"
                       >
                         <span>{action}</span>
@@ -270,6 +320,28 @@ export function AIChatPanel() {
           Powered by Kimi K2 Doctrine
         </p>
       </div>
+
+      {/* Modals Suggerits */}
+      {showEmailModal && dealContext && (
+        <EmailDraftModal 
+          municipiId={dealContext.id} 
+          onClose={() => setShowEmailModal(null)} 
+          tipus="email_1_prospeccio" 
+          accioRecomanada={showEmailModal}
+        />
+      )}
+      
+      {showCallModal && dealContext && (
+        <ProgramarTrucadaModal 
+          municipiId={dealContext.id} 
+          onClose={() => setShowCallModal(null)} 
+          onAdded={() => {
+            setShowCallModal(null);
+            handleSendMessage(undefined, "He programat la trucada correctament.");
+          }} 
+          contactes={[]} 
+        />
+      )}
     </div>
   );
 }
