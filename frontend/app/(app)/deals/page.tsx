@@ -20,14 +20,14 @@ export default function DealsPage() {
   const [contactes, setContactes] = useState<any[]>([]);
   const [formData, setFormData] = useState({
     municipi_id: "",
-    contacte_id: "",
-    titol: "",
-    etapa: "prospecte",
+    actor_principal_id: "",
+    nom: "",
+    etapa_actual: "research",
     valor_setup: "0",
     valor_llicencia: "0",
     prioritat: "mitjana",
     proper_pas: "",
-    data_tancament_prev: ""
+    data_seguiment: ""
   });
   const [selectedPlan, setSelectedPlan] = useState("");
 
@@ -40,8 +40,8 @@ export default function DealsPage() {
   const loadSelectData = async () => {
     try {
       const [munRes, conRes] = await Promise.all([
-        api.municipis.llistar({ limit: "100" }),
-        api.contactes.llistar({ limit: "100" })
+        api.municipis_v2.llistar({ limit: "200" }),
+        api.contactes_v2.llistar({ limit: "200" })
       ]);
       setMunicipis(munRes.items || []);
       setContactes(conRes.items || []);
@@ -57,8 +57,7 @@ export default function DealsPage() {
       setFormData({
         ...formData,
         valor_setup: plan.setup.toString(),
-        valor_llicencia: plan.manteniment.toString(),
-        titol: formData.titol || `Projecte ${plan.nom}`
+        valor_llicencia: plan.manteniment.toString()
       });
     }
   };
@@ -68,32 +67,37 @@ export default function DealsPage() {
     setIsSubmitting(true);
     try {
       const dataToSave = {
-        ...formData,
+        nom: formData.nom,
+        etapa_actual: formData.etapa_actual,
         valor_setup: parseFloat(formData.valor_setup),
         valor_llicencia: parseFloat(formData.valor_llicencia),
-        contacte_id: formData.contacte_id || null,
-        data_tancament_prev: formData.data_tancament_prev || null,
-        proper_pas: formData.proper_pas || null
+        actor_principal_id: formData.actor_principal_id || null,
+        data_seguiment: formData.data_seguiment || null,
+        proper_pas: formData.proper_pas || null,
+        prioritat: formData.prioritat
       };
       
-      await api.deals.crear(dataToSave);
+      // Actualitzem el municipi per "activar-lo" com a deal
+      await api.municipis_v2.editar(formData.municipi_id, dataToSave);
+      
       setIsModalOpen(false);
       setFormData({
         municipi_id: "",
-        contacte_id: "",
-        titol: "",
-        etapa: "prospecte",
+        actor_principal_id: "",
+        nom: "",
+        etapa_actual: "research",
         valor_setup: "0",
         valor_llicencia: "0",
         prioritat: "mitjana",
         proper_pas: "",
-        data_tancament_prev: ""
+        data_seguiment: ""
       });
       setSelectedPlan("");
+      // No fem reload, el Kanban ja hauria de refrescar-se si l'estimulem (per simplicitat aquí fem reload o refresh de dades)
       window.location.reload(); 
     } catch (error: any) {
       console.error(error);
-      alert(`Error en crear el deal: ${error.message}`);
+      alert(`Error en activar l'oportunitat: ${error.message}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -152,8 +156,8 @@ export default function DealsPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Títol de l'oportunitat *</label>
-                  <input required value={formData.titol} onChange={e => setFormData({...formData, titol: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 outline-none focus:border-blue-400 transition-colors" placeholder="Ex: Renovació llicències 2026" />
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Nom del Projecte / Label *</label>
+                  <input required value={formData.nom} onChange={e => setFormData({...formData, nom: e.target.value})} className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 font-bold text-slate-700 outline-none focus:border-blue-400 transition-colors" placeholder="Ex: Passaport Digital 2026" />
                 </div>
               </div>
 
@@ -169,12 +173,12 @@ export default function DealsPage() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Contacte Principal</label>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Actor Principal</label>
                   <div className="relative">
                       <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                      <select value={formData.contacte_id} onChange={e => setFormData({...formData, contacte_id: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-12 pr-4 py-3 font-bold text-slate-700 outline-none focus:border-blue-400 transition-colors appearance-none">
+                      <select value={formData.actor_principal_id} onChange={e => setFormData({...formData, actor_principal_id: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-12 pr-4 py-3 font-bold text-slate-700 outline-none focus:border-blue-400 transition-colors appearance-none">
                         <option value="">Cap contacte assignat</option>
-                        {contactes.map(c => <option key={c.id} value={c.id}>{c.nom} ({c.municipi?.nom})</option>)}
+                        {contactes.map(c => <option key={c.id} value={c.id}>{c.nom} ({c.municipi_nom || 'S/M'})</option>)}
                       </select>
                   </div>
                 </div>
@@ -207,10 +211,10 @@ export default function DealsPage() {
                     </select>
                 </div>
                 <div className="md:col-span-2">
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Data tancament prevista</label>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Propera data de seguiment</label>
                     <div className="relative">
                         <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                        <input type="date" value={formData.data_tancament_prev} onChange={e => setFormData({...formData, data_tancament_prev: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-12 pr-4 py-3 font-bold text-slate-700 outline-none focus:border-blue-400 transition-colors" />
+                        <input type="date" value={formData.data_seguiment} onChange={e => setFormData({...formData, data_seguiment: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-12 pr-4 py-3 font-bold text-slate-700 outline-none focus:border-blue-400 transition-colors" />
                     </div>
                 </div>
               </div>

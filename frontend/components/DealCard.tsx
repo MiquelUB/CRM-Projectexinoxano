@@ -27,19 +27,18 @@ export function DealCard({ deal, isOverlay = false }: any) {
       <div className="flex justify-between items-start mb-3 gap-2">
         <div className="flex-1">
           <div className="mb-2">
-            {deal.municipi?.nom ? (
-              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black bg-blue-100 text-blue-700 uppercase tracking-widest">
-                🏢 {deal.municipi.nom}
-              </span>
-            ) : (
-              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black bg-slate-100 text-slate-500 uppercase tracking-widest">
-                🏢 MUNICIP DESCONEGUT
-              </span>
-            )}
+            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black bg-blue-100 text-blue-700 uppercase tracking-widest">
+              🏢 {deal.comarca || 'MUNICIPI'}
+            </span>
           </div>
-          <h4 className="font-extrabold text-slate-800 text-[14px] leading-snug tracking-tight mb-1" title={deal.titol}>
-            {deal.titol}
+          <h4 className="font-extrabold text-slate-800 text-[16px] leading-snug tracking-tight mb-1" title={deal.nom}>
+            {deal.nom}
           </h4>
+          {deal.poblacio > 0 && (
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">
+              👥 {deal.poblacio.toLocaleString()} HAB.
+            </p>
+          )}
         </div>
         <div className={`text-[9px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded-md border shrink-0 ${priorityStyles[deal.prioritat] || priorityStyles.baixa}`}>
             {deal.prioritat}

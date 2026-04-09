@@ -79,6 +79,27 @@ const api = {
     },
     me: () => fetchAPI("/auth/me"),
   },
+  municipis_v2: {
+    llistar: (params?: Record<string, string>) =>
+      fetchAPI(`/municipis_v2?${new URLSearchParams(params || {})}`),
+    detall: (id: string) => fetchAPI(`/municipis_v2/${id}`),
+    crear: (data: unknown) => fetchAPI("/municipis_v2", { method: "POST", body: JSON.stringify(data) }),
+    editar: (id: string, data: unknown) => fetchAPI(`/municipis_v2/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+    canviarEtapa: (id: string, etapa: string) =>
+      fetchAPI(`/municipis_v2/${id}/etapa`, { method: "PATCH", body: JSON.stringify({ etapa }) }),
+    afegirActivitat: (id: string, data: any) =>
+      fetchAPI(`/municipis_v2/${id}/activitat`, { method: "POST", body: JSON.stringify(data) }),
+    getTimeline: (id: string) => fetchAPI(`/municipis_v2/${id}/activitats`),
+    kpis: () => fetchAPI("/municipis_lifecycle/kpis"),
+    eliminar: (id: string) => fetchAPI(`/municipis_v2/${id}`, { method: "DELETE" }),
+  },
+  contactes_v2: {
+    llistar: (params?: Record<string, string>) =>
+      fetchAPI(`/municipis_lifecycle/contactes?${new URLSearchParams(params || {})}`),
+    crear: (data: unknown) => fetchAPI("/municipis_lifecycle/contactes", { method: "POST", body: JSON.stringify(data) }),
+    editar: (id: string, data: unknown) => fetchAPI(`/municipis_lifecycle/contactes/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+    eliminar: (id: string) => fetchAPI(`/municipis_lifecycle/contactes/${id}`, { method: "DELETE" }),
+  },
   municipis: {
     llistar: (params?: Record<string, string>) =>
       fetchAPI(`/municipis?${new URLSearchParams(params || {})}`),
@@ -172,6 +193,13 @@ const api = {
     analitzarDeal: (data: any) => fetchAPI("/agent/analitzar-deal", { method: "POST", body: JSON.stringify(data) }),
     resumirDeal: (data: any) => fetchAPI("/agent/resum-deal", { method: "POST", body: JSON.stringify(data) }),
     chatMunicipi: (data: any) => fetchAPI("/agent/chat_municipi", { method: "POST", body: JSON.stringify(data) }),
+    getActivitatContext: (municipiId: string) => fetchAPI(`/agent/context/${municipiId}`),
+  },
+  emails_v2: {
+    llistar: (params?: Record<string, string>) =>
+      fetchAPI(`/emails_v2?${new URLSearchParams(params || {})}`),
+    detall: (id: string) => fetchAPI(`/emails_v2/${id}`),
+    sync: () => fetchAPI("/emails_v2/sync", { method: "POST" }),
   },
   tasques: {
     llistar: (params?: Record<string, string>) =>

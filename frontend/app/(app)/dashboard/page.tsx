@@ -27,7 +27,7 @@ export default function DashboardPage() {
   const fetchDashboardData = async () => {
     try {
       const [kpisData, alertesData, statsData, tasquesData, accionsData] = await Promise.all([
-        api.deals.kpis(),
+        api.municipis_v2.kpis(),
         api.alertes.totes(),
         api.emails.getStats(),
         api.tasques.llistar({ estat: "pendent" }),
@@ -53,13 +53,17 @@ export default function DashboardPage() {
       return;
     }
 
-    // If it's a pseudo-task or we want to see the deal
-    if (!task.deal_id) return;
-    
     setDealLoading(true);
     try {
-      const deal = await api.deals.detall(task.deal_id);
-      setSelectedDeal(deal);
+      // Intentar V2 primer, fallback a V1 si cal (per alertes antigues)
+      const targetId = task.municipi_id || task.deal_id;
+      if (!targetId) return;
+      
+      const res = task.municipi_id 
+        ? await api.municipis_v2.detall(task.municipi_id) 
+        : await api.deals.detall(task.deal_id);
+        
+      setSelectedDeal(res);
     } catch (error) {
       console.error("Error fetching deal", error);
     } finally {
@@ -263,7 +267,7 @@ export default function DashboardPage() {
                     <p className="text-xs text-slate-500">Llicència expira el {new Date(ren.data_renovacio).toLocaleDateString()}</p>
                   </div>
                   <button 
-                    onClick={() => handleSelectTask({ deal_id: ren.deal_id })}
+                    onClick={() => handleSelectTask({ deal_id: ren.deal_id, municipi_id: ren.municipi_id })}
                     className="text-xs font-bold text-blue-600 hover:text-blue-700 decoration-dotted hover:underline"
                   >
                     Gestionar
@@ -283,7 +287,7 @@ export default function DashboardPage() {
                     <p className="text-xs text-slate-500">{Number(pag.import).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} • des de {new Date(pag.data_limit).toLocaleDateString()}</p>
                   </div>
                   <button 
-                    onClick={() => handleSelectTask({ deal_id: pag.deal_id })}
+                    onClick={() => handleSelectTask({ deal_id: pag.deal_id, municipi_id: pag.municipi_id })}
                     className="text-xs font-bold text-rose-600 hover:text-rose-700 decoration-dotted hover:underline"
                   >
                     Reclamar

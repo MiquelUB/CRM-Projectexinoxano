@@ -41,7 +41,20 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-from fastapi import Request
+import logging
+logger = logging.getLogger("uvicorn.error")
+
+@app.middleware("http")
+async def monitor_v1_usage(request: Request, call_next):
+    # Monitorització d'endpoints obsolets
+    v1_paths = ["/municipis", "/contactes", "/deals", "/emails", "/tasques"]
+    if any(request.url.path == p or request.url.path.startswith(p + "/") for p in v1_paths):
+        # Si és un endpoint V1 pur (sense v2 al path)
+        if "_v2" not in request.url.path and "emails_v2" not in request.url.path:
+            logger.warning(f"🚨 DEPRECATION WARNING: Access to V1 endpoint: {request.url.path}")
+    
+    response = await call_next(request)
+    return response
 
 @app.middleware("http")
 async def force_https_middleware(request: Request, call_next):

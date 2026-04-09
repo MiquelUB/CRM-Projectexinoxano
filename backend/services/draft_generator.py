@@ -3,84 +3,40 @@ from sqlalchemy.orm import Session
 from uuid import UUID
 from typing import Optional
 from .openrouter_client import call_openrouter
+from .agent_manager import kimi_agent
 from models_v2 import MunicipiLifecycle, ContacteV2, EmailDraftV2, EstatDraftEnum, CarrecEnum, TrucadaV2, ReunioV2, EmailV2
 import logging
 
 logger = logging.getLogger(__name__)
 
-def get_prompt_actor(carrec: Optional[str]) -> str:
-    prompts = {
-        'alcalde': """
-Actuant per a: Alcalde (Visionari). Vol llegat, visibilitat, guanyar eleccions.
-Missatge-clau: sobirania digital, control del relat, "el teu municipi al mapa".
-Regles: Mai funcionalitats tècniques. Sempre impacte polític i territorial.
-To: proximitat, "tu", company de trinxera.
-""",
-        'tecnic': """
-Actuant per a: Tècnic de Turisme/Cultura (Gatekeeper). Abrumado, por a obsolescència.
-Missatge-clau: IA Punt d'Or estalvia temps, pàgina en blanc, autonomia.
-To: empatia, "sé que tens masses projectes", alleujament.
-""",
-        'cfo': """
-Actuant per a: CFO/Interventor (Blocker). Busca dir NO de forma segura.
-Missatge-clau: contracte menor LCSP, RGPD, servidors UE, offboarding ZIP.
-To: formal, legal, sense ornaments, risc zero.
-"""
-    }
-    # Map to core categories
-    if not carrec:
-        return prompts['alcalde']
+def map_perfil_key(carrec: Optional[str]) -> str:
+    if not carrec: return 'alcalde'
     c = carrec.lower()
-    if 'alcalde' in c:
-        return prompts['alcalde']
-    elif 'tecnic' in c or 'regidor' in c:
-        return prompts['tecnic']
-    elif 'cfo' in c or 'interventor' in c:
-        return prompts['cfo']
-    return prompts['alcalde']
+    if 'alcalde' in c: return 'alcalde'
+    if 'tecnic' in c or 'regidor' in c: return 'tecnic'
+    if 'cfo' in c or 'interventor' in c: return 'cfo'
+    return 'alcalde'
 
-def get_prompt_situacio(tipus: str) -> str:
-    prompts = {
-        'email_1_prospeccio': """
-Situació: Primer contacte. Ganxo patrimoni/digitalització específic.
-Regles: Màxim 120 paraules. Zero enllaços. Zero emojis.
-Estructura: Ganxo personalitzat -> Dolor subtil -> CTA binari.
-""",
-        'email_2_dolor': """
-Situació: No resposta a email 1. Angle "micròfon apagat".
-Regles: Màxim 120 paraules. Zero enllaços.
-Estructura: Constatar silenci -> Articular dolor -> FOMO suau -> CTA.
-""",
-        'email_2_interes': """
-Situació: Obert múltiples cops, no resposta. Interès latent.
-Regles: Màxim 120 paraules.
-Estructura: Notar interès -> Oferir ajuda -> Proposar trucada curta.
-""",
-        'seguiment_post_demo': """
-Situació: Demo realitzada, cal mantenir l'interès actiu.
-Regles: Referenciar un moment concret de la demo (generat de forma creïble).
-Estructura: Recordar moment clau -> Proposar següent pas -> CTA temporal.
-""",
-        'compliance_cfo': """
-Situació: Blocker legal, necessita seguretat.
-Regles: Documentació de conformitat disponible, demanar on enviar-la.
-Estructura: Reconèixer preocupació -> Llistar garanties -> Oferir trucada tècnica/legal.
-"""
+def map_situacio_key(tipus: str) -> str:
+    # Mapeig de tipus extern a clau YAML
+    mapping = {
+        'email_1_prospeccio': 'email_1_prospeccio',
+        'email_2_dolor': 'seguiment_fred',
+        'email_2_interes': 'seguiment_fred',
+        'seguiment_post_demo': 'post_demo',
+        'compliance_cfo': 'compliance_cfo'
     }
-    return prompts.get(tipus, prompts['email_1_prospeccio'])
+    return mapping.get(tipus, 'email_1_prospeccio')
 
 async def generar_draft(db: Session, municipi: MunicipiLifecycle, tipus: str, contacte: Optional[ContacteV2] = None) -> EmailDraftV2:
     """
     Genera un esborrany d'email de 3 variants utilitzant OpenRouter.
     """
     carrec_str = contacte.carrec.value if contacte and contacte.carrec else 'alcalde'
-    prompt_actor = get_prompt_actor(carrec_str)
-    prompt_situacio = get_prompt_situacio(tipus)
+    perfil_key = map_perfil_key(carrec_str)
+    situacio_key = map_situacio_key(tipus)
     
-    system_prompt = """Ets un assessor en comunicació B2G expert en vendes a municipis de Catalunya. 
-Respons SEMPRE en format JSON vàlid en català amb: 'subject' (String), 'cos' (String), 'angle' (String breu), 'score' (Float entre 0 i 1).
-No demanis disculpes, no afegeixis format markdown fora del JSON object.
-El cos ha de ser text pur o salts de línia \n."""
+    system_prompt = kimi_agent.get_skill_system_prompt("redactar_email", perfil=perfil_key, situacio=situacio_key)
 
     # Obtenir històric recent (notes del deal/comunicacions)
     recent_trucades = db.query(TrucadaV2).filter(TrucadaV2.municipi_id == municipi.id).order_by(TrucadaV2.data.desc()).limit(2).all()

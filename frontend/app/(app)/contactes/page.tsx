@@ -38,8 +38,8 @@ export default function ContactesPage() {
   });
 
   useEffect(() => {
-    // Load municipalities for the dropdown
-    api.municipis.llistar({ limit: "100" }).then(res => setMunicipis(res.items || []));
+    // Load municipalities for the dropdown (V2)
+    api.municipis_v2.llistar({ limit: "200" }).then(res => setMunicipis(res.items || []));
   }, []);
 
   useEffect(() => {
@@ -52,9 +52,9 @@ export default function ContactesPage() {
   const fetchData = async (q: string) => {
     setLoading(true);
     try {
-      const params: any = { limit: "50" };
+      const params: any = { limit: "100" };
       if (q) params.cerca = q;
-      const response = await api.contactes.llistar(params);
+      const response = await api.contactes_v2.llistar(params);
       setItems(response.items || []);
     } catch (e) {
       console.error(e);
@@ -99,9 +99,9 @@ export default function ContactesPage() {
       };
       
       if (editingId) {
-        await api.contactes.editar(editingId, cleanedData);
+        await api.contactes_v2.editar(editingId, cleanedData);
       } else {
-        await api.contactes.crear(cleanedData);
+        await api.contactes_v2.crear(cleanedData);
       }
       
       setIsModalOpen(false);
@@ -119,7 +119,7 @@ export default function ContactesPage() {
   const handleDelete = async (id: string, nom: string) => {
     if (!confirm(`Segur que vols eliminar el contacte ${nom}?`)) return;
     try {
-      await api.contactes.eliminar(id);
+      await api.contactes_v2.eliminar(id);
       fetchData(search);
     } catch (e: any) {
       console.error(e);

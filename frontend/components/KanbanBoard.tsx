@@ -17,12 +17,12 @@ import DealDrawer from "./DealDrawer";
 import api from "@/lib/api";
 
 const STAGES = [
-  { id: "prospecte", title: "🔵 Prospecte", color: "bg-blue-50" },
-  { id: "contacte_inicial", title: "📧 Contacte Inicial", color: "bg-indigo-50" },
-  { id: "demo_feta", title: "📊 Demo Feta", color: "bg-purple-50" },
-  { id: "proposta_enviada", title: "📄 Proposta", color: "bg-orange-50" },
-  { id: "tramitacio_admin", title: "⚙️ Tramitació", color: "bg-gray-100" },
-  { id: "tancat_guanyat", title: "✅ Tancat", color: "bg-green-50" },
+  { id: "research", title: "🔍 Research", color: "bg-slate-50" },
+  { id: "contacte", title: "📧 Contacte", color: "bg-blue-50" },
+  { id: "demo", title: "📊 Demo", color: "bg-purple-50" },
+  { id: "negociacio", title: "📄 Negociació", color: "bg-orange-50" },
+  { id: "validacio", title: "⚙️ Validació", color: "bg-gray-100" },
+  { id: "client", title: "✅ Client", color: "bg-green-50" },
   { id: "perdut", title: "❌ Perdut", color: "bg-red-50" },
 ];
 
@@ -43,8 +43,8 @@ export default function KanbanBoard() {
 
   const fetchDeals = async () => {
     try {
-      const response = await api.deals.llistar({ limit: "100" });
-      setDeals(response.items);
+      const response = await api.municipis_v2.llistar({ limit: "200" });
+      setDeals(response.items || []);
     } catch (e) {
       console.error(e);
     } finally {
@@ -55,7 +55,7 @@ export default function KanbanBoard() {
   const findContainer = (id: string) => {
     if (STAGES.find((s) => s.id === id)) return id;
     const deal = deals.find((d) => d.id === id);
-    return deal ? deal.etapa : null;
+    return deal ? deal.etapa_actual : null;
   };
 
   const handleDragOver = (event: any) => {
@@ -71,9 +71,9 @@ export default function KanbanBoard() {
     if (!overContainer) return;
 
     const activeDeal = deals.find((d) => d.id === activeId);
-    if (activeDeal && activeDeal.etapa !== overContainer) {
+    if (activeDeal && activeDeal.etapa_actual !== overContainer) {
       setDeals((prev) =>
-        prev.map((d) => (d.id === activeId ? { ...d, etapa: overContainer } : d))
+        prev.map((d) => (d.id === activeId ? { ...d, etapa_actual: overContainer } : d))
       );
     }
   };
@@ -89,8 +89,8 @@ export default function KanbanBoard() {
     if (!currentDeal) return;
 
     try {
-      // Persistir el canvi a la base de dades
-      await api.deals.canviarEtapa(dealId as string, currentDeal.etapa);
+      // Persistir el canvi a la base de dades V2
+      await api.municipis_v2.canviarEtapa(dealId as string, currentDeal.etapa_actual);
     } catch (error) {
       console.error("Error actualitzant etapa:", error);
       fetchDeals(); // Revertir a l'estat del servidor
@@ -118,7 +118,7 @@ export default function KanbanBoard() {
       >
         <div className="flex gap-4 h-full p-2 items-stretch">
             {STAGES.map((stage) => {
-              const stageDeals = deals.filter((d) => d.etapa === stage.id);
+              const stageDeals = deals.filter((d) => d.etapa_actual === stage.id);
               
               // Sort by prioritat
               const priorityWeight: Record<string, number> = { alta: 3, mitjana: 2, baixa: 1 };

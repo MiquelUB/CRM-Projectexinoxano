@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, Boolean, Integer, Text, Numeric, Date, ForeignKey, DateTime, Enum, Float
+from sqlalchemy import Column, String, Boolean, Integer, Text, Numeric, Date, ForeignKey, DateTime, Enum, Float, ARRAY
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from sqlalchemy.dialects.postgresql import UUID, JSONB
@@ -7,6 +7,17 @@ from database import Base
 import enum
 
 # --- Enums ---
+
+class TipusActivitat(str, enum.Enum):
+    nota_manual = "nota_manual"
+    email_enviat = "email_enviat"
+    email_rebut = "email_rebut"
+    trucada = "trucada"
+    reunio = "reunio"
+    demo = "demo"
+    pagament = "pagament"
+    canvi_etapa = "canvi_etapa"
+    sistema = "sistema"
 
 class GeografiaEnum(str, enum.Enum):
     muntanya = "muntanya"
@@ -103,6 +114,14 @@ class MunicipiLifecycle(Base):
     pla_contractat = Column(Enum(PlaEnum, name="pla"), nullable=True)
     estat_final = Column(Enum(EstatFinalEnum, name="estat_final"), nullable=True)
     
+    # Dades econòmiques i tàctiques (migrades de Deal)
+    valor_setup = Column(Numeric(10, 2), default=0)
+    valor_llicencia = Column(Numeric(10, 2), default=0)
+    proper_pas = Column(Text)
+    prioritat = Column(String(20), default="mitjana") # 'alta' | 'mitjana' | 'baixa'
+    data_seguiment = Column(DateTime, nullable=True)
+    notes_humanes = Column(Text, nullable=True)
+    
     actor_principal_id = Column(UUID(as_uuid=True), ForeignKey("contactes_v2.id"), nullable=True)
     
     # METADADES
@@ -117,6 +136,9 @@ class MunicipiLifecycle(Base):
     reunions = relationship("ReunioV2", back_populates="municipi", cascade="all, delete-orphan")
     email_drafts = relationship("EmailDraftV2", back_populates="municipi", cascade="all, delete-orphan", foreign_keys="[EmailDraftV2.municipi_id]")
     sequencia_emails = relationship("EmailSequenciaV2", back_populates="municipi", cascade="all, delete-orphan", foreign_keys="[EmailSequenciaV2.municipi_id]")
+    activitats = relationship("ActivitatsMunicipi", back_populates="municipi", cascade="all, delete-orphan")
+    agent_memories = relationship("AgentMemoryV2", back_populates="municipi", cascade="all, delete-orphan")
+    tasques = relationship("TascaV2", back_populates="municipi", cascade="all, delete-orphan")
 
 
 class ContacteV2(Base):
@@ -305,6 +327,10 @@ class MemoriaMunicipi(Base):
     llenguatge_preferit = Column(JSONB, default=[])
     blockers_resolts = Column(JSONB, default=[])
     
+    # Nivell 2: Memòria Tàctica (Resum setmanal generat per IA)
+    resum_tactic = Column(Text)
+    data_resum = Column(DateTime(timezone=True))
+    
     data_actualitzacio = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
@@ -327,3 +353,50 @@ class PatroMunicipi(Base):
     
     cops_aplicat = Column(Integer, default=0)
     exitosos = Column(Integer, default=0)
+
+
+class ActivitatsMunicipi(Base):
+    __tablename__ = "activitats_municipi"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    municipi_id = Column(UUID(as_uuid=True), ForeignKey("municipis_lifecycle.id"), nullable=False)
+    contacte_id = Column(UUID(as_uuid=True), ForeignKey("contactes_v2.id"), nullable=True)
+    deal_id = Column(UUID(as_uuid=True), ForeignKey("deals.id"), nullable=True)
+    
+    tipus_activitat = Column(Enum(TipusActivitat, name="tipus_activitat"), nullable=False)
+    data_activitat = Column(DateTime(timezone=True), server_default=func.now())
+    
+    contingut = Column(JSONB, default={})
+    notes_comercial = Column(Text)
+    generat_per_ia = Column(Boolean, default=False)
+    etiquetes = Column(ARRAY(String), default=[])
+    
+    # Relacions
+    municipi = relationship("MunicipiLifecycle", back_populates="activitats")
+    contacte = relationship("ContacteV2")
+
+class AgentMemoryV2(Base):
+    __tablename__ = "agent_memories_v2"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    municipi_id = Column(UUID(as_uuid=True), ForeignKey("municipis_lifecycle.id"), nullable=False)
+    
+    clau = Column(String(50), index=True) # e.g. 'por_qué_no_compran', 'preferencia_politica'
+    valor = Column(Text)
+    confidenca = Column(Float, default=1.0)
+    
+    data_creacio = Column(DateTime(timezone=True), server_default=func.now())
+    municipi = relationship("MunicipiLifecycle", back_populates="agent_memories")
+
+class TascaV2(Base):
+    __tablename__ = "tasques_v2"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    municipi_id = Column(UUID(as_uuid=True), ForeignKey("municipis_lifecycle.id"), nullable=False)
+    
+    titol = Column(String(200), nullable=False)
+    descripcio = Column(Text)
+    data_venciment = Column(DateTime)
+    prioritat = Column(String(20), default="mitjana") # 'alta', 'mitjana', 'baixa'
+    estat = Column(String(20), default="pendent") # 'pendent', 'completada'
+    
+    data_creacio = Column(DateTime(timezone=True), server_default=func.now())
+    municipi = relationship("MunicipiLifecycle", back_populates="tasques")

@@ -12,6 +12,44 @@ class UpdateNotesRequest(BaseModel):
 
 router = APIRouter(prefix="/municipis_lifecycle", tags=["municipis_v2"])
 
+@router.get("/kpis")
+def get_municipis_kpis(db: Session = Depends(get_db)):
+    """
+    Calcula KPIs del Pipeline V2.
+    """
+    from sqlalchemy import func
+    
+    # 1. Total de municipis actius al funnel (excloent paquets/perduts)
+    total_deals = db.query(MunicipiLifecycle).filter(
+        MunicipiLifecycle.etapa_actual.notin_([EtapaFunnelEnum.perdut, EtapaFunnelEnum.pausa])
+    ).count()
+    
+    # 2. Valor Total del Pipeline (Setup + Llicència)
+    valor_setup = db.query(func.sum(MunicipiLifecycle.valor_setup)).scalar() or 0
+    valor_llicencia = db.query(func.sum(MunicipiLifecycle.valor_llicencia)).scalar() or 0
+    valor_total = float(valor_setup + valor_llicencia)
+    
+    # 3. Municipis amb seguiment per a aquest mes
+    from datetime import date
+    today = date.today()
+    start_of_month = date(today.year, today.month, 1)
+    if today.month == 12:
+        start_of_next_month = date(today.year + 1, 1, 1)
+    else:
+        start_of_next_month = date(today.year, today.month + 1, 1)
+        
+    per_tancar = db.query(MunicipiLifecycle).filter(
+        MunicipiLifecycle.data_seguiment >= start_of_month,
+        MunicipiLifecycle.data_seguiment < start_of_next_month
+    ).count()
+    
+    return {
+        "total_deals": total_deals,
+        "valor_total_pipeline": valor_total,
+        "deals_per_tancar_aquest_mes": per_tancar,
+        "deals_sense_activitat_14_dies": 0  # Placeholder fins implementar tracking activitat_v2
+    }
+
 @router.get("/", response_model=List[MunicipiLifecycleOut])
 def get_municipis(db: Session = Depends(get_db)):
     """

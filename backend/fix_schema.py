@@ -27,6 +27,69 @@ def fix_db():
     cur.execute("GRANT ALL ON SCHEMA public TO public;")
     print("Permissions granted.")
     
+    # 3. Crear taules estratègiques (Timeline i Agent)
+    print("Verificant taules d'IA i Timeline...")
+    
+    # Enum activitats
+    cur.execute("""
+        DO $$ BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'tipus_activitat') THEN
+                CREATE TYPE tipus_activitat AS ENUM (
+                    'nota_manual', 'email_enviat', 'email_rebut', 'trucada', 
+                    'reunio', 'demo', 'pagament', 'canvi_etapa', 'sistema'
+                );
+            END IF;
+        END $$;
+    """)
+    
+    # Taula activitats
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS activitats_municipi (
+            id UUID PRIMARY KEY,
+            municipi_id UUID NOT NULL,
+            contacte_id UUID,
+            deal_id UUID,
+            tipus_activitat tipus_activitat NOT NULL,
+            data_activitat TIMESTAMPTZ DEFAULT NOW(),
+            contingut JSONB DEFAULT '{}',
+            notes_comercial TEXT,
+            generat_per_ia BOOLEAN DEFAULT FALSE,
+            etiquetes TEXT[] DEFAULT '{}'
+        );
+    """)
+
+    # Taula Agent Memòries (per si no existís)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS agent_memories (
+            id UUID PRIMARY KEY,
+            usuari_id UUID NOT NULL,
+            deal_id UUID,
+            municipi_id UUID,
+            history JSONB DEFAULT '[]',
+            summary TEXT,
+            updated_at TIMESTAMPTZ DEFAULT NOW()
+        );
+    """)
+    
+    # Taula Tasques V2
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS tasques_v2 (
+            id UUID PRIMARY KEY,
+            municipi_id UUID NOT NULL REFERENCES municipis_lifecycle(id),
+            usuari_id UUID REFERENCES usuaris(id),
+            titol VARCHAR(300) NOT NULL,
+            descripcio TEXT,
+            data_venciment DATE NOT NULL,
+            tipus VARCHAR(50) DEFAULT 'altre',
+            prioritat VARCHAR(20) DEFAULT 'mitjana',
+            estat VARCHAR(20) DEFAULT 'pendent',
+            created_at TIMESTAMPTZ DEFAULT NOW(),
+            updated_at TIMESTAMPTZ DEFAULT NOW()
+        );
+    """)
+    
+    print("Base de dades fixada i actualitzada per a Kimi K2 (Inclou Tasques V2).")
+    
     cur.close()
     conn.close()
 

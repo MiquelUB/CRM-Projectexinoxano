@@ -5,9 +5,10 @@ from sqlalchemy.orm import Session
 from typing import Optional, List, Dict
 from uuid import UUID
 
-from .openrouter_client import call_openrouter
 import models_v2 as m2
 import models
+from .agent_manager import kimi_agent
+from .memory_engine import memory_engine
 
 logger = logging.getLogger(__name__)
 
@@ -42,69 +43,75 @@ class AgentChatService:
         
         return memory
 
-    def build_system_context(self, deal_id: Optional[UUID] = None, municipi_id: Optional[UUID] = None):
-        """Construeix un prompt de sistema ric en dades reals del CRM."""
-        context = """Ets l'Agent Kimi K2, el cervell d'IA del CRM de Projecte Xino Xano (PXX).
-Ets un expert implacable en vendes B2G (Business to Government) a administracions públiques de Catalunya.
-La teva missió actual és tancar acords ràpids "poble a poble" per construir un portafoli sòlid que ens permeti, en un futur proper, assaltar les Diputacions.
-
-DIRECTRIUS DE PERSONALITAT:
-- Ets executiu, tàctic, professional i resolutiu.
-- Parles sempre en català correcte però proper (com un col·lega d'equip veterà).
-- No et presentes mai com una IA a menys que t'ho demanin. Ets "en Kimi".
-- Ets un mestre detectant temps morts burocràtics i colls d'ampolla als ajuntaments.
-
-EL TEU ARSENAL ESTRATÈGIC PXX (DOCTRINA):
-- L'Arma Principal: El Contracte Menor. El teu objectiu és tancar l'acord saltant-te les licitacions llargues. Recorda sempre al comercial els nostres plans:
-    * Pla Roure: 3.500€ Setup + 2.500€ ARR (Manteniment anual).
-    * Pla Mirador: 5.500€ Setup + 5.000€ ARR.
-    * Tots dos estan per sota del límit legal de 15.000€, permetent l'adjudicació directa per part de l'Alcalde.
-- Doble Discurs (Polític vs. Tècnic):
-    * Al Polític (Alcalde/Regidor): Ven Sobirania Digital. "Controleu el relat, moveu el turista d'on molesta a on us interessa. No pagueu peatges del 30% a l'App Store ni l'impost d'èxit de Google Maps."
-    * Al Tècnic Municipal: Ven "Zero Feina". "Puja un PDF històric i la nostra IA (Punt d'Or) et redacta la guia, l'àudio i crea el Passaport Digital en minuts."
-- L'Ham Visual (El Quadern de Camp): Recomana sempre fer servir el tema El Naturalista o els Biomes (Muntanya, Mar, Interior) a les Demos. Els municipis compren per emoció; han de veure que PXX no és una app freda, sinó un "Quadern de Camp Digital" amb textures de paper i tipografies editorials.
-- Kill-Switches de Competència:
-    * Si tenen Balises/Inventrip: "Nosaltres som 100% software, sense ferros al carrer ni manteniment de bateries."
-    * Si usen webs de turisme clàssiques: Ven el nostre "Time Slider" (Màquina del temps) i el fet que el nostre mapa vectorial (MapLibre) funciona offline, 100% sense cobertura al bosc o al nucli antic.
-
-MÈTODE D'ANÀLISI I FORMAT DE RESPOSTA:
-Llegeix les notes del Deal (etapa, temperatura, interlocutor). Si estem atrapats amb un Tècnic que no té poder de decisió, exigeix al comercial que escale a l'Alcalde o Interventor. Si un argument ha fallat segons la memòria, prohibeix-lo.
-
-Respon SEMPRE amb aquesta estructura breu i visual:
-
-Diagnòstic Tàctic: (Què està passant realment en aquest Deal i on és el bloqueig).
-
-Missatge Clau / Ganxo: (La frase exacta que el comercial ha de dir o enviar).
-
-Propers Passos Recomanats: (Llista de 2-3 accions immediates).
-
-[ACCIONS SUGGERIDES]: Si calen accions ràpides, afegeix-les al final en aquest format exactament (una per línia):
->>> Redactar email de seguiment
->>> Analitzar proper pas
->>> Trucar ara
-
----
-DADES REALS DEL CRM PER A L'ANÀLISI:
-"""
+    async def build_system_context(self, deal_id: Optional[UUID] = None, municipi_id: Optional[UUID] = None, history: List[Dict] = []):
+        """Construeix un prompt de sistema ric en dades reals del CRM usant el gestor central i memòria jeràrquica."""
+        context = kimi_agent.get_skill_system_prompt("analitzar_context")
+        
+        # Injectar Memòria Jeràrquica (Nivell 1, 2 i 3)
+        m_id = municipi_id
+        if deal_id and not m_id:
+             deal = self.db.query(models.Deal).filter(models.Deal.id == deal_id).first()
+             if deal: m_id = deal.municipi_id
+             
+        if m_id:
+            h_memory = await memory_engine.build_hierarchical_context(self.db, m_id, history)
+            context += f"\n{h_memory}\n"
+        
+        context += "\n\nREGLA CRÍTICA D'ANÀLISI:\n"
+        context += "Ets un assessor basat en dades DEL CRM. El teu diagnòstic s'ha de basar ÚNICAMENT en les interaccions que apareixen a sota. Està TOTALMENT PROHIBIT inventar dades."
+        
+        context += "\n\n--- DADES REALS DEL CRM PER A L'ANÀLISI ---\n"
 
         # Afegir context del Municipi (Lifecycle + Memòria)
         m_id = municipi_id
+        deal = None
+        
+        if not deal_id and not municipi_id:
+            context += "\n[ALERTA: ACTUALMENT NO HI HA CAP DEAL NI MUNICIPI SELECCIONAT. Respon de manera general i demana concontext de treball.]\n"
+        else:
+            context += f"\n[CONTEXT ACTIU: {'Deal' if deal_id else 'Municipi'}]\n"
+
         if deal_id:
             deal = self.db.query(models.Deal).filter(models.Deal.id == deal_id).first()
             if deal:
-                m_id = deal.municipi_id
-                context += f"CONTEXT DEL DEAL ACTUAL:\n- Títol: {deal.titol}\n- Etapa: {deal.etapa}\n- Valor: {deal.valor_setup}€ + {deal.valor_llicencia}€/any\n\n"
+                m_id = deal.municipi_id if not m_id else m_id
+                context += f"CONTEXT DEL DEAL ACTUAL:\n- Títol: {deal.titol}\n- Etapa: {deal.etapa}\n- Valor: {deal.valor_setup}€ + {deal.valor_llicencia}€/any\n"
+                if deal.proper_pas:
+                    context += f"- Proper pas previst: {deal.proper_pas}\n"
+                context += "\n"
+
+        # Timeline Universal (Nova font de veritat)
+        if m_id:
+            activitats = self.db.query(m2.ActivitatsMunicipi).filter(m2.ActivitatsMunicipi.municipi_id == m_id).order_by(m2.ActivitatsMunicipi.data_activitat.desc()).limit(15).all()
+            if activitats:
+                context += "TIMELINE UNIVERSAL DEL MUNICIPI (Últimes interaccions):\n"
+                for a in activitats:
+                    data_str = a.data_activitat.strftime('%Y-%m-%d %H:%M') if a.data_activitat else 'Data desconeguda'
+                    tipus = a.tipus_activitat.value if hasattr(a.tipus_activitat, 'value') else a.tipus_activitat
+                    context += f"- [{data_str}] {tipus.upper()}: {a.notes_comercial or 'Sense notes'}\n"
+                    # Afegir detalls rellevants del JSONB si cal
+                    if a.contingut and tipus in ['trucada', 'reunio']:
+                        resum = a.contingut.get('resum_ia') or a.contingut.get('tipus')
+                        if resum:
+                            context += f"  (Dades extra: {resum})\n"
+                context += "\n"
 
         if m_id:
+            # Intentar buscar a Lifecycle (V2) o Municipi (V1)
             m_life = self.db.query(m2.MunicipiLifecycle).filter(m2.MunicipiLifecycle.id == m_id).first()
+            m_old = self.db.query(models.Municipi).filter(models.Municipi.id == m_id).first()
             m_memo = self.db.query(m2.MemoriaMunicipi).filter(m2.MemoriaMunicipi.municipi_id == m_id).first()
             
             if m_life:
                 context += f"DADES DEL MUNICIPI ({m_life.nom}):\n"
                 context += f"- Població: {m_life.poblacio or 'No consta'}\n"
-                context += f"- Etapa Funnel: {m_life.etapa_actual}\n"
-                context += f"- Temperatura: {m_life.temperatura}\n"
+                context += f"- Etapa Funnel: {m_life.etapa_actual.value if hasattr(m_life.etapa_actual, 'value') else m_life.etapa_actual}\n"
+                context += f"- Temperatura: {m_life.temperatura.value if hasattr(m_life.temperatura, 'value') else m_life.temperatura}\n"
                 context += f"- Angle personalitzacio: {m_life.angle_personalitzacio or 'Estàndard'}\n"
+            elif m_old:
+                context += f"DADES DEL MUNICIPI ({m_old.nom}):\n"
+                context += f"- Població: {m_old.poblacio or 'No consta'}\n"
+                context += f"- Tipus: {m_old.tipus}\n"
             
             if m_memo:
                 context += f"\nMEMÒRIA ESTRATÈGICA DEL TERRITORI:\n"
@@ -115,10 +122,11 @@ DADES REALS DEL CRM PER A L'ANÀLISI:
         context += "\nRecorda: Ets en Kimi. Sigues executiu i tàctic. Usa les dades reals de dalt per fonamentar el teu diagnòstic."
         return context
 
-    async def chat(self, usuari_id: UUID, message: str, deal_id: Optional[UUID] = None, municipi_id: Optional[UUID] = None, model: str = "deepseek/deepseek-chat"):
+    async def chat(self, usuari_id: UUID, message: str, deal_id: Optional[UUID] = None, municipi_id: Optional[UUID] = None, model: str = "google/gemini-2.0-flash-001"):
         """Executa una interacció de xat i guarda la memòria."""
         memory = await self.get_or_create_memory(usuari_id, deal_id, municipi_id)
-        system_prompt = self.build_system_context(deal_id, municipi_id)
+        history = memory.history or []
+        system_prompt = await self.build_system_context(deal_id, municipi_id, history)
 
         # Preparar missatges (Context + Memòria + Nou Missatge)
         messages = [{"role": "system", "content": system_prompt}]

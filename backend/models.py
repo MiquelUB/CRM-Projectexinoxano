@@ -1,3 +1,8 @@
+# !!! DEPRECATED !!!
+# Aquest fitxer serà eliminat en la Fase C de la migració. 
+# Si us plau, utilitza models_v2.py per a qualsevol desenvolupament nou.
+# Tots els municipis, contactes i emails s'han de consultar a través de la V2.
+
 import uuid
 from sqlalchemy import Column, String, Boolean, Integer, Text, Numeric, Date, ForeignKey, DateTime
 from sqlalchemy.orm import relationship

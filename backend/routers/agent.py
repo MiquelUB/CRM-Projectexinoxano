@@ -120,7 +120,7 @@ class ChatMessageRequest(BaseModel):
     message: str
     deal_id: Optional[UUID] = None
     municipi_id: Optional[UUID] = None
-    model: str = "deepseek/deepseek-chat"
+    model: str = "google/gemini-2.0-flash-001"
 
 @router.post("/chat")
 async def agent_chat(

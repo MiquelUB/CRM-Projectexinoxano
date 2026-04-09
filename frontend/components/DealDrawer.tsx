@@ -6,7 +6,8 @@ import { useChatContext } from "@/contexts/ChatContext";
 
 export default function DealDrawer({ deal, onClose, onUpdate }: any) {
   // State per a camps editables
-  const [titol, setTitol] = useState(deal.titol || "");
+  // State per a camps editables (V2 MunicipiLifecycle)
+  const [nom, setNom] = useState(deal.nom || "");
   const [valorSetup, setValorSetup] = useState(deal.valor_setup?.toString() || "0");
   const [valorLlicencia, setValorLlicencia] = useState(deal.valor_llicencia?.toString() || "0");
   const [prioritat, setPrioritat] = useState(deal.prioritat || "mitjana");
@@ -18,11 +19,11 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
   
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [emails, setEmails] = useState<any[]>([]);
+  const [activitats, setActivitats] = useState<any[]>([]);
   const [llicencia, setLlicencia] = useState<any>(null);
 
-  // AI State
   const [aiLoading, setAiLoading] = useState(false);
+  const [tacticalMemory, setTacticalMemory] = useState<string | null>(deal.resum_tactic || null);
   const [aiResult, setAiResult] = useState<any>(null);
   const [aiError, setAiError] = useState<string | null>(null);
   const [showAiModal, setShowAiModal] = useState(false);
@@ -34,7 +35,7 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
   const [composerData, setComposerData] = useState({ to: "", subject: "", body: "", instruccionsIA: "" });
   const [sendingEmail, setSendingEmail] = useState(false);
 
-  const handleOpenComposer = (to = deal.contacte?.email || "", subject = `Seguiment PXX — ${deal.municipi?.nom || 'Ajuntament'}`, body = "") => {
+  const handleOpenComposer = (to = deal.actor_principal?.email || "", subject = `Seguiment PXX — ${deal.nom || 'Ajuntament'}`, body = "") => {
     setComposerData({ to, subject, body, instruccionsIA: "" });
     setShowEmailComposer(true);
   };
@@ -42,15 +43,15 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
   const handleSendEmail = async () => {
     setSendingEmail(true);
     try {
-      await api.emails.enviar({
-        deal_id: deal.id,
+      await api.emails_v2.enviar({
+        municipi_id: deal.id,
         to: composerData.to,
         assumpte: composerData.subject,
         cos: composerData.body
       });
       setShowEmailComposer(false);
-      // Refresh list
-      api.emails.llistar({ deal_id: deal.id }).then((res: any) => setEmails(res.items || []));
+      // Refresh activities
+      fetchActivitats();
     } catch (e: any) {
       alert(`Error enviant email: ${e.message}`);
     } finally {
@@ -63,7 +64,7 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
     setAiError(null);
     try {
       const res = await api.agent.redactarEmail({
-        deal_id: deal.id,
+        municipi_id: deal.id,
         instruccions: composerData.instruccionsIA,
         to_address: composerData.to
       });
@@ -83,7 +84,7 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
     setAiLoading(true);
     setAiError(null);
     try {
-      const res = await api.agent.resumirDeal({ deal_id: deal.id });
+      const res = await api.agent.resumirDeal({ municipi_id: deal.id });
       setAiResult({ type: 'summary', data: res });
       setShowAiModal(true);
     } catch (e: any) {
@@ -97,7 +98,7 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
     setAiLoading(true);
     setAiError(null);
     try {
-      const res = await api.agent.analitzarDeal({ deal_id: deal.id });
+      const res = await api.agent.analitzarDeal({ municipi_id: deal.id });
       setAiResult({ type: 'analysis', data: res });
       setShowAiModal(true);
     } catch (e: any) {
@@ -107,18 +108,25 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
     }
   };
 
+  const fetchActivitats = async () => {
+    try {
+      const res = await api.municipis_v2.get_activitats(deal.id);
+      setActivitats(res.items || []);
+    } catch (e) {
+      console.error("Error carregant activitats", e);
+    }
+  };
+
   useEffect(() => {
     if (deal.id) {
       setDealContext({ 
         id: deal.id, 
-        titol: deal.titol, 
-        municipiNom: deal.municipi?.nom 
+        titol: deal.nom, 
+        municipiNom: deal.nom 
       });
 
-      api.emails.llistar({ deal_id: deal.id }).then((res: any) => setEmails(res.items || []));
-      api.llicencies.llistar({ deal_id: deal.id }).then((res: any) => {
-         if (res.items && res.items.length > 0) setLlicencia(res.items[0]);
-      });
+      fetchActivitats();
+      api.municipis_v2.get_llicencia(deal.id).then((l: any) => setLlicencia(l));
     }
 
     return () => {
@@ -129,8 +137,8 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
   const handleSaveAll = async () => {
     setSaving(true);
     try {
-      await api.deals.editar(deal.id, {
-        titol,
+      await api.municipis_v2.editar(deal.id, {
+        nom,
         valor_setup: parseFloat(valorSetup),
         valor_llicencia: parseFloat(valorLlicencia),
         prioritat,
@@ -139,7 +147,7 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
         notes_humanes: notesHumanes
       });
       if (onUpdate) onUpdate();
-      alert("Deal actualitzat correctament.");
+      alert("Municipi actualitzat correctament.");
     } catch (e: any) {
       alert(`Error al guardar: ${e.message}`);
     } finally {
@@ -148,10 +156,10 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
   };
 
   const handleDelete = async () => {
-    if (!window.confirm("Estàs segur que vols eliminar aquest deal? Aquesta acció no es pot desfer.")) return;
+    if (!window.confirm("Estàs segur que vols eliminar aquest municipi?")) return;
     setDeleting(true);
     try {
-      await api.deals.eliminar(deal.id);
+      await api.municipis_v2.eliminar(deal.id);
       if (onUpdate) onUpdate();
       onClose();
     } catch (e: any) {
@@ -199,63 +207,109 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
   return (
     <div className="fixed inset-0 z-50 bg-black/20 flex justify-end">
       <div className="w-[550px] h-full bg-white shadow-xl flex flex-col translate-x-0 transition-transform overflow-hidden">
-        {/* Header */}
-        <div className="bg-slate-900 text-white p-6 flex justify-between items-center sticky top-0 z-10 shrink-0">
-          <div>
-            <h2 className="text-xl font-bold mb-1">Detalls de l'oportunitat</h2>
-            <div className="text-slate-400 text-sm font-medium">ID: {deal.id.substring(0,8)}...</div>
+        {/* Header - Mission Control Style */}
+        <div className="bg-slate-900 text-white p-6 sticky top-0 z-10 shrink-0 border-b border-white/10 shadow-lg">
+          <div className="flex justify-between items-start mb-4">
+            <div className="flex items-center space-x-3">
+              <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center border border-white/20">
+                <Building2 className="w-6 h-6 text-blue-400" />
+              </div>
+              <div>
+                <h2 className="text-xl font-black tracking-tight">{deal.nom}</h2>
+                <div className="flex items-center gap-2 text-slate-400 text-[10px] font-black uppercase tracking-widest mt-0.5">
+                   <span>{deal.comarca}</span>
+                   <span className="opacity-30">•</span>
+                   <span>{deal.poblacio?.toLocaleString() || '0'} hab.</span>
+                </div>
+              </div>
+            </div>
+            <button onClick={onClose} className="p-2 text-slate-400 hover:text-white transition-colors bg-white/5 rounded-xl">
+              <X className="w-5 h-5" />
+            </button>
           </div>
-          <div className="flex items-center space-x-3">
-
-            <button 
-                onClick={handleResumIA}
-                disabled={aiLoading}
-                className="flex items-center space-x-1 px-3 py-1 bg-blue-500/20 hover:bg-blue-500/40 text-blue-200 rounded-lg text-xs font-bold transition-colors disabled:opacity-50"
-            >
-              {aiLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Bot className="w-3 h-3" />}
-              <span>Resum IA</span>
-            </button>
-            <button 
-                onClick={handleDelete} 
-                disabled={deleting}
-                className="p-2 text-slate-400 hover:text-red-400 transition-colors"
-                title="Eliminar Deal"
-            >
-              <Trash2 className="w-5 h-5" />
-            </button>
-            <button onClick={onClose} className="p-2 text-slate-400 hover:text-white transition-colors">
-              <X className="w-6 h-6" />
-            </button>
+          
+          <div className="grid grid-cols-3 gap-2">
+             <div className="bg-white/5 rounded-xl p-2 border border-white/10 flex flex-col items-center">
+                <span className="text-[9px] font-black text-slate-500 uppercase">Temperatura</span>
+                <span className="text-sm font-bold mt-0.5">
+                  {deal.temperatura === 'fred' ? '🧊 Fred' : 
+                   deal.temperatura === 'templat' ? '⚡ Templat' : 
+                   deal.temperatura === 'calent' ? '🔥 Calent' : '☀️ Bullent'}
+                </span>
+             </div>
+             <div className="bg-white/5 rounded-xl p-2 border border-white/10 flex flex-col items-center">
+                <span className="text-[9px] font-black text-slate-500 uppercase">Etapa</span>
+                <span className="text-sm font-bold mt-0.5 text-blue-400">
+                  {deal.etapa_actual?.replace('_', ' ').toUpperCase()}
+                </span>
+             </div>
+             <div className="bg-white/5 rounded-xl p-2 border border-white/10 flex flex-col items-center">
+                <span className="text-[9px] font-black text-slate-500 uppercase">Prioritat</span>
+                <span className={`text-sm font-bold mt-0.5 ${deal.prioritat === 'alta' ? 'text-rose-400' : 'text-slate-300'}`}>
+                  {deal.prioritat?.toUpperCase()}
+                </span>
+             </div>
           </div>
         </div>
 
         {/* Content */}
         <div className="p-8 space-y-8 flex-1 overflow-y-auto custom-scrollbar">
-          
-          {/* Secció Títol */}
-          <section>
-            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Títol de l'oportunitat</label>
-            <input 
-                value={titol} 
-                onChange={e => setTitol(e.target.value)}
-                className="w-full text-xl font-bold text-slate-800 border-b border-transparent focus:border-blue-500 outline-none pb-1 transition-colors bg-transparent"
-            />
+          {/* 🤖 KIMI K2 MISSION CONTROL CARD */}
+          <section className="bg-indigo-600 rounded-3xl p-6 shadow-xl shadow-indigo-100 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16 blur-2xl" />
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-2 text-indigo-100">
+                  <Bot className="w-5 h-5" />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Kimi K2 Intelligence</span>
+                </div>
+                <button 
+                  onClick={handleAnalitzarIA}
+                  className="bg-white/20 hover:bg-white/30 p-1.5 rounded-lg transition-colors"
+                >
+                  <Sparkles className="w-4 h-4 text-white" />
+                </button>
+              </div>
+              
+              <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20 mb-4">
+                <p className="text-white font-medium leading-relaxed">
+                  {tacticalMemory || "Analitzant l'estratègia pel municipi..."}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                 <button 
+                  onClick={() => handleOpenComposer()}
+                  className="bg-white text-indigo-900 py-2.5 rounded-xl font-black text-xs uppercase tracking-tight hover:scale-[1.02] transition-transform flex items-center justify-center space-x-2"
+                 >
+                   <Mail className="w-4 h-4" />
+                   <span>Redactar Email</span>
+                 </button>
+                 <button 
+                  onClick={() => alert("Pròximament: Skill Registrar Trucada")}
+                  className="bg-indigo-400 text-white py-2.5 rounded-xl font-black text-xs uppercase tracking-tight hover:bg-indigo-300 transition-colors flex items-center justify-center space-x-2 shadow-inner"
+                 >
+                   <ArrowRight className="w-4 h-4" />
+                   <span>Proper Pas</span>
+                 </button>
+              </div>
+            </div>
           </section>
 
           {/* Secció Informació General */}
           <section className="grid grid-cols-2 gap-6">
             <div className="col-span-2 md:col-span-1">
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Municipi</label>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Territori</label>
                 <div className="flex items-center space-x-2 text-slate-700 font-bold bg-slate-50 p-3 rounded-xl border border-slate-100">
                     <Building2 className="w-4 h-4 text-slate-400" />
-                    <span>{deal.municipi?.nom || "Desconegut"}</span>
+                    <span>{deal.comarca} ({deal.provincia})</span>
                 </div>
             </div>
             <div className="col-span-2 md:col-span-1">
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Contacte Principal</label>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Actor Principal</label>
                 <div className="flex items-center space-x-2 text-slate-700 font-bold bg-slate-50 p-3 rounded-xl border border-slate-100">
                     <User className="w-4 h-4 text-slate-400" />
-                    <span>{deal.contacte?.nom || "Sense contacte"}</span>
+                    <span>{deal.actor_principal?.nom || "Sense assignar"}</span>
                 </div>
             </div>
           </section>
@@ -310,7 +364,7 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
             <div>
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Etapa Actual</label>
                 <div className="px-4 py-2 rounded-xl bg-slate-100 text-slate-500 font-bold text-sm border border-slate-200">
-                    {deal.etapa.replace('_', ' ').toUpperCase()}
+                    {deal.etapa_actual.replace('_', ' ').toUpperCase()}
                 </div>
             </div>
           </section>
@@ -373,8 +427,8 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
             </button>
           </div>
 
-          {/* Secció Llicència (visible només a tancat_guanyat) */}
-          {deal.etapa === "tancat_guanyat" && (
+          {/* Secció Llicència (visible només a client) */}
+          {deal.etapa_actual === "client" && (
             <section className="bg-emerald-50 p-6 rounded-2xl border border-emerald-100">
                <h3 className="text-xs font-black text-emerald-600 uppercase tracking-widest mb-4 flex items-center">
                  <CreditCard className="w-4 h-4 mr-2" /> Gestió de Llicència
@@ -437,7 +491,7 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
           <section>
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                <Mail className="w-4 h-4" /> Emails Vinculats
+                 ⚡ Timeline Universal
               </h3>
               <button 
                 onClick={() => handleOpenComposer()}
@@ -447,25 +501,49 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
                 <span>Nou Email</span>
               </button>
             </div>
-            {emails.length === 0 ? (
-              <p className="text-xs text-slate-400 italic">No hi ha emails vinculats automàticament.</p>
+            
+            {activitats.length === 0 ? (
+              <p className="text-xs text-slate-400 italic bg-slate-50 p-4 rounded-xl border border-dashed border-slate-200">No hi ha activitat registrada encara.</p>
             ) : (
-              <div className="space-y-4">
-                 {emails.map(e => (
-                    <div key={e.id} className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-sm">
-                      <div className="flex justify-between font-bold text-slate-700 mb-1">
-                        <div className="flex items-center gap-2">
-                          <span>{e.direccio === 'IN' ? 'De: ' + e.from_address : 'Per a: ' + e.to_address}</span>
-                          {e.direccio === 'OUT' && (
-                            <div className="flex items-center" title={e.obert ? `Obert ${e.nombre_obertures} vegades. Primera: ${e.data_obertura ? format(new Date(e.data_obertura), "dd/MM HH:mm") : '-'}` : "No obert encara"}>
-                              <Eye className={`w-3 h-3 ${e.obert ? 'text-emerald-500' : 'text-slate-300'}`} />
-                            </div>
-                          )}
-                        </div>
-                        <span className="text-[10px] text-slate-400 font-bold">{format(new Date(e.data_email), "dd/MM HH:mm")}</span>
-                      </div>
-                      <p className="font-black text-slate-900 mb-2">{e.assumpte}</p>
-                      <p className="text-slate-500 line-clamp-2 text-xs leading-relaxed">{e.cos}</p>
+              <div className="space-y-4 relative before:absolute before:left-3 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-100">
+                 {activitats.map(a => (
+                    <div key={a.id} className="relative pl-8">
+                       <div className={`absolute left-0 top-1 w-6 h-6 rounded-full border-2 border-white shadow-sm flex items-center justify-center text-[10px] z-10 ${
+                         a.tipus_activitat === 'email_enviat' ? 'bg-blue-100 text-blue-600' :
+                         a.tipus_activitat === 'email_rebut' ? 'bg-indigo-100 text-indigo-600' :
+                         a.tipus_activitat === 'canvi_etapa' ? 'bg-purple-100 text-purple-600' :
+                         'bg-slate-100 text-slate-600'
+                       }`}>
+                          {a.tipus_activitat === 'email_enviat' ? '📧' :
+                           a.tipus_activitat === 'email_rebut' ? '📥' :
+                           a.tipus_activitat === 'canvi_etapa' ? '⚙️' : '📝'}
+                       </div>
+                       
+                       <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm hover:border-blue-100 transition-colors">
+                          <div className="flex justify-between items-start mb-2">
+                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                {a.tipus_activitat.replace('_', ' ')}
+                                {a.generat_per_ia && <span className="ml-2 text-blue-500">✨ IA-GEN</span>}
+                             </span>
+                             <span className="text-[10px] text-slate-400 font-bold">{format(new Date(a.data_activitat), "dd MMM, HH:mm")}</span>
+                          </div>
+                          
+                          {/* Contingut específic basat en tipus */}
+                          <div className="text-sm">
+                             {a.tipus_activitat.includes('email') ? (
+                                <>
+                                   <p className="font-extrabold text-slate-800 mb-1">{a.contingut.assumpte}</p>
+                                   <p className="text-slate-500 line-clamp-3 text-xs leading-relaxed italic">"{a.contingut.cos}"</p>
+                                </>
+                             ) : a.tipus_activitat === 'canvi_etapa' ? (
+                                <p className="font-bold text-slate-700">
+                                   Canvi d'etapa a <span className="text-purple-600 uppercase italic">{(a.contingut.etapa_nova || 'desconeguda').replace('_', ' ')}</span>
+                                </p>
+                             ) : (
+                                <p className="text-slate-600">{a.notes_comercial}</p>
+                             )}
+                          </div>
+                       </div>
                     </div>
                  ))}
               </div>

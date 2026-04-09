@@ -16,6 +16,7 @@ class ActionRecommendation:
 import json
 import asyncio
 from .openrouter_client import call_openrouter
+from .agent_manager import kimi_agent
 
 _AI_RECOMMENDATIONS_CACHE = {}  # municipi_id -> {"notes": "...", "data": {...}}
 
@@ -57,20 +58,7 @@ async def eval_municipi_ai(m: MunicipiLifecycle, db: Session):
         if not historic_summary.strip():
              historic_summary = "Sense interaccions recents registrades."
 
-        system_prompt = """Ets un expert assessor comercial en vendes B2G (administració pública) a Catalunya.
-Analitzes l'estat d'un Deal i les darreres anotacions del comercial per determinar l'ACCIÓ SEGÜENT i un 'Score' de prioritat (0 a 100).
-
-TÉ EN COMPTE L'HISTORIAL D'INTERACCIONS:
-Si hi ha correus o trucades recents, el deal NO està en fase inicial d'investigació freda, sinó que ja hi ha hagut contacte. 
-Valora si s'ha refredat el lead per manca de resposta recent i quina acció emprendre (email de seguiment, trucada de rescat, valorar tancar, etc.)
-
-Respon ÚNICAMENT en format JSON vàlid en català:
-{
-  "score": <int>,
-  "accio_recomanada": "<text curt 3-5 paraules>",
-  "tipus_accio": "email" | "trucada" | "altre",
-  "rao": "<paràgraf explicant el motiu de la recomanació>"
-}"""
+        system_prompt = kimi_agent.get_skill_system_prompt("recomanar_accio")
         
         user_prompt = f"""MUNICIPI: {m.nom}
 Etapa actual: {m.etapa_actual.value}

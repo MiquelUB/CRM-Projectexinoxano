@@ -9,9 +9,13 @@ router = APIRouter(prefix="/alertes", tags=["Alertes"])
 
 @router.get("/count")
 def get_alertes_count(db: Session = Depends(get_db)):
+    from models_v2 import TascaV2
     emails_pendents = db.query(models.Email).filter(models.Email.deal_id.is_(None)).count()
     vencuts = db.query(models.Pagament).filter(models.Pagament.estat == "vencut").count()
-    tasques_urgents = db.query(models.Tasca).filter(models.Tasca.prioritat == "alta", models.Tasca.estat == "pendent").count()
+    
+    tasques_v1 = db.query(models.Tasca).filter(models.Tasca.prioritat == "alta", models.Tasca.estat == "pendent").count()
+    tasques_v2 = db.query(TascaV2).filter(TascaV2.prioritat == "alta", TascaV2.estat == "pendent").count()
+    tasques_urgents = tasques_v1 + tasques_v2
     
     target_date = datetime.now().date() + timedelta(days=30)
     renovacions = db.query(models.Llicencia).filter(
@@ -32,26 +36,29 @@ def get_alertes_count(db: Session = Depends(get_db)):
 @router.get("/")
 def get_alertes(db: Session = Depends(get_db)):
     from sqlalchemy.orm import joinedload
+    from models_v2 import TascaV2, MunicipiLifecycle
     target_date = datetime.now().date() + timedelta(days=30)
     
     llicencies = db.query(models.Llicencia).options(
-        joinedload(models.Llicencia.deal).joinedload(models.Deal.municipi),
-        joinedload(models.Llicencia.deal).joinedload(models.Deal.contacte)
+        joinedload(models.Llicencia.deal).joinedload(models.Deal.municipi)
     ).filter(
         models.Llicencia.data_renovacio <= target_date,
         models.Llicencia.estat == "activa"
     ).all()
     
     pagaments_vencuts = db.query(models.Pagament).options(
-        joinedload(models.Pagament.llicencia).joinedload(models.Llicencia.deal).joinedload(models.Deal.municipi),
-        joinedload(models.Pagament.llicencia).joinedload(models.Llicencia.deal).joinedload(models.Deal.contacte)
+        joinedload(models.Pagament.llicencia).joinedload(models.Llicencia.deal).joinedload(models.Deal.municipi)
     ).filter(models.Pagament.estat == "vencut").all()
     
     emails = db.query(models.Email).filter(models.Email.deal_id.is_(None)).all()
     
-    tasques_urgents = db.query(models.Tasca).options(
+    tasques_v1 = db.query(models.Tasca).options(
         joinedload(models.Tasca.deal).joinedload(models.Deal.municipi)
     ).filter(models.Tasca.prioritat == "alta", models.Tasca.estat == "pendent").all()
+
+    tasques_v2 = db.query(TascaV2).options(
+        joinedload(TascaV2.municipi)
+    ).filter(TascaV2.prioritat == "alta", TascaV2.estat == "pendent").all()
     
     return {
         "renovacions": [
@@ -82,9 +89,21 @@ def get_alertes(db: Session = Depends(get_db)):
                 "tipus": t.tipus,
                 "prioritat": t.prioritat,
                 "deal_id": str(t.deal_id) if t.deal_id else None,
-                "nom_municipi": t.deal.municipi.nom if t.deal and t.deal.municipi else "General",
+                "nom_municipi": t.deal.municipi.nom if t.deal and t.deal.municipi else "V1",
                 "is_pseudo": False
-            } for t in tasques_urgents
+            } for t in tasques_v1
+        ] + [
+             {
+                "id": str(t.id),
+                "titol": t.titol,
+                "descripcio": t.descripcio,
+                "data_venciment": t.data_venciment,
+                "tipus": "tasca",
+                "prioritat": t.prioritat,
+                "municipi_id": str(t.municipi_id),
+                "nom_municipi": t.municipi.nom,
+                "is_pseudo": False
+            } for t in tasques_v2
         ],
         "emails_pendents": [{"id": str(e.id), "assumpte": e.assumpte, "from": e.from_address} for e in emails]
     }

@@ -1,49 +1,110 @@
 from sqlalchemy.orm import Session
-from models_v2 import MunicipiLifecycle, MemoriaMunicipi, EmailV2, SentimentEnum
-from datetime import datetime, timezone
+from typing import List, Dict, Any, Optional
+from datetime import datetime, timedelta
+import models_v2 as m2
+from .agent_manager import kimi_agent
 
-def update_municipi_memory(db: Session, municipi_id: str):
+class MemoryEngine:
     """
-    Actualitza la memòria d'un municipi agregant estadístiques de comunicacions.
-    Actualitza els angles_exitosos/angles_fallits d'Emails, Trucades o Reunions de manera reactiva.
+    Motor de Memòria Jeràrquica per a l'Agent Kimi K2.
+    Gestiona la recuperació i síntesi de context en 3 nivells.
     """
-    m = db.query(MunicipiLifecycle).filter(MunicipiLifecycle.id == municipi_id).first()
-    if not m:
-        return
 
-    memoria = db.query(MemoriaMunicipi).filter(MemoriaMunicipi.municipi_id == m.id).first()
-    if not memoria:
-        memoria = MemoriaMunicipi(municipi_id=m.id, ganxos_exitosos=[], angles_fallits=[], moment_optimal={}, llenguatge_preferit=[], blockers_resolts=[])
-        db.add(memoria)
+    @staticmethod
+    async def get_tactical_summary(db: Session, municipi_id: Any) -> str:
+        """
+        Nivell 2 (Tàctic): Recupera el resum d'activitat recent.
+        Si el resum té més de 3 dies, en genera un de nou.
+        """
+        mem = db.query(m2.MemoriaMunicipi).filter(m2.MemoriaMunicipi.municipi_id == municipi_id).first()
+        
+        # Si no hi ha memòria o és vella, regenerar
+        if not mem or not mem.resum_tactic or (mem.data_resum and (datetime.utcnow() - mem.data_resum).days > 3):
+            # Obtenir darreres activitats
+            activitats = db.query(m2.ActivitatsMunicipi)\
+                .filter(m2.ActivitatsMunicipi.municipi_id == municipi_id)\
+                .order_by(m2.ActivitatsMunicipi.data_activitat.desc())\
+                .limit(10).all()
+            
+            if not activitats:
+                return "Sense activitat recent registrada per a aquest municipi."
+            
+            # Construir context per a la IA
+            timeline_str = ""
+            for a in activitats:
+                timeline_str += f"- [{a.data_activitat.strftime('%Y-%m-%d')}] {a.tipus_activitat.value}: {a.notes_comercial or ''}\n"
+            
+            # Cridar a la skill de síntesi
+            try:
+                res = await kimi_agent.call_skill("generar_resum_tactic", timeline_str)
+                resum = res["content"].strip()
+                
+                if not mem:
+                    mem = m2.MemoriaMunicipi(municipi_id=municipi_id, resum_tactic=resum, data_resum=datetime.utcnow())
+                    db.add(mem)
+                else:
+                    mem.resum_tactic = resum
+                    mem.data_resum = datetime.utcnow()
+                
+                db.commit()
+                return resum
+            except Exception:
+                return mem.resum_tactic if mem else "No s'ha pogut generar el resum tactic."
+        
+        return mem.resum_tactic
 
-    # 1. Update 'dies_etapa_actual'
-    if m.historial_etapes and len(m.historial_etapes) > 0:
-         # Obtenim l'últim registre d'etapa per calcular el temps transcorregut
-         d_inici = m.historial_etapes[-1].get("data_inici")
-         if d_inici:
-              try:
-                   d_inici_dt = datetime.fromisoformat(d_inici)
-                   diff = datetime.now(timezone.utc) - d_inici_dt
-                   m.dies_etapa_actual = max(0, diff.days)
-              except Exception:
-                   pass
+    @staticmethod
+    def get_strategic_patterns(db: Session, municipi: m2.MunicipiLifecycle) -> List[str]:
+        """
+        Nivell 3 (Estratègic): Busca patrons globals rellevants.
+        """
+        # Cercar per rang de població i geografia
+        poblacio_rang = 'petit'
+        if municipi.poblacio:
+            if municipi.poblacio > 20000: poblacio_rang = 'gran'
+            elif municipi.poblacio > 5000: poblacio_rang = 'mitja'
+            
+        patrons = db.query(m2.PatroMunicipi).filter(
+            (m2.PatroMunicipi.rang_poblacio == poblacio_rang) | 
+            (m2.PatroMunicipi.tipus_geografia == municipi.geografia)
+        ).limit(2).all()
+        
+        return [p.estrategia_recomanada for p in patrons if p.estrategia_recomanada]
 
-    # 2. Extract angles from Successful Response Emails
-    # We find Emails with Sentiment positive/neutral and extract ideas
-    emails = db.query(EmailV2).filter(EmailV2.municipi_id == m.id, EmailV2.sentiment_resposta == SentimentEnum.positiu).all()
-    ganxos = list(memoria.ganxos_exitosos) if memoria.ganxos_exitosos else []
-    angles_f = list(memoria.angles_fallits) if memoria.angles_fallits else []
+    @classmethod
+    async def build_hierarchical_context(cls, db: Session, municipi_id: Any, session_history: List[Dict] = []) -> str:
+        """
+        Uneix els 3 nivells de memòria en un bloc de context per al prompt del xat.
+        """
+        municipi = db.query(m2.MunicipiLifecycle).filter(m2.MunicipiLifecycle.id == municipi_id).first()
+        if not municipi:
+            return "No hi ha context de municipi disponible."
 
-    for e in emails:
-        # Example: look for keywords in emails to extract succesful hooks
-        if "reunió" in e.cos.lower() or "demo" in e.cos.lower():
-             if "Angle: Demo / Proposta" not in ganxos:
-                  ganxos.append("Angle: Demo / Proposta")
+        # 1. Nivell 2 (Tàctic)
+        tactical = await cls.get_tactical_summary(db, municipi_id)
+        
+        # 2. Nivell 3 (Estratègic)
+        strategic = cls.get_strategic_patterns(db, municipi)
+        strategic_str = "\n".join([f"- {s}" for s in strategic]) if strategic else "No hi ha patrons globals coneguts encara."
+        
+        # 3. Nivell 1 (Sessió) - resum breu de l'historial
+        session_str = "Sense historial previ en aquesta sessió."
+        if session_history:
+            last_msgs = session_history[-3:]
+            session_str = "\n".join([f"{m['role'].upper()}: {m['content'][:100]}..." for m in last_msgs])
 
-    memoria.ganxos_exitosos = list(set(ganxos)) # Evitem duplicats
-    memoria.angles_fallits = list(set(angles_f))
+        hierarchical_prompt = f"""
+SISTEMA DE MEMÒRIA JERÀRQUICA:
 
-    # Commit
-    memoria.data_actualitzacio = datetime.now()
-    db.commit()
-    return memoria
+[NIVELL 1 - SESSIÓ (Xat Actual)]
+{session_str}
+
+[NIVELL 2 - TÀCTIC (Municipi: {municipi.nom})]
+{tactical}
+
+[NIVELL 3 - ESTRATÈGIC (Casos similars)]
+{strategic_str}
+"""
+        return hierarchical_prompt
+
+memory_engine = MemoryEngine()
