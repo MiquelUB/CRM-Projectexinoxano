@@ -19,61 +19,96 @@ class AgentKimiK2:
         self.db = db
 
     def _load_context(self, municipi_id: UUID, limit: int = 50) -> List[Dict[str, Any]]:
-        """Retorna el timeline complet d'activitats del municipi (V2 + Emails V2 + Emails V1)."""
-        # 1. Activitats V2 (trucades, reunions, notes de CRM)
-        activitats = self.db.query(models_v2.ActivitatsMunicipi)\
-            .filter(models_v2.ActivitatsMunicipi.municipi_id == municipi_id)\
-            .order_by(desc(models_v2.ActivitatsMunicipi.data_activitat))\
-            .limit(limit)\
-            .all()
-        
+        """Retorna el timeline complet d'activitats del municipi (V2 + Emails V2 + Emails V1 + Tasques + Seqüències)."""
         timeline = []
-        for a in activitats:
-            timeline.append({
-                "tipus": a.tipus_activitat.value if hasattr(a.tipus_activitat, 'value') else str(a.tipus_activitat),
-                "data": a.data_activitat,
-                "contingut": a.contingut if isinstance(a.contingut, str) else json.dumps(a.contingut),
-                "notes": a.notes_comercial,
-                "font": "v2_activitat"
-            })
-            
-        # 2. Emails V2 (el nou sistema d'emails)
-        emails_v2 = self.db.query(models_v2.EmailV2)\
-            .filter(models_v2.EmailV2.municipi_id == municipi_id)\
-            .order_by(desc(models_v2.EmailV2.data_enviament))\
-            .limit(limit)\
-            .all()
-            
-        for e in emails_v2:
-            timeline.append({
-                "tipus": f"email_{e.direccio}",
-                "data": e.data_enviament,
-                "contingut": e.assumpte,
-                "notes": (e.cos[:350] + "...") if e.cos and len(e.cos) > 350 else e.cos,
-                "font": "v2_email",
-                "sentiment": e.sentiment_resposta if e.direccio == 'entrada' else 'N/A',
-                "obert": e.obert if e.direccio == 'sortida' else 'N/A'
-            })
-            
-        # 3. Emails V1 (legacy, via Deals)
-        emails_v1 = self.db.query(models.Email)\
-            .join(models.Deal, models.Email.deal_id == models.Deal.id)\
-            .filter(models.Deal.municipi_id == municipi_id)\
-            .order_by(desc(models.Email.data_email))\
-            .limit(limit)\
-            .all()
         
-        for e in emails_v1:
-            timeline.append({
-                "tipus": f"email_{e.direccio}",
-                "data": e.data_email,
-                "contingut": e.assumpte,
-                "notes": (e.cos[:200] + "...") if e.cos and len(e.cos) > 200 else e.cos,
-                "font": "v1_email",
-                "de": e.from_address
-            })
+        try:
+            # 1. Activitats V2 (trucades, reunions, notes de CRM)
+            activitats = self.db.query(models_v2.ActivitatsMunicipi)\
+                .filter(models_v2.ActivitatsMunicipi.municipi_id == municipi_id)\
+                .order_by(desc(models_v2.ActivitatsMunicipi.data_activitat))\
+                .limit(limit)\
+                .all()
+            
+            for a in activitats:
+                timeline.append({
+                    "tipus": a.tipus_activitat.value if hasattr(a.tipus_activitat, 'value') else str(a.tipus_activitat),
+                    "data": a.data_activitat,
+                    "contingut": a.contingut if isinstance(a.contingut, str) else json.dumps(a.contingut),
+                    "notes": a.notes_comercial,
+                    "font": "v2_activitat"
+                })
+                
+            # 2. Emails V2
+            emails_v2 = self.db.query(models_v2.EmailV2)\
+                .filter(models_v2.EmailV2.municipi_id == municipi_id)\
+                .order_by(desc(models_v2.EmailV2.data_enviament))\
+                .limit(limit)\
+                .all()
+                
+            for e in emails_v2:
+                timeline.append({
+                    "tipus": f"email_{e.direccio}",
+                    "data": e.data_enviament,
+                    "contingut": e.assumpte,
+                    "notes": (e.cos[:350] + "...") if e.cos and len(e.cos) > 350 else e.cos,
+                    "font": "v2_email",
+                    "sentiment": e.sentiment_resposta if e.direccio == 'entrada' else 'N/A'
+                })
+                
+            # 3. Tasques Pendents (NOU)
+            tasques = self.db.query(models_v2.TascaV2)\
+                .filter(models_v2.TascaV2.municipi_id == municipi_id)\
+                .filter(models_v2.TascaV2.estat == "pendent")\
+                .all()
+            for t in tasques:
+                timeline.append({
+                    "tipus": "tasca",
+                    "data": t.data_venciment,
+                    "contingut": f"Tasca pendent: {t.titol}",
+                    "notes": t.descripcio,
+                    "font": "v2_task",
+                    "prioritat": t.prioritat
+                })
+
+            # 4. Seqüències Actives (NOU)
+            sequencies = self.db.query(models_v2.EmailSequenciaV2)\
+                .filter(models_v2.EmailSequenciaV2.municipi_id == municipi_id)\
+                .filter(models_v2.EmailSequenciaV2.estat != "enviat")\
+                .all()
+            for s in sequencies:
+                timeline.append({
+                    "tipus": "sequencia",
+                    "data": s.data_programada,
+                    "contingut": f"Email seqüència #{s.numero_email} ({s.tipus_sequencia})",
+                    "notes": f"Estat: {s.estat}",
+                    "font": "v2_sequence"
+                })
+
+            # 5. Emails V1 (legacy)
+            try:
+                emails_v1 = self.db.query(models.Email)\
+                    .join(models.Deal, models.Email.deal_id == models.Deal.id)\
+                    .filter(models.Deal.municipi_id == municipi_id)\
+                    .order_by(desc(models.Email.data_email))\
+                    .limit(limit)\
+                    .all()
+                
+                for e in emails_v1:
+                    timeline.append({
+                        "tipus": f"email_{e.direccio}",
+                        "data": e.data_email,
+                        "contingut": e.assumpte,
+                        "notes": (e.cos[:200] + "...") if e.cos and len(e.cos) > 200 else e.cos,
+                        "font": "v1_email"
+                    })
+            except Exception as e:
+                logger.warning(f"No s'han pogut carregar emails V1 per al context: {e}")
+
+        except Exception as e:
+            logger.error(f"Error crític carregant context de l'agent: {e}")
         
-        # 4. Re-ordenar per data descendents
+        # Re-ordenar per data descendents
         timeline.sort(key=lambda x: x["data"] if x["data"] else datetime.min, reverse=True)
         return timeline[:limit]
 
@@ -238,15 +273,20 @@ class AgentKimiK2:
                     logger.warning(f"Error carregant contactes per al context: {e}")
 
                 diagnostics = {}
+                # Injecció de Finances i Funnel
                 try:
                     diagnostics = {
                         "digital": getattr(municipi, 'diagnostic_digital', {}),
                         "angle": getattr(municipi, 'angle_personalitzacio', "Cap angle definit."),
-                        "etapa_desc": str(getattr(municipi, 'etapa_actual', 'n/a'))
+                        "etapa_desc": str(getattr(municipi, 'etapa_actual', 'n/a')),
+                        "valor_setup": str(getattr(municipi, 'valor_setup', 0)),
+                        "valor_llicencia": str(getattr(municipi, 'valor_llicencia', 0)),
+                        "temperatura": str(getattr(municipi, 'temperatura', 'fred')),
+                        "blocker_actual": str(getattr(municipi, 'blocker_actual', 'cap'))
                     }
                 except Exception as e:
-                    logger.warning(f"Error carregant diagnòstics per al context: {e}")
-                
+                    logger.warning(f"Error carregant dades econòmiques: {e}")
+
                 # Integrar Memòria Jeràrquica
                 h_memory = await memory_engine.build_hierarchical_context(self.db, municipi.id, [])
                 
@@ -254,7 +294,7 @@ class AgentKimiK2:
 CONTEXT MUNICIPI {municipi.nom}:
 {json.dumps(context_data, indent=2)}
 
-DIAGNÒSTIC I ESTRATÈGIA:
+DIAGNÒSTIC I ESTRATÈGIA (Inclou Finances):
 {json.dumps(diagnostics, indent=2)}
 
 CONTACTES ACTIUS:
@@ -267,18 +307,65 @@ MEMÒRIA ESTRATÈGICA (KIMI MEMORY V2):
                 logger.warning(f"Municipi {municipi_id} no trobat per al xat (ni a V2 ni fallback V1).")
                 context_str = "CONTEXT: El municipi seleccionat no existeix a la base de dades. Demana a l'usuari que verifiqui si el municipi està correctament importat."
         else:
-            # Context GLOBAL: Veure què ha passat al CRM darrerament (emails globals)
+            # Context GLOBAL: REFACTORITZACIÓ "VISIÓ D'ÀGUILA"
             try:
+                # 1. Pipeline Total
+                try:
+                    pipeline_stages = ["oferta", "documentacio", "contracte"]
+                    municipis_pipeline = self.db.query(models_v2.MunicipiLifecycle).filter(
+                        models_v2.MunicipiLifecycle.etapa_actual.in_(pipeline_stages)
+                    ).all()
+                    
+                    total_setup = sum([m.valor_setup or 0 for m in municipis_pipeline])
+                    total_llicencia = sum([m.valor_llicencia or 0 for m in municipis_pipeline])
+                except Exception as e:
+                    logger.warning(f"Error calculant pipeline: {e}")
+                    total_setup, total_llicencia = 0, 0
+
+                # 2. Recompte per Etapa
+                etapa_stats = {}
+                try:
+                    from sqlalchemy import func
+                    stats = self.db.query(
+                        models_v2.MunicipiLifecycle.etapa_actual, 
+                        func.count(models_v2.MunicipiLifecycle.id)
+                    ).group_by(models_v2.MunicipiLifecycle.etapa_actual).all()
+                    etapa_stats = {str(etapa): count for etapa, count in stats}
+                except Exception as e:
+                    logger.warning(f"Error calculant stats d'etapes: {e}")
+
+                # 3. Tasques Urgents Globals
+                tasques_urgents = []
+                try:
+                    tasques_urgents = self.db.query(models_v2.TascaV2)\
+                        .filter(models_v2.TascaV2.estat == "pendent")\
+                        .order_by(models_v2.TascaV2.data_venciment.asc())\
+                        .limit(5).all()
+                except Exception as e:
+                    logger.warning(f"Error carregant tasques globals: {e}")
+
+                # 4. Últims emails per context real-time
                 from models import Email
                 ultims_emails = self.db.query(Email).order_by(Email.data_email.desc()).limit(5).all()
-                if ultims_emails:
-                    e_list = "\n".join([f"- [{e.data_email}] {e.direccio} de {e.from_address}: {e.assumpte}" for e in ultims_emails])
-                    context_str = f"CONTEXT GLOBAL CRM (Últims emails):\n{e_list}"
-                else:
-                    context_str = "CONTEXT GLOBAL: No hi ha emails recents al sistema."
+                e_list = "\n".join([f"- [{e.data_email}] {e.direccio} de {e.from_address}: {e.assumpte}" for e in ultims_emails])
+
+                context_str = f"""
+VISIÓ D'ÀGUILA (CONTEXT GLOBAL CRM):
+- Pipeline Actiu (Setup): {total_setup}€
+- Pipeline Actiu (Llicència): {total_llicencia}€
+
+RECOMPTE PER ETAPA:
+{json.dumps(etapa_stats, indent=2)}
+
+TASQUES URGENTS:
+{chr(10).join([f"- [{t.data_venciment.strftime('%d/%m') if t.data_venciment else 'S/D'}] {t.titol} ({t.prioritat})" for t in tasques_urgents]) if tasques_urgents else "Cap tasca urgent."}
+
+ÚLTIMS EMAILS AL CRM:
+{e_list if ultims_emails else "Sense emails recents."}
+"""
             except Exception as e:
-                logger.error(f"Error carregant context global: {e}")
-                context_str = "CONTEXT GLOBAL: No s'ha pogut carregar la informació d'emails."
+                logger.error(f"Error crític en Visió d'Àguila: {e}")
+                context_str = "CONTEXT GLOBAL: Error en carregar la visió d'àguila. L'agent opera amb visió limitada."
 
         # Usar render_prompt per incloure la personalitat base i el sistema de xat
         system_prompt = prompt_manager.render_prompt("xat_conversacional", {
