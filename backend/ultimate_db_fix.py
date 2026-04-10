@@ -32,12 +32,12 @@ def force_sync_v2():
             try:
                 # El IF NOT EXISTS evita errors si la columna ja hi és
                 conn.execute(text(f"ALTER TABLE municipis_lifecycle ADD COLUMN IF NOT EXISTS {col};"))
-                print(f"✅ Columna garantida: {col_name}")
+                print(f"[OK] Columna garantida: {col_name}")
             except Exception as e:
-                print(f"⚠️ Nota sobre {col_name}: {e}")
+                print(f"[ERROR] Nota sobre {col_name}: {e}")
         
         conn.commit()
-        print("🚀 Base de dades purgada i sincronitzada!")
+        print("Base de dades purgada i sincronitzada!")
 
 if __name__ == "__main__":
     force_sync_v2()
