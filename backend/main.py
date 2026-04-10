@@ -59,6 +59,29 @@ origins = [
     "http://127.0.0.1:3000",
 ]
 
+# EXCEPTION HANDLER (DEBUG)
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    import traceback
+    error_msg = traceback.format_exc()
+    logger.error(f"GLOBAL ERROR: {error_msg}")
+    
+    # Retornem 200 temporalment per saltar-nos el bloqueig de CORS del navegador i llegir l'error
+    # Només per a DEBUG de producció
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": str(exc),
+            "type": type(exc).__name__,
+            "traceback": error_msg,
+            "path": request.url.path
+        },
+        headers={
+            "Access-Control-Allow-Origin": origins[0] if origins else "*",
+            "Access-Control-Allow-Credentials": "true"
+        }
+    )
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,

@@ -20,6 +20,8 @@ class MemoryEngine:
         )
         if municipi_id:
             query = query.filter(m2.AgentMemoryV2.municipi_id == municipi_id)
+        else:
+            query = query.filter(m2.AgentMemoryV2.municipi_id == None)
         
         # Agafem la més recent
         memory = query.order_by(m2.AgentMemoryV2.updated_at.desc()).first()

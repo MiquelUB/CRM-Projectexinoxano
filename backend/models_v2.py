@@ -26,6 +26,7 @@ class GeografiaEnum(str, enum.Enum):
     city = "city"
 
 class EtapaFunnelEnum(str, enum.Enum):
+    lead = "lead"
     research = "research"
     contacte = "contacte"
     demo_pendent = "demo_pendent"
