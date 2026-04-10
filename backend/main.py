@@ -56,8 +56,13 @@ app = FastAPI(
 import logging
 logger = logging.getLogger("uvicorn.error")
 
-# CORS configuration - MUST BE FIRST
-origins = ["*"] # Temporalment per DEBUG total
+# CORS configuration
+origins = [
+    "https://crmpxx-crm-front.80opze.easypanel.host",
+    "https://crmpxx.projectexinoxano.cat",
+    "http://localhost:3000",
+    "http://localhost:3001"
+]
 
 # EXCEPTION HANDLER (DEBUG)
 @app.exception_handler(Exception)
@@ -132,15 +137,17 @@ async def force_https_middleware(request: Request, call_next):
 app.include_router(dashboard.router)
 @app.get("/")
 async def root_health():
-    return {"status": "online", "message": "CRM PXX Backend is running", "version": "1.0.1"}
+    return {"status": "online", "message": "CRM PXX Backend (V_BETA_4_CORS) is running", "timestamp": "2026-04-10T11:55"}
 
 from routers import municipis_api
 app.include_router(municipis_api.router, prefix="/api/v2/municipis")
-app.include_router(municipis_v2.router)
 app.include_router(emails_v2.router, prefix="/api/v2")
 app.include_router(activitats_v2.router, prefix="/api/v2")
 app.include_router(auth.router)
 app.include_router(usuaris.router)
+app.include_router(municipis_v2.router, prefix="/municipis_v2")
+app.include_router(municipis_v2.router, prefix="/municipis_lifecycle")
+app.include_router(contactes.router, prefix="/contactes", tags=["contactes"])
 app.include_router(municipis.router)
 app.include_router(contactes.router)
 app.include_router(deals.router)

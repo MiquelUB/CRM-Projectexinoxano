@@ -10,7 +10,7 @@ from pydantic import BaseModel
 class UpdateNotesRequest(BaseModel):
     angle_personalitzacio: str
 
-router = APIRouter(prefix="/municipis_v2", tags=["municipis_v2"])
+router = APIRouter(tags=["municipis_v2"])
 
 @router.get("/kpis")
 def get_municipis_kpis(db: Session = Depends(get_db)):

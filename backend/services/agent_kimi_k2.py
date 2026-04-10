@@ -18,13 +18,46 @@ class AgentKimiK2:
     def __init__(self, db: Session):
         self.db = db
 
-    def _load_context(self, municipi_id: UUID, limit: int = 50) -> List[models_v2.ActivitatsMunicipi]:
-        """Retorna el timeline complet d'activitats del municipi."""
-        return self.db.query(models_v2.ActivitatsMunicipi)\
+    def _load_context(self, municipi_id: UUID, limit: int = 50) -> List[Dict[str, Any]]:
+        """Retorna el timeline complet d'activitats del municipi (V2 + Emails V1)."""
+        activitats = self.db.query(models_v2.ActivitatsMunicipi)\
             .filter(models_v2.ActivitatsMunicipi.municipi_id == municipi_id)\
             .order_by(desc(models_v2.ActivitatsMunicipi.data_activitat))\
             .limit(limit)\
             .all()
+        
+        # Convertir a dicts per unificar
+        timeline = []
+        for a in activitats:
+            timeline.append({
+                "tipus": a.tipus_activitat.value if hasattr(a.tipus_activitat, 'value') else a.tipus_activitat,
+                "data": a.data_activitat,
+                "contingut": a.contingut,
+                "notes": a.notes_comercial,
+                "font": "v2"
+            })
+            
+        # Buscar emails vinculats a aquest municipi via Deals (V1)
+        emails = self.db.query(models.Email)\
+            .join(models.Deal, models.Email.deal_id == models.Deal.id)\
+            .filter(models.Deal.municipi_id == municipi_id)\
+            .order_by(desc(models.Email.data_email))\
+            .limit(limit)\
+            .all()
+        
+        for e in emails:
+            timeline.append({
+                "tipus": "email",
+                "data": e.data_email,
+                "contingut": e.assumpte,
+                "notes": (e.cos[:200] + "...") if e.cos and len(e.cos) > 200 else e.cos,
+                "font": "v1_email",
+                "de": e.from_address
+            })
+        
+        # Re-ordenar per data descendents
+        timeline.sort(key=lambda x: x["data"] if x["data"] else datetime.min, reverse=True)
+        return timeline[:limit]
 
     async def _call_llm(self, messages: List[Dict[str, str]], skill: str, temperature: float = 0.7, json_mode: bool = False, model: Optional[str] = None):
         """Wrapper per cridar a OpenRouter amb una configuració específica."""
@@ -45,9 +78,13 @@ class AgentKimiK2:
             }
 
         ultima_act = activitats[0]
-        if ultima_act.data_activitat:
-            dies_silenci = (datetime.now().date() - ultima_act.data_activitat.date()).days
-            data_str = ultima_act.data_activitat.strftime("%Y-%m-%d")
+        data_act = ultima_act.get("data")
+        if data_act:
+            if isinstance(data_act, str):
+                from dateutil import parser
+                data_act = parser.parse(data_act)
+            dies_silenci = (datetime.now().date() - data_act.date()).days
+            data_str = data_act.strftime("%Y-%m-%d")
         else:
             dies_silenci = 0
             data_str = None
@@ -57,10 +94,10 @@ class AgentKimiK2:
         if dies_silenci > 15:
             bloquejos.append(f"Sense resposta des de fa {dies_silenci} dies")
 
-        # Regla: Demo sense seguiment
-        foie_demo = any(a.tipus_activitat == models_v2.TipusActivitat.reunio for a in activitats[:5])
+        # Regla: Demo sense seguiment (reunio)
+        foie_demo = any(a.get("tipus") in ["reunio", "trucada"] for a in activitats[:5])
         if foie_demo and dies_silenci > 7:
-            bloquejos.append("Oportunitat freda: Demo realitzada fa més de 7 dies sense seguiment actiu")
+            bloquejos.append("Oportunitat freda: Últim contacte rellevant fa més de 7 dies")
 
         return {
             "ultim_contacte": {
