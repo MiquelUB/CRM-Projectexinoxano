@@ -189,26 +189,29 @@ async def repair_db_endpoint(db: Session = Depends(get_db)):
                     except: pass
 
         # D. REPARACIÓ D'ESTRUCTURA (Alineació final amb models_v2.py)
+        results = []
         with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
             # 1. Afegir columnes econòmiques si falten
-            try: conn.execute(text("ALTER TABLE municipis_lifecycle ADD COLUMN IF NOT EXISTS valor_setup NUMERIC(10,2) DEFAULT 0"))
-            except: pass
-            try: conn.execute(text("ALTER TABLE municipis_lifecycle ADD COLUMN IF NOT EXISTS valor_llicencia NUMERIC(10,2) DEFAULT 0"))
-            except: pass
+            for col in ["valor_setup", "valor_llicencia"]:
+                try: 
+                    conn.execute(text(f"ALTER TABLE municipis_lifecycle ADD COLUMN IF NOT EXISTS {col} NUMERIC(10,2) DEFAULT 0"))
+                    results.append(f"Column {col} OK")
+                except Exception as e: 
+                    results.append(f"Column {col} Error: {str(e)}")
 
-            # 2. Relaxar restricció de l'agent (permetre NULL a municipi_id)
-            try: conn.execute(text("ALTER TABLE agent_memories_v2 ALTER COLUMN municipi_id DROP NOT NULL"))
-            except: pass
-            try: conn.execute(text("ALTER TABLE agent_memories_v2 ALTER COLUMN usuari_id DROP NOT NULL"))
-            except: pass
+            # 2. Relaxar restricció de l'agent (CRÍTIC: treure NOT NULL)
+            cols_to_relax = ["municipi_id", "usuari_id", "clau", "valor"]
+            for col in cols_to_relax:
+                try: 
+                    conn.execute(text(f"ALTER TABLE agent_memories_v2 ALTER COLUMN {col} DROP NOT NULL"))
+                    results.append(f"Drop NOT NULL {col} OK")
+                except Exception as e: 
+                    results.append(f"Drop NOT NULL {col} Error: {str(e)}")
         
         return {
             "status": "success", 
-            "message": "Sanejament d'Enums i estructura de taules completat.",
-            "db_details": [
-                {"table": "municipis_lifecycle", "fix": "valor_setup, valor_llicencia added"},
-                {"table": "agent_memories_v2", "fix": "municipi_id is now nullable"}
-            ]
+            "message": "Operacions de reparació executades.",
+            "results": results
         }
     except Exception as e:
         logger.error(f"Error a /repair-db: {e}")
