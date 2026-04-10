@@ -61,7 +61,8 @@ origins = [
     "https://crmpxx-crm-frontend.80opze.easypanel.host",
     "https://crmpxx.projectexinoxano.cat",
     "http://localhost:3000",
-    "http://localhost:3001"
+    "http://localhost:3001",
+    "https://80opze.easypanel.host"
 ]
 
 # EXCEPTION HANDLER (DEBUG)
@@ -73,55 +74,38 @@ async def global_exception_handler(request: Request, exc: Exception):
     
     # Determinar origen de forma segura per al CORS d'errors
     origin = request.headers.get("origin")
-    if origin not in origins:
-        origin = origins[0] if origins else "*"
+    allowed_origin = origins[0]
+    
+    # Validador d'orígens dinàmics per a Easypanel i el domini principal
+    if origin:
+        import re
+        if re.match(r"https://.*\.easypanel\.host", origin) or "projectexinoxano.cat" in origin or "localhost" in origin:
+            allowed_origin = origin
     
     return JSONResponse(
         status_code=500,
         content={
             "error": "Internal Server Error",
             "message": str(exc),
-            "traceback": tb_str,
+            "traceback": tb_str if os.getenv("DEBUG") else "Secret",
             "path": request.url.path
         },
         headers={
-            "Access-Control-Allow-Origin": origin,
+            "Access-Control-Allow-Origin": allowed_origin,
             "Access-Control-Allow-Credentials": "true",
             "Access-Control-Allow-Methods": "*",
             "Access-Control-Allow-Headers": "*"
         }
     )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-    expose_headers=["*"],
-)
-
 @app.middleware("http")
 async def monitor_v1_usage(request: Request, call_next):
     # Monitorització d'endpoints obsolets V1
-    v1_paths = {
-        "/municipis": "municipis",
-        "/contactes": "contactes",
-        "/deals": "deals",
-        "/emails": "emails",
-        "/tasques": "tasques"
-    }
-    
+    v1_paths = ["/municipis", "/contactes", "/deals", "/emails", "/tasques"]
     path = request.url.path
-    if path.startswith("/"):
-        # Extreure el primer segment del path
-        first_segment = "/" + path.split("/")[1] if len(path.split("/")) > 1 else path
-        
-        if first_segment in v1_paths:
-            # Si és un endpoint V1 pur (sense v2 al path)
-            if "_v2" not in path and "emails_v2" not in path and "api/v2" not in path:
-                taula = v1_paths[first_segment]
-                logger.warning(f"[DEPRECATED] Query a taula '{taula}' des de endpoint '{path}'")
+    if any(path.startswith(p) for p in v1_paths):
+        if not any(v in path for v in ["_v2", "emails_v2", "api/v2", "lifecycle"]):
+            logger.warning(f"[DEPRECATED] Query V1 des de endpoint '{path}'")
     
     response = await call_next(request)
     return response
@@ -133,13 +117,31 @@ async def force_https_middleware(request: Request, call_next):
     response = await call_next(request)
     return response
 
+# CORS ADDED LAST = OUTERMOST
+# Use regex to allow any subdomain of easypanel.host or projectexinoxano.cat
+app.add_middleware(
+    CORSMiddleware,
+    allow_origin_regex=r"https://.*\.easypanel\.host|https://.*\.projectexinoxano\.cat|http://localhost:.*",
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["*"],
+    max_age=3600,
+)
+
 
 # Include routers
 app.include_router(dashboard.router)
 
 @app.get("/")
-async def root_health():
-    return {"status": "online", "message": "CRM PXX Backend (V_BETA_4_STABLE) is running", "timestamp": "2026-04-10T12:05"}
+async def root_health(request: Request):
+    return {
+        "status": "online", 
+        "message": "CRM PXX Backend (V_BETA_5_STABLE) is running", 
+        "timestamp": datetime.now().isoformat(),
+        "client_origin": request.headers.get("origin"),
+        "scheme": request.scope.get("scheme")
+    }
 
 from routers import municipis_api
 app.include_router(municipis_api.router, prefix="/api/v2/municipis")
