@@ -76,10 +76,11 @@ async def global_exception_handler(request: Request, exc: Exception):
     origin = request.headers.get("origin")
     allowed_origin = origins[0]
     
-    # Validador d'orígens dinàmics per a Easypanel i el domini principal
+    # Validador d'orígens dinàmics (mirror de la config del CORSMiddleware)
     if origin:
         import re
-        if re.match(r"https://.*\.easypanel\.host", origin) or "projectexinoxano.cat" in origin or "localhost" in origin:
+        pattern = r"https://.*\.easypanel\.host|https://.*\.projectexinoxano\.cat|http://localhost:.*"
+        if re.match(pattern, origin):
             allowed_origin = origin
     
     return JSONResponse(

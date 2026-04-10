@@ -196,40 +196,56 @@ class AgentKimiK2:
             # B-01: Fallback logic V1 -> V2
             municipi = self.db.query(models_v2.MunicipiLifecycle).get(municipi_id)
             
-            # Si no trobem el UUID a V2 per ID directe, comprovem si és un UUID de municipi V1 (legacy)
+            # B-01: Fallback logic V1 -> V2 amb protecció contra columnes inexistents
             if not municipi:
                 logger.info(f"Municipi {municipi_id} no trobat a V2 per ID directe, buscant fallback V1...")
                 
-                # Intentem buscar primer pel camp de migració directament
-                municipi = self.db.query(models_v2.MunicipiLifecycle).filter(
-                    models_v2.MunicipiLifecycle.municipi_v1_id == municipi_id
-                ).first()
+                # Intentem buscar primer pel camp de migració directament (v1_id)
+                try:
+                    municipi = self.db.query(models_v2.MunicipiLifecycle).filter(
+                        models_v2.MunicipiLifecycle.municipi_v1_id == municipi_id
+                    ).first()
+                except Exception as e:
+                    logger.warning(f"Error consultant municipi_v1_id (possiblement la columna no existeix): {e}")
+                    municipi = None
                 
                 if not municipi:
-                    # Segon nivell de fallback: per nom (necessari si el municipi_v1_id no s'ha omplert)
-                    municipi_v1 = self.db.query(models.Municipi).filter(models.Municipi.id == municipi_id).first()
-                    if municipi_v1:
-                        municipi = self.db.query(models_v2.MunicipiLifecycle).filter(
-                            models_v2.MunicipiLifecycle.nom == municipi_v1.nom
-                        ).first()
-                        if municipi:
-                            logger.info(f"Sincronitzat municipi V1 '{municipi_v1.nom}' via Match per Nom.")
+                    # Segon nivell de fallback: per nom via models V1
+                    try:
+                        municipi_v1 = self.db.query(models.Municipi).filter(models.Municipi.id == municipi_id).first()
+                        if municipi_v1:
+                            municipi = self.db.query(models_v2.MunicipiLifecycle).filter(
+                                models_v2.MunicipiLifecycle.nom == municipi_v1.nom
+                            ).first()
+                            if municipi:
+                                logger.info(f"Sincronitzat municipi V1 '{municipi_v1.nom}' via Match per Nom.")
+                    except Exception as e:
+                        logger.error(f"Error en fallback per nom V1: {e}")
             
             if municipi:
                 # Carregar context base d'activitats
                 context_data = await self.analitzar_context(municipi.id)
                 
-                # B-03 & B-06: Expandir context amb dades de diagnòstic i contactes
-                contactes_info = [
-                    f"{c.nom} ({c.carrec}) - Email: {c.email}" 
-                    for c in municipi.contactes if c.actiu
-                ]
-                
-                diagnostics = {
-                    "digital": municipi.diagnostic_digital,
-                    "angle": municipi.angle_personalitzacio,
-                    "etapa_desc": municipi.etapa_actual.value if hasattr(municipi.etapa_actual, 'value') else str(municipi.etapa_actual)
-                }
+                # B-03 & B-06: Expandir context amb dades de diagnòstic i contactes (amb protecció de nul·les)
+                contactes_info = []
+                try:
+                    if hasattr(municipi, 'contactes') and municipi.contactes:
+                        contactes_info = [
+                            f"{c.nom} ({c.carrec}) - Email: {c.email}" 
+                            for c in municipi.contactes if c.actiu
+                        ]
+                except Exception as e:
+                    logger.warning(f"Error carregant contactes per al context: {e}")
+
+                diagnostics = {}
+                try:
+                    diagnostics = {
+                        "digital": getattr(municipi, 'diagnostic_digital', {}),
+                        "angle": getattr(municipi, 'angle_personalitzacio', "Cap angle definit."),
+                        "etapa_desc": str(getattr(municipi, 'etapa_actual', 'n/a'))
+                    }
+                except Exception as e:
+                    logger.warning(f"Error carregant diagnòstics per al context: {e}")
                 
                 # Integrar Memòria Jeràrquica
                 h_memory = await memory_engine.build_hierarchical_context(self.db, municipi.id, [])
