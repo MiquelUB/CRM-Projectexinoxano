@@ -49,8 +49,10 @@ class AgentKimiK2:
                 "tipus": f"email_{e.direccio}",
                 "data": e.data_enviament,
                 "contingut": e.assumpte,
-                "notes": (e.cos[:300] + "...") if e.cos and len(e.cos) > 300 else e.cos,
-                "font": "v2_email"
+                "notes": (e.cos[:350] + "...") if e.cos and len(e.cos) > 350 else e.cos,
+                "font": "v2_email",
+                "sentiment": e.sentiment_resposta if e.direccio == 'entrada' else 'N/A',
+                "obert": e.obert if e.direccio == 'sortida' else 'N/A'
             })
             
         # 3. Emails V1 (legacy, via Deals)
@@ -191,15 +193,54 @@ class AgentKimiK2:
         # Obtenir context del municipi si m_id
         context_str = ""
         if municipi_id:
+            # B-01: Fallback logic V1 -> V2
             municipi = self.db.query(models_v2.MunicipiLifecycle).get(municipi_id)
+            
+            # Si no trobem el UUID a V2, comprovem si és un UUID de municipi V1 (legacy)
+            if not municipi:
+                logger.info(f"Municipi {municipi_id} no trobat a V2, buscant a V1 per fallback...")
+                municipi_v1 = self.db.query(models.Municipi).filter(models.Municipi.id == municipi_id).first()
+                if municipi_v1:
+                    # Si el trobem a V1, busquem si hi ha un Lifecycle amb el mateix nom (fallback d'emergència)
+                    municipi = self.db.query(models_v2.MunicipiLifecycle).filter(models_v2.MunicipiLifecycle.nom == municipi_v1.nom).first()
+                    if municipi:
+                        logger.info(f"Sincronitzat municipi V1 '{municipi_v1.nom}' amb Lifecycle V2 '{municipi.nom}'")
+            
             if municipi:
-                context_data = await self.analitzar_context(municipi_id)
+                # Carregar context base d'activitats
+                context_data = await self.analitzar_context(municipi.id)
+                
+                # B-03 & B-06: Expandir context amb dades de diagnòstic i contactes
+                contactes_info = [
+                    f"{c.nom} ({c.carrec}) - Email: {c.email}" 
+                    for c in municipi.contactes if c.actiu
+                ]
+                
+                diagnostics = {
+                    "digital": municipi.diagnostic_digital,
+                    "angle": municipi.angle_personalitzacio,
+                    "etapa_desc": municipi.etapa_actual.value if hasattr(municipi.etapa_actual, 'value') else str(municipi.etapa_actual)
+                }
+                
                 # Integrar Memòria Jeràrquica
-                h_memory = await memory_engine.build_hierarchical_context(self.db, municipi_id, [])
-                context_str = f"CONTEXT MUNICIPI {municipi.nom}:\n{json.dumps(context_data)}\n\nMEMÒRIA ESTRATÈGICA:\n{h_memory}"
+                h_memory = await memory_engine.build_hierarchical_context(self.db, municipi.id, [])
+                
+                context_str = f"""
+CONTEXT MUNICIPI {municipi.nom}:
+{json.dumps(context_data, indent=2)}
+
+DIAGNÒSTIC I ESTRATÈGIA:
+{json.dumps(diagnostics, indent=2)}
+
+CONTACTES ACTIUS:
+{", ".join(contactes_info) if contactes_info else "Cap contacte registrat."}
+
+MEMÒRIA ESTRATÈGICA (KIMI MEMORY V2):
+{h_memory}
+"""
             else:
-                logger.warning(f"Municipi {municipi_id} no trobat per al xat.")
-                context_str = "CONTEXT: El municipi seleccionat no existeix a la base de dades."
+                logger.warning(f"Municipi {municipi_id} no trobat per al xat (ni a V2 ni fallback V1).")
+                context_str = "CONTEXT: El municipi seleccionat no existeix a la base de dades. Demana a l'usuari que verifiqui si el municipi està correctament importat."
         else:
             # Context GLOBAL: Veure què ha passat al CRM darrerament (emails globals)
             try:

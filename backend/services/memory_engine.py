@@ -13,17 +13,19 @@ class MemoryEngine:
     Gestiona la recuperació i síntesi de context en 3 nivells.
     """
 
-    async def get_or_create_memory(self, db: Session, usuari_id: UUID, municipi_id: Optional[UUID] = None) -> m2.AgentMemoryV2:
-        """Recupera o crea una instància de memòria per a l'usuari i context."""
-        query = db.query(m2.AgentMemoryV2).filter(
-            m2.AgentMemoryV2.usuari_id == usuari_id
-        )
+    async def get_or_create_memory(self, db: Session, usuari_id: UUID, municipi_id: Optional[UUID] = None, deal_id: Optional[UUID] = None) -> m2.AgentMemoryV2:
+        """Recupera o crea una instància de memòria per a l'usuari i context (Municipi o Deal)."""
+        # Intentem recuperar per municipi_id o deal_id
+        query = db.query(m2.AgentMemoryV2).filter(m2.AgentMemoryV2.usuari_id == usuari_id)
+        
         if municipi_id:
             query = query.filter(m2.AgentMemoryV2.municipi_id == municipi_id)
+        elif deal_id:
+            query = query.filter(m2.AgentMemoryV2.deal_id == deal_id)
         else:
-            query = query.filter(m2.AgentMemoryV2.municipi_id == None)
+            query = query.filter(m2.AgentMemoryV2.municipi_id == None, m2.AgentMemoryV2.deal_id == None)
         
-        # Agafem la més recent
+        # Agafem la més recent d'aquesta sessió/context
         memory = query.order_by(m2.AgentMemoryV2.updated_at.desc()).first()
         
         if not memory:
@@ -32,8 +34,10 @@ class MemoryEngine:
                     id=uuid.uuid4(),
                     usuari_id=usuari_id,
                     municipi_id=municipi_id,
+                    deal_id=deal_id,
                     history=[],
-                    summary=""
+                    summary="",
+                    confianca=1.0
                 )
                 db.add(memory)
                 db.commit()
@@ -42,7 +46,7 @@ class MemoryEngine:
                 db.rollback()
                 print(f"ERROR: No s'ha pogut guardar la memoria de l'agent: {e}")
                 # Retornem una instancia efimera perquè el xat no peti
-                memory = m2.AgentMemoryV2(history=[], summary="", usuari_id=usuari_id, municipi_id=municipi_id)
+                memory = m2.AgentMemoryV2(history=[], summary="", usuari_id=usuari_id, municipi_id=municipi_id, deal_id=deal_id)
             
         return memory
 

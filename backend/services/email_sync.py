@@ -176,7 +176,23 @@ def sync_mailbox(folder="INBOX", direccio="IN", search_criteria="UNSEEN"):
                 if municipi_id:
                     # Crear activitat V2
                     tipus_act = m2.TipusActivitat.email_rebut if direccio == "IN" else m2.TipusActivitat.email_enviat
+                    dir_v2 = "entrada" if direccio == "IN" else "sortida"
                     
+                    # 1. Crear registre a emails_v2 (NOU)
+                    email_v2 = m2.EmailV2(
+                        municipi_id=municipi_id,
+                        contacte_id=None, # Hauríem de buscar el contacte si clean_from match
+                        assumpte=assumpte[:200],
+                        cos=cos,
+                        direccio=dir_v2,
+                        data_enviament=data_email,
+                        obert=(direccio == "OUT"),
+                        respost=(direccio == "IN"), # Placeholder simple
+                        sentiment_resposta=m2.SentimentEnum.neutre if direccio == "IN" else None
+                    )
+                    db.add(email_v2)
+                    
+                    # 2. Crear activitat de timeline
                     activitat_v2 = m2.ActivitatsMunicipi(
                         municipi_id=municipi_id,
                         deal_id=deal_id,
@@ -188,7 +204,7 @@ def sync_mailbox(folder="INBOX", direccio="IN", search_criteria="UNSEEN"):
                             "to": clean_to,
                             "body_preview": cos[:1000] # Guardem un bon tros de l'email
                         },
-                        notes_comercial=f"Email ({direccio}): {assumpte}",
+                        notes_comercial=f"Email ({direccio}) sincronitzat via IMAP",
                         generat_per_ia=False
                     )
                     db.add(activitat_v2)

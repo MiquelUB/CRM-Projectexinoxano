@@ -416,20 +416,24 @@ class AgentMemoryV2(Base):
     __tablename__ = "agent_memories_v2"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     municipi_id = Column(UUID(as_uuid=True), ForeignKey("municipis_lifecycle.id"), nullable=True)
-    usuari_id = Column(UUID(as_uuid=True), ForeignKey("usuaris.id"), nullable=True)
+    usuari_id = Column(UUID(as_uuid=True), ForeignKey("usuaris.id"), nullable=False)
+    deal_id = Column(UUID(as_uuid=True), nullable=True)
     
-    # Nivell 1: Memòria de Sessió (Xat)
+    # Nivell 1: Memoria de Sessio (Xat)
     session_id = Column(UUID(as_uuid=True), nullable=True, index=True)
     expires_at = Column(DateTime(timezone=True), nullable=True)
     history = Column(JSONB, default=[])
-    summary = Column(Text)
+    summary = Column(Text, nullable=True)
     
-    clau = Column(String(50), index=True) 
-    valor = Column(Text)
-    confidenca = Column(Float, default=1.0)
+    # Nivell 2: Aprenentatge
+    clau = Column(String(50), index=True, nullable=True) 
+    valor = Column(Text, nullable=True)
+    confianca = Column(Float, default=1.0)
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    
+    # Relacions
     municipi = relationship("MunicipiLifecycle", back_populates="agent_memories")
 
 class TascaV2(Base):
