@@ -200,10 +200,18 @@ async def repair_db_endpoint(db: Session = Depends(get_db)):
             """)).fetchall()
             results.append({"audit_before": {row[0]: row[1] for row in audit}})
 
-            # 2. Afegir columnes econòmiques si falten
-            for col in ["valor_setup", "valor_llicencia"]:
+            # 2. Afegir columnes de lifecycle si falten
+            lifecycle_cols = {
+                "valor_setup": "NUMERIC(10,2) DEFAULT 0",
+                "valor_llicencia": "NUMERIC(10,2) DEFAULT 0",
+                "proper_pas": "TEXT",
+                "prioritat": "INTEGER DEFAULT 3",
+                "data_seguiment": "TIMESTAMP WITH TIME ZONE",
+                "notes_humanes": "TEXT"
+            }
+            for col, col_type in lifecycle_cols.items():
                 try: 
-                    conn.execute(text(f"ALTER TABLE municipis_lifecycle ADD COLUMN IF NOT EXISTS {col} NUMERIC(10,2) DEFAULT 0"))
+                    conn.execute(text(f"ALTER TABLE municipis_lifecycle ADD COLUMN IF NOT EXISTS {col} {col_type}"))
                     results.append(f"Column {col} OK")
                 except Exception as e: 
                     results.append(f"Column {col} Error: {str(e)}")
