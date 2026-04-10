@@ -158,10 +158,13 @@ class AgentKimiK2:
                 logger.error(f"Error carregant context global: {e}")
                 context_str = "CONTEXT GLOBAL: No s'ha pogut carregar la informació d'emails."
 
-        system_prompt = prompt_manager.get_prompt("xat_conversacional")
+        # Usar render_prompt per incloure la personalitat base i el sistema de xat
+        system_prompt = prompt_manager.render_prompt("xat_conversacional", {
+            "nom_municipi": municipi.nom if (municipi_id and 'municipi' in locals() and municipi) else "Global",
+            "etapa": municipi.etapa_actual if (municipi_id and 'municipi' in locals() and municipi) else "N/A"
+        })
         
-        # Recuperar historial des de la DB (taula agent_memory o similar)
-        # Per simplificar en aquest pas, assumim que la memòria es gestiona via memory_engine
+        # Recuperar historial des de la DB
         memory = await memory_engine.get_or_create_memory(self.db, usuari_id, municipi_id=municipi_id)
         history = memory.history or []
         
