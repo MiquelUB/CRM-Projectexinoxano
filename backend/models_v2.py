@@ -414,7 +414,7 @@ class ActivitatsMunicipi(Base):
 class AgentMemoryV2(Base):
     __tablename__ = "agent_memories_v2"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    municipi_id = Column(UUID(as_uuid=True), ForeignKey("municipis_lifecycle.id"), nullable=False)
+    municipi_id = Column(UUID(as_uuid=True), ForeignKey("municipis_lifecycle.id"), nullable=True)
     usuari_id = Column(UUID(as_uuid=True), ForeignKey("usuaris.id"), nullable=True)
     
     # Nivell 1: Memòria de Sessió (Xat)
