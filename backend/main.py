@@ -182,8 +182,8 @@ async def repair_db_endpoint(db: Session = Depends(get_db)):
                 try: conn.execute(text("ALTER TYPE public.etapa_funnel ADD VALUE 'lead'"))
                 except: pass
             
-            # 2. Fix Temperatura
-            for val in ['freda', 'tibia', 'calenta']:
+            # 2. Fix Temperatura (Alineat amb models_v2.py: fred, templat, calent, bullent)
+            for val in ['fred', 'templat', 'calent', 'bullent']:
                 if val not in enums.get('temperatura', []):
                     try: conn.execute(text(f"ALTER TYPE public.temperatura ADD VALUE '{val}'"))
                     except: pass
@@ -192,8 +192,8 @@ async def repair_db_endpoint(db: Session = Depends(get_db)):
         with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
             # Fix EtapaActual NULL -> lead
             conn.execute(text("UPDATE municipis_lifecycle SET etapa_actual = 'lead'::public.etapa_funnel WHERE etapa_actual IS NULL"))
-            # Fix Temperatura NULL -> freda
-            conn.execute(text("UPDATE municipis_lifecycle SET temperatura = 'freda'::public.temperatura WHERE temperatura IS NULL"))
+            # Fix Temperatura NULL -> fred
+            conn.execute(text("UPDATE municipis_lifecycle SET temperatura = 'fred'::public.temperatura WHERE temperatura IS NULL"))
         
         return {
             "status": "success", 
@@ -230,8 +230,28 @@ def db_check():
 
 @app.get("/env-check")
 def env_check():
+    """Endpoint per verificar si les variables d'entorn estan arribant al contenidor."""
     import os
-    return {"keys": list(os.environ.keys())}
+    return {
+        "DATABASE_URL": "Configurada" if os.getenv("DATABASE_URL") else "FALTA",
+        "OPENROUTER_API_KEY": f"{os.getenv('OPENROUTER_API_KEY')[:6]}..." if os.getenv("OPENROUTER_API_KEY") else "FALTA",
+        "DATABASE_URL_VAL": os.getenv("DATABASE_URL")[:20] + "..." if os.getenv("DATABASE_URL") else None
+    }
+
+@app.get("/dashboard/diari")
+async def get_dashboard_diari(db: Session = Depends(get_db)):
+    from services.prioritizer import get_daily_actions
+    try:
+        actions = await get_daily_actions(db)
+        return actions
+    except Exception as e:
+        logger.error(f"Error a get_daily_actions: {e}")
+        # Retornem una estructura buida però vàlida en comptes de petar
+        return {
+            "accions_prioritaries": [],
+            "kpis": {"obertes": 0, "pendents": 0, "guanyades": 0},
+            "error": "No s'han pogut carregar les accions de IA"
+        }
 
 @app.get("/inventory")
 def get_inventory(db: Session = Depends(get_db)):
