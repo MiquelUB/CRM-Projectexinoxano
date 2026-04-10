@@ -103,9 +103,11 @@ class AgentKimiK2:
                         "font": "v1_email"
                     })
             except Exception as e:
+                self.db.rollback()
                 logger.warning(f"No s'han pogut carregar emails V1 per al context: {e}")
 
         except Exception as e:
+            self.db.rollback()
             logger.error(f"Error crític carregant context de l'agent: {e}")
         
         # Re-ordenar per data descendents
@@ -272,6 +274,7 @@ class AgentKimiK2:
                             for c in municipi.contactes if c.actiu
                         ]
                 except Exception as e:
+                    self.db.rollback()
                     logger.warning(f"Error carregant contactes per al context: {e}")
 
                 diagnostics = {}
@@ -287,6 +290,7 @@ class AgentKimiK2:
                         "blocker_actual": str(getattr(municipi, 'blocker_actual', 'cap'))
                     }
                 except Exception as e:
+                    self.db.rollback()
                     logger.warning(f"Error carregant dades econòmiques: {e}")
 
                 # Integrar Memòria Jeràrquica
@@ -366,6 +370,7 @@ TASQUES URGENTS:
 {e_list if ultims_emails else "Sense emails recents."}
 """
             except Exception as e:
+                self.db.rollback()
                 logger.error(f"Error crític en Visió d'Àguila: {e}")
                 context_str = "CONTEXT GLOBAL: Error en carregar la visió d'àguila. L'agent opera amb visió limitada."
 

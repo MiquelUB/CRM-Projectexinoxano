@@ -15,7 +15,7 @@ class MemoryEngine:
 
     async def get_or_create_memory(self, db: Session, usuari_id: UUID, municipi_id: Optional[UUID] = None, deal_id: Optional[UUID] = None) -> m2.AgentMemoryV2:
         """Recupera o crea una instància de memòria per a l'usuari i context (Municipi o Deal)."""
-        # Intentem recuperar per municipi_id o deal_id
+        memory = None
         try:
             # Intentem recuperar la memòria existent
             query = db.query(m2.AgentMemoryV2).filter(m2.AgentMemoryV2.usuari_id == usuari_id)
@@ -30,35 +30,33 @@ class MemoryEngine:
             
             # Agafem la més recent
             memory = query.order_by(m2.AgentMemoryV2.updated_at.desc()).first()
-            
-            if not memory:
-                # Si no existeix, la creem
-                try:
-                    memory = m2.AgentMemoryV2(
-                        id=uuid.uuid4(),
-                        usuari_id=usuari_id,
-                        municipi_id=municipi_id,
-                        deal_id=deal_id,
-                        history=[],
-                        summary="",
-                        confianca=1.0
-                    )
-                    db.add(memory)
-                    db.commit()
-                    db.refresh(memory)
-                except Exception as e_create:
-                    db.rollback()
-                    logger.warning(f"Error creant memòria a DB (usant transient): {e_create}")
-                    # Retornem l'objecte sense persistir per no bloquejar l'usuari
-                    return m2.AgentMemoryV2(id=uuid.uuid4(), history=[], summary="", usuari_id=usuari_id, municipi_id=municipi_id, deal_id=deal_id)
-            
-            return memory
-            
         except Exception as e:
-            db.rollback()
-            logger.error(f"CRITICAL ERROR llegint/creant memòria: {e}")
-            # Retorn d'emergència
-            return m2.AgentMemoryV2(id=uuid.uuid4(), history=[], summary="", usuari_id=usuari_id, municipi_id=municipi_id, deal_id=deal_id)
+            db.rollback() # <--- CLAU: Purgar l'error de lectura (possible f405)
+            logger.error(f"ERROR CRÍTIC llegint memòria (possible desajust d'esquema): {e}")
+            memory = None
+            
+        if not memory:
+            # Si no existeix o el SELECT ha fallat, la intentem crear
+            try:
+                memory = m2.AgentMemoryV2(
+                    id=uuid.uuid4(),
+                    usuari_id=usuari_id,
+                    municipi_id=municipi_id,
+                    deal_id=deal_id,
+                    history=[],
+                    summary="",
+                    confianca=1.0
+                )
+                db.add(memory)
+                db.commit()
+                db.refresh(memory)
+            except Exception as e_create:
+                db.rollback()
+                logger.warning(f"Error creant memòria a DB (usant transient per evitar 500): {e_create}")
+                # Retornem l'objecte sense persistir (transient) per no bloquejar l'usuari
+                return m2.AgentMemoryV2(id=uuid.uuid4(), history=[], summary="", usuari_id=usuari_id, municipi_id=municipi_id, deal_id=deal_id)
+        
+        return memory
 
     @classmethod
     async def _get_full_timeline(cls, db: Session, target_id: str) -> List[Dict[str, Any]]:
