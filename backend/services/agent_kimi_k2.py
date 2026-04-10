@@ -19,35 +19,51 @@ class AgentKimiK2:
         self.db = db
 
     def _load_context(self, municipi_id: UUID, limit: int = 50) -> List[Dict[str, Any]]:
-        """Retorna el timeline complet d'activitats del municipi (V2 + Emails V1)."""
+        """Retorna el timeline complet d'activitats del municipi (V2 + Emails V2 + Emails V1)."""
+        # 1. Activitats V2 (trucades, reunions, notes de CRM)
         activitats = self.db.query(models_v2.ActivitatsMunicipi)\
             .filter(models_v2.ActivitatsMunicipi.municipi_id == municipi_id)\
             .order_by(desc(models_v2.ActivitatsMunicipi.data_activitat))\
             .limit(limit)\
             .all()
         
-        # Convertir a dicts per unificar
         timeline = []
         for a in activitats:
             timeline.append({
-                "tipus": a.tipus_activitat.value if hasattr(a.tipus_activitat, 'value') else a.tipus_activitat,
+                "tipus": a.tipus_activitat.value if hasattr(a.tipus_activitat, 'value') else str(a.tipus_activitat),
                 "data": a.data_activitat,
-                "contingut": a.contingut,
+                "contingut": a.contingut if isinstance(a.contingut, str) else json.dumps(a.contingut),
                 "notes": a.notes_comercial,
-                "font": "v2"
+                "font": "v2_activitat"
             })
             
-        # Buscar emails vinculats a aquest municipi via Deals (V1)
-        emails = self.db.query(models.Email)\
+        # 2. Emails V2 (el nou sistema d'emails)
+        emails_v2 = self.db.query(models_v2.EmailV2)\
+            .filter(models_v2.EmailV2.municipi_id == municipi_id)\
+            .order_by(desc(models_v2.EmailV2.data_enviament))\
+            .limit(limit)\
+            .all()
+            
+        for e in emails_v2:
+            timeline.append({
+                "tipus": f"email_{e.direccio}",
+                "data": e.data_enviament,
+                "contingut": e.assumpte,
+                "notes": (e.cos[:300] + "...") if e.cos and len(e.cos) > 300 else e.cos,
+                "font": "v2_email"
+            })
+            
+        # 3. Emails V1 (legacy, via Deals)
+        emails_v1 = self.db.query(models.Email)\
             .join(models.Deal, models.Email.deal_id == models.Deal.id)\
             .filter(models.Deal.municipi_id == municipi_id)\
             .order_by(desc(models.Email.data_email))\
             .limit(limit)\
             .all()
         
-        for e in emails:
+        for e in emails_v1:
             timeline.append({
-                "tipus": "email",
+                "tipus": f"email_{e.direccio}",
                 "data": e.data_email,
                 "contingut": e.assumpte,
                 "notes": (e.cos[:200] + "...") if e.cos and len(e.cos) > 200 else e.cos,
@@ -55,7 +71,7 @@ class AgentKimiK2:
                 "de": e.from_address
             })
         
-        # Re-ordenar per data descendents
+        # 4. Re-ordenar per data descendents
         timeline.sort(key=lambda x: x["data"] if x["data"] else datetime.min, reverse=True)
         return timeline[:limit]
 
@@ -101,9 +117,9 @@ class AgentKimiK2:
 
         return {
             "ultim_contacte": {
-                "tipus": ultima_act.tipus_activitat.value if hasattr(ultima_act.tipus_activitat, 'value') else ultima_act.tipus_activitat,
+                "tipus": ultima_act.get("tipus"),
                 "data": data_str,
-                "notes": ultima_act.notes_comercial
+                "notes": ultima_act.get("notes")
             },
             "dies_silence": dies_silenci,
             "bloquejos": bloquejos,

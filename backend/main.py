@@ -58,7 +58,7 @@ logger = logging.getLogger("uvicorn.error")
 
 # CORS configuration
 origins = [
-    "https://crmpxx-crm-front.80opze.easypanel.host",
+    "https://crmpxx-crm-frontend.80opze.easypanel.host",
     "https://crmpxx.projectexinoxano.cat",
     "http://localhost:3000",
     "http://localhost:3001"
@@ -71,9 +71,10 @@ async def global_exception_handler(request: Request, exc: Exception):
     tb_str = traceback.format_exc()
     logger.error(f"GLOBAL ERROR: {tb_str}")
     
-    # Retornem 500 amb headers CORS explícits
     # Determinar origen de forma segura per al CORS d'errors
-    origin = request.headers.get("origin") or "*"
+    origin = request.headers.get("origin")
+    if origin not in origins:
+        origin = origins[0] if origins else "*"
     
     return JSONResponse(
         status_code=500,
@@ -135,9 +136,10 @@ async def force_https_middleware(request: Request, call_next):
 
 # Include routers
 app.include_router(dashboard.router)
+
 @app.get("/")
 async def root_health():
-    return {"status": "online", "message": "CRM PXX Backend (V_BETA_4_CORS) is running", "timestamp": "2026-04-10T11:55"}
+    return {"status": "online", "message": "CRM PXX Backend (V_BETA_4_STABLE) is running", "timestamp": "2026-04-10T12:05"}
 
 from routers import municipis_api
 app.include_router(municipis_api.router, prefix="/api/v2/municipis")
@@ -291,20 +293,7 @@ def env_check():
         "DATABASE_URL_VAL": os.getenv("DATABASE_URL")[:20] + "..." if os.getenv("DATABASE_URL") else None
     }
 
-@app.get("/dashboard/diari")
-async def get_dashboard_diari(db: Session = Depends(get_db)):
-    from services.prioritizer import get_daily_actions
-    try:
-        actions = await get_daily_actions(db)
-        return actions
-    except Exception as e:
-        logger.error(f"Error a get_daily_actions: {e}")
-        # Retornem una estructura buida però vàlida en comptes de petar
-        return {
-            "accions_prioritaries": [],
-            "kpis": {"obertes": 0, "pendents": 0, "guanyades": 0},
-            "error": "No s'han pogut carregar les accions de IA"
-        }
+# El router de dashboard ja gestiona /dashboard/diari, eliminem el duplicat de main.py per evitar conflictes
 
 @app.get("/inventory")
 def get_inventory(db: Session = Depends(get_db)):
@@ -336,6 +325,4 @@ def get_inventory(db: Session = Depends(get_db)):
     except Exception as e:
         return {"error": str(e)}
 
-@app.get("/")
-def read_root():
-    return {"message": "Benvingut a l'API del CRM PXX - V2 DEBUG"}
+# Eliminat duplicat de root_health
