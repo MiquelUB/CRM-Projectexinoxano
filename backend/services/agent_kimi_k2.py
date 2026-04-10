@@ -196,15 +196,24 @@ class AgentKimiK2:
             # B-01: Fallback logic V1 -> V2
             municipi = self.db.query(models_v2.MunicipiLifecycle).get(municipi_id)
             
-            # Si no trobem el UUID a V2, comprovem si és un UUID de municipi V1 (legacy)
+            # Si no trobem el UUID a V2 per ID directe, comprovem si és un UUID de municipi V1 (legacy)
             if not municipi:
-                logger.info(f"Municipi {municipi_id} no trobat a V2, buscant a V1 per fallback...")
-                municipi_v1 = self.db.query(models.Municipi).filter(models.Municipi.id == municipi_id).first()
-                if municipi_v1:
-                    # Si el trobem a V1, busquem si hi ha un Lifecycle amb el mateix nom (fallback d'emergència)
-                    municipi = self.db.query(models_v2.MunicipiLifecycle).filter(models_v2.MunicipiLifecycle.nom == municipi_v1.nom).first()
-                    if municipi:
-                        logger.info(f"Sincronitzat municipi V1 '{municipi_v1.nom}' amb Lifecycle V2 '{municipi.nom}'")
+                logger.info(f"Municipi {municipi_id} no trobat a V2 per ID directe, buscant fallback V1...")
+                
+                # Intentem buscar primer pel camp de migració directament
+                municipi = self.db.query(models_v2.MunicipiLifecycle).filter(
+                    models_v2.MunicipiLifecycle.municipi_v1_id == municipi_id
+                ).first()
+                
+                if not municipi:
+                    # Segon nivell de fallback: per nom (necessari si el municipi_v1_id no s'ha omplert)
+                    municipi_v1 = self.db.query(models.Municipi).filter(models.Municipi.id == municipi_id).first()
+                    if municipi_v1:
+                        municipi = self.db.query(models_v2.MunicipiLifecycle).filter(
+                            models_v2.MunicipiLifecycle.nom == municipi_v1.nom
+                        ).first()
+                        if municipi:
+                            logger.info(f"Sincronitzat municipi V1 '{municipi_v1.nom}' via Match per Nom.")
             
             if municipi:
                 # Carregar context base d'activitats

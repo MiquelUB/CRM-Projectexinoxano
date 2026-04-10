@@ -16,20 +16,28 @@ def fix_database_v2_structure():
         conn.autocommit = True
         cur = conn.cursor()
 
+        # 0. ASSEGURAR CAMPS DE MIGRACIÓ A municipis_lifecycle
+        print("COLUMN: Assegurant municipi_v1_id a municipis_lifecycle...")
+        cur.execute("""
+            ALTER TABLE public.municipis_lifecycle 
+            ADD COLUMN IF NOT EXISTS municipi_v1_id UUID;
+        """)
+
         # 1. ASSEGURAR TAULA agent_memories_v2
         print("TABLE: Assegurant taula agent_memories_v2...")
         cur.execute("""
             CREATE TABLE IF NOT EXISTS public.agent_memories_v2 (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                municipi_id UUID NOT NULL REFERENCES public.municipis_lifecycle(id),
-                usuari_id UUID REFERENCES public.usuaris(id),
+                municipi_id UUID REFERENCES public.municipis_lifecycle(id),
+                usuari_id UUID,
+                deal_id UUID,
                 session_id UUID,
                 expires_at TIMESTAMPTZ,
                 history JSONB DEFAULT '[]',
                 summary TEXT,
                 clau VARCHAR(50),
                 valor TEXT,
-                confidenca FLOAT DEFAULT 1.0,
+                confianca FLOAT DEFAULT 1.0,
                 created_at TIMESTAMPTZ DEFAULT NOW(),
                 updated_at TIMESTAMPTZ DEFAULT NOW()
             );

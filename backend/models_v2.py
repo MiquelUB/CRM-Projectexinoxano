@@ -93,6 +93,7 @@ class MunicipiLifecycle(Base):
     
     # IDENTITAT
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    municipi_v1_id = Column(UUID(as_uuid=True), nullable=True, index=True) # Camp de migració per a fallback B-01
     nom = Column(String(100), nullable=False, index=True)
     comarca = Column(String(50))
     poblacio = Column(String(100))
@@ -416,8 +417,8 @@ class AgentMemoryV2(Base):
     __tablename__ = "agent_memories_v2"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     municipi_id = Column(UUID(as_uuid=True), ForeignKey("municipis_lifecycle.id"), nullable=True)
-    usuari_id = Column(UUID(as_uuid=True), ForeignKey("usuaris.id"), nullable=False)
-    deal_id = Column(UUID(as_uuid=True), nullable=True)
+    usuari_id = Column(UUID(as_uuid=True), nullable=False, index=True) # Decoupled per evitar errors de FK en migracions asíncrones
+    deal_id = Column(UUID(as_uuid=True), nullable=True, index=True)
     
     # Nivell 1: Memoria de Sessio (Xat)
     session_id = Column(UUID(as_uuid=True), nullable=True, index=True)
