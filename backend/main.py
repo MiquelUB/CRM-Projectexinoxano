@@ -21,20 +21,25 @@ async def lifespan(app: FastAPI):
     
     # Create default admin user if not exists
     try:
-        db = SessionLocal()
-        admin_user = db.query(models.Usuari).filter(models.Usuari.email == "admin@projectexinoxano.cat").first()
-        if not admin_user:
-            admin = models.Usuari(
-                email="admin@projectexinoxano.cat",
-                password_hash=get_password_hash("pxx_admin_2026!"),
-                nom="Admin PXX",
-                rol="admin"
-            )
-            db.add(admin)
-            db.commit()
-        db.close()
+        if SessionLocal is not None:
+            db = SessionLocal()
+            try:
+                admin_user = db.query(models.Usuari).filter(models.Usuari.email == "admin@projectexinoxano.cat").first()
+                if not admin_user:
+                    admin = models.Usuari(
+                        email="admin@projectexinoxano.cat",
+                        password_hash=get_password_hash("pxx_admin_2026!"),
+                        nom="Admin PXX",
+                        rol="admin"
+                    )
+                    db.add(admin)
+                    db.commit()
+            finally:
+                db.close()
+        else:
+            print("AVÍS: SessionLocal no disponible en arrencar. Saltant verificació d'admin.")
     except Exception as e:
-        print(f"Error during lifespan DB initialization: {e}")
+        print(f"Error en el procés de startup: {e}")
     
     yield
     
