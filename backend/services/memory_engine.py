@@ -27,16 +27,22 @@ class MemoryEngine:
         memory = query.order_by(m2.AgentMemoryV2.updated_at.desc()).first()
         
         if not memory:
-            memory = m2.AgentMemoryV2(
-                id=uuid.uuid4(),
-                usuari_id=usuari_id,
-                municipi_id=municipi_id,
-                history=[],
-                summary=""
-            )
-            db.add(memory)
-            db.commit()
-            db.refresh(memory)
+            try:
+                memory = m2.AgentMemoryV2(
+                    id=uuid.uuid4(),
+                    usuari_id=usuari_id,
+                    municipi_id=municipi_id,
+                    history=[],
+                    summary=""
+                )
+                db.add(memory)
+                db.commit()
+                db.refresh(memory)
+            except Exception as e:
+                db.rollback()
+                print(f"ERROR: No s'ha pogut guardar la memoria de l'agent: {e}")
+                # Retornem una instancia efimera perquè el xat no peti
+                memory = m2.AgentMemoryV2(history=[], summary="", usuari_id=usuari_id, municipi_id=municipi_id)
             
         return memory
 

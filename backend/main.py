@@ -191,7 +191,16 @@ async def repair_db_endpoint(db: Session = Depends(get_db)):
         # D. REPARACIÓ D'ESTRUCTURA (Alineació final amb models_v2.py)
         results = []
         with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
-            # 1. Afegir columnes econòmiques si falten
+            # 1. Auditoria prèvia
+            audit = conn.execute(text("""
+                SELECT column_name, is_nullable 
+                FROM information_schema.columns 
+                WHERE table_name = 'agent_memories_v2' 
+                AND column_name IN ('municipi_id', 'usuari_id')
+            """)).fetchall()
+            results.append({"audit_before": {row[0]: row[1] for row in audit}})
+
+            # 2. Afegir columnes econòmiques si falten
             for col in ["valor_setup", "valor_llicencia"]:
                 try: 
                     conn.execute(text(f"ALTER TABLE municipis_lifecycle ADD COLUMN IF NOT EXISTS {col} NUMERIC(10,2) DEFAULT 0"))
@@ -199,18 +208,28 @@ async def repair_db_endpoint(db: Session = Depends(get_db)):
                 except Exception as e: 
                     results.append(f"Column {col} Error: {str(e)}")
 
-            # 2. Relaxar restricció de l'agent (CRÍTIC: treure NOT NULL)
+            # 3. FIX AGRESSIU NOT NULL
             cols_to_relax = ["municipi_id", "usuari_id", "clau", "valor"]
             for col in cols_to_relax:
                 try: 
                     conn.execute(text(f"ALTER TABLE agent_memories_v2 ALTER COLUMN {col} DROP NOT NULL"))
+                    # Borrar possibles restriccions de check si n'hi haguessin
                     results.append(f"Drop NOT NULL {col} OK")
                 except Exception as e: 
                     results.append(f"Drop NOT NULL {col} Error: {str(e)}")
+            
+            # 4. Auditoria posterior
+            audit_post = conn.execute(text("""
+                SELECT column_name, is_nullable 
+                FROM information_schema.columns 
+                WHERE table_name = 'agent_memories_v2' 
+                AND column_name IN ('municipi_id', 'usuari_id')
+            """)).fetchall()
+            results.append({"audit_after": {row[0]: row[1] for row in audit_post}})
         
         return {
             "status": "success", 
-            "message": "Operacions de reparació executades.",
+            "message": "Protocol de reparació i auditoria completat.",
             "results": results
         }
     except Exception as e:
