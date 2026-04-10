@@ -160,13 +160,24 @@ app.include_router(tasques.router)
 async def repair_db_endpoint(db: Session = Depends(get_db)):
     """Endpoint d'emergència per sanejar dades NULL que fan petar el dashboard."""
     from models_v2 import MunicipiLifecycle, EtapaFunnelEnum, TemperaturaEnum
+    from sqlalchemy import text
     try:
-        # 1. Fix EtapaActual NULL -> lead
+        # 1. Intentar afegir 'lead' a l'Enum de Postgres (requereix AUTOCOMMIT)
+        # Ho fem amb una connexió directa i fora de transacció
+        with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+            try:
+                conn.execute(text("ALTER TYPE etapa_funnel ADD VALUE 'lead'"))
+                logger.info("Valor 'lead' afegit correctament a l'Enum.")
+            except Exception as enum_err:
+                # Si ja existeix, donarà error, així que el capturem i seguim
+                logger.warning(f"No s'ha pogut afegir 'lead' (potser ja existeix): {enum_err}")
+
+        # 2. Fix EtapaActual NULL -> lead
         affected = db.query(MunicipiLifecycle).filter(MunicipiLifecycle.etapa_actual == None).update({
             MunicipiLifecycle.etapa_actual: EtapaFunnelEnum.lead
         })
         
-        # 2. Fix Temperatura NULL -> freda
+        # 3. Fix Temperatura NULL -> freda
         affected_temp = db.query(MunicipiLifecycle).filter(MunicipiLifecycle.temperatura == None).update({
             MunicipiLifecycle.temperatura: TemperaturaEnum.freda
         })
@@ -174,10 +185,11 @@ async def repair_db_endpoint(db: Session = Depends(get_db)):
         db.commit()
         return {
             "status": "success", 
-            "message": f"Sanejaments realitzats: {affected} etapes, {affected_temp} temperatures corrigides"
+            "message": f"Sanejaments realitzats: {affected} etapes, {affected_temp} temperatures corrigides. Enum 'lead' verificat."
         }
     except Exception as e:
         db.rollback()
+        logger.error(f"Error a /repair-db: {e}")
         return {"status": "error", "message": str(e)}
 
 @app.get("/db-check")
