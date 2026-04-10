@@ -23,6 +23,7 @@ router = APIRouter(prefix="/agent", tags=["agent"])
 class ChatMessageRequest(BaseModel):
     message: str
     municipi_id: Optional[UUID] = None
+    deal_id: Optional[UUID] = None # Fallback per compatibilitat frontend
     model: str = "moonshotai/kimi-k2-thinking"
 
 @router.post("/redactar-email", response_model=schemas.AgentRedactarEmailResponse)
@@ -61,10 +62,12 @@ async def agent_chat(
 ):
     try:
         agent = AgentKimiK2(db)
+        # Prioritat a municipi_id, fallback a deal_id
+        mid = payload.municipi_id or payload.deal_id
         res = await agent.xat(
             usuari_id=current_user.id,
             message=payload.message,
-            municipi_id=payload.municipi_id,
+            municipi_id=mid,
             model=payload.model
         )
         return res
@@ -82,8 +85,10 @@ async def get_agent_memory(
     current_user: models.Usuari = Depends(get_current_user)
 ):
     """Retorna l'historial guardat per a un context concret."""
+    # Prioritat a municipi_id, fallback a deal_id
+    mid = municipi_id or deal_id
     # Utilitzem directament el memory_engine
-    memory = await memory_engine.get_or_create_memory(db, current_user.id, municipi_id)
+    memory = await memory_engine.get_or_create_memory(db, current_user.id, mid)
     return {
         "history": memory.history,
         "summary": memory.summary

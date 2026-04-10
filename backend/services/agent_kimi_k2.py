@@ -190,7 +190,6 @@ class AgentKimiK2:
         
         # Obtenir context del municipi si m_id
         context_str = ""
-        context_str = ""
         if municipi_id:
             municipi = self.db.query(models_v2.MunicipiLifecycle).get(municipi_id)
             if municipi:
@@ -198,6 +197,9 @@ class AgentKimiK2:
                 # Integrar Memòria Jeràrquica
                 h_memory = await memory_engine.build_hierarchical_context(self.db, municipi_id, [])
                 context_str = f"CONTEXT MUNICIPI {municipi.nom}:\n{json.dumps(context_data)}\n\nMEMÒRIA ESTRATÈGICA:\n{h_memory}"
+            else:
+                logger.warning(f"Municipi {municipi_id} no trobat per al xat.")
+                context_str = "CONTEXT: El municipi seleccionat no existeix a la base de dades."
         else:
             # Context GLOBAL: Veure què ha passat al CRM darrerament (emails globals)
             try:
