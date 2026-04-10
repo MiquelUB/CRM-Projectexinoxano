@@ -35,11 +35,12 @@ def upgrade() -> None:
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
     sa.ForeignKeyConstraint(['municipi_id'], ['municipis_lifecycle.id'], ),
-    sa.ForeignKeyConstraint(['usuari_id'], ['usuaris.id'], ),
+    # sa.ForeignKeyConstraint(['usuari_id'], ['usuaris.id'], ), # Eliminat per evitar error f405 (Desacoblament V1/V2)
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_agent_memories_v2_clau'), 'agent_memories_v2', ['clau'], unique=False)
     op.create_index(op.f('ix_agent_memories_v2_session_id'), 'agent_memories_v2', ['session_id'], unique=False)
+    op.create_index(op.f('ix_agent_memories_v2_usuari_id'), 'agent_memories_v2', ['usuari_id'], unique=False)
 
 
 def downgrade() -> None:
