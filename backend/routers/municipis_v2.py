@@ -182,3 +182,10 @@ def update_notes_municipi_endpoint(id: str, payload: UpdateNotesRequest, db: Ses
     m.angle_personalitzacio = payload.angle_personalitzacio
     db.commit()
     return {"status": "success", "message": "Notes actualitzades d'acord"}
+
+@router.get("/contactes", response_model=List[ContacteOut])
+def get_all_contactes(db: Session = Depends(get_db)):
+    """
+    Llista tots els contactes de la V2 (municipis_lifecycle).
+    """
+    return db.query(ContacteV2).all()

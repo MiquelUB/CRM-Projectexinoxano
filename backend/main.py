@@ -57,12 +57,7 @@ import logging
 logger = logging.getLogger("uvicorn.error")
 
 # CORS configuration - MUST BE FIRST
-origins = [
-    "https://crmpxx-crm-frontend.80opze.easypanel.host",
-    "https://crm.projectexinoxano.com",
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
+origins = ["*"] # Temporalment per DEBUG total
 
 # EXCEPTION HANDLER (DEBUG)
 @app.exception_handler(Exception)
@@ -71,12 +66,9 @@ async def global_exception_handler(request: Request, exc: Exception):
     tb_str = traceback.format_exc()
     logger.error(f"GLOBAL ERROR: {tb_str}")
     
-    # Retornem 200 temporalment per saltar-nos el bloqueig de CORS del navegador i llegir l'error
-    # Només per a DEBUG de producció
+    # Retornem 500 amb headers CORS explícits
     # Determinar origen de forma segura per al CORS d'errors
-    origin = request.headers.get("origin")
-    if not origin or origin == "null":
-        origin = "*"
+    origin = request.headers.get("origin") or "*"
     
     return JSONResponse(
         status_code=500,
@@ -89,7 +81,7 @@ async def global_exception_handler(request: Request, exc: Exception):
         headers={
             "Access-Control-Allow-Origin": origin,
             "Access-Control-Allow-Credentials": "true",
-            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+            "Access-Control-Allow-Methods": "*",
             "Access-Control-Allow-Headers": "*"
         }
     )

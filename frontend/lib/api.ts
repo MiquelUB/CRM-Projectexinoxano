@@ -92,15 +92,15 @@ const api = {
     getTimeline: (id: string) => fetchAPI(`/municipis_v2/${id}/activitats`),
     get_activitats: (id: string) => fetchAPI(`/municipis_v2/${id}/activitats`),
     get_llicencia: (id: string) => fetchAPI(`/municipis_v2/${id}/llicencia`),
-    kpis: () => fetchAPI("/municipis_lifecycle/kpis"),
+    kpis: () => fetchAPI("/municipis_v2/kpis"),
     eliminar: (id: string) => fetchAPI(`/municipis_v2/${id}`, { method: "DELETE" }),
   },
   contactes_v2: {
     llistar: (params?: Record<string, string>) =>
-      fetchAPI(`/municipis_lifecycle/contactes?${new URLSearchParams(params || {})}`),
-    crear: (data: unknown) => fetchAPI("/municipis_lifecycle/contactes", { method: "POST", body: JSON.stringify(data) }),
-    editar: (id: string, data: unknown) => fetchAPI(`/municipis_lifecycle/contactes/${id}`, { method: "PUT", body: JSON.stringify(data) }),
-    eliminar: (id: string) => fetchAPI(`/municipis_lifecycle/contactes/${id}`, { method: "DELETE" }),
+      fetchAPI(`/municipis_v2/contactes?${new URLSearchParams(params || {})}`),
+    crear: (data: unknown) => fetchAPI("/municipis_v2/contactes", { method: "POST", body: JSON.stringify(data) }),
+    editar: (id: string, data: unknown) => fetchAPI(`/municipis_v2/contactes/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+    eliminar: (id: string) => fetchAPI(`/municipis_v2/contactes/${id}`, { method: "DELETE" }),
   },
   municipis: {
     llistar: (params?: Record<string, string>) =>

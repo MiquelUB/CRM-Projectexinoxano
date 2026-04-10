@@ -7,6 +7,7 @@ from uuid import UUID
 from datetime import datetime, timedelta
 
 from .prompt_manager import prompt_manager
+from .memory_engine import memory_engine
 import models_v2
 import models
 import logging
