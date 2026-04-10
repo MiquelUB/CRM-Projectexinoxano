@@ -63,23 +63,28 @@ origins = [
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     import traceback
-    error_msg = traceback.format_exc()
-    logger.error(f"GLOBAL ERROR: {error_msg}")
+    tb_str = traceback.format_exc()
+    logger.error(f"GLOBAL ERROR: {tb_str}")
     
     # Retornem 200 temporalment per saltar-nos el bloqueig de CORS del navegador i llegir l'error
     # Només per a DEBUG de producció
+    # Determinar origen de forma segura per al CORS d'errors
+    origin = request.headers.get("origin")
+    if not origin or origin == "null":
+        origin = "*"
+    
     return JSONResponse(
         status_code=500,
         content={
-            "error": str(exc),
-            "type": type(exc).__name__,
-            "traceback": error_msg,
+            "error": "Internal Server Error",
+            "message": str(exc),
+            "traceback": tb_str,
             "path": request.url.path
         },
         headers={
-            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Origin": origin,
             "Access-Control-Allow-Credentials": "true",
-            "Access-Control-Allow-Methods": "*",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
             "Access-Control-Allow-Headers": "*"
         }
     )
@@ -145,6 +150,30 @@ app.include_router(alertes.router)
 app.include_router(agent.router)
 app.include_router(agent.tracking_router)
 app.include_router(tasques.router)
+
+@app.get("/repair-db")
+async def repair_db_endpoint(db: Session = Depends(get_db)):
+    """Endpoint d'emergència per sanejar dades NULL que fan petar el dashboard."""
+    from models_v2 import MunicipiLifecycle, EtapaFunnelEnum, TemperaturaEnum
+    try:
+        # 1. Fix EtapaActual NULL -> lead
+        affected = db.query(MunicipiLifecycle).filter(MunicipiLifecycle.etapa_actual == None).update({
+            MunicipiLifecycle.etapa_actual: EtapaFunnelEnum.lead
+        })
+        
+        # 2. Fix Temperatura NULL -> freda
+        affected_temp = db.query(MunicipiLifecycle).filter(MunicipiLifecycle.temperatura == None).update({
+            MunicipiLifecycle.temperatura: TemperaturaEnum.freda
+        })
+        
+        db.commit()
+        return {
+            "status": "success", 
+            "message": f"Sanejaments realitzats: {affected} etapes, {affected_temp} temperatures corrigides"
+        }
+    except Exception as e:
+        db.rollback()
+        return {"status": "error", "message": str(e)}
 
 @app.get("/db-check")
 def db_check():
