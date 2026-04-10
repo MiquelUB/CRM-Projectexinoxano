@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
 from models_v2 import MunicipiLifecycle, ContacteV2, EtapaFunnelEnum, TemperaturaEnum
-from schemas_v2 import MunicipiLifecycleOut, MunicipiLifecycleDetailOut, ContacteCreate, ContacteOut, AccioCreate
+from schemas_v2 import MunicipiLifecycleOut, MunicipiLifecycleDetailOut, ContacteCreate, ContacteOut, AccioCreate, MunicipiPaginationOut
 from typing import List
 from datetime import datetime, timezone
 from pydantic import BaseModel
@@ -50,13 +50,21 @@ def get_municipis_kpis(db: Session = Depends(get_db)):
         "deals_sense_activitat_14_dies": 0  # Placeholder fins implementar tracking activitat_v2
     }
 
-@router.get("/", response_model=List[MunicipiLifecycleOut])
+@router.get("/", response_model=MunicipiPaginationOut)
 def get_municipis(db: Session = Depends(get_db)):
     """
     Llista tots els Municipis en Lifecycle.
     """
-    municipis = db.query(MunicipiLifecycle).all()
-    return municipis
+    query = db.query(MunicipiLifecycle)
+    total = query.count()
+    municipis = query.all()
+    
+    # Mapper per assegurar que updated_at existeix per al frontend
+    for m in municipis:
+        if not hasattr(m, 'updated_at') or m.updated_at is None:
+            m.updated_at = m.created_at
+            
+    return {"items": municipis, "total": total}
 
 @router.get("/{id}", response_model=MunicipiLifecycleDetailOut)
 def get_municipi_detail(id: str, db: Session = Depends(get_db)):

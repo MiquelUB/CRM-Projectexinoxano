@@ -28,7 +28,7 @@ class MunicipiLifecycleOut(BaseModel):
     id: UUID
     nom: str
     comarca: Optional[str] = None
-    poblacio: Optional[int] = None
+    poblacio: Optional[str] = None
     geografia: Optional[str] = None
     diagnostic_digital: Optional[dict] = None
     angle_personalitzacio: Optional[str] = None
@@ -36,10 +36,26 @@ class MunicipiLifecycleOut(BaseModel):
     temperatura: TemperaturaEnum
     dies_etapa_actual: int
     actor_principal_id: Optional[UUID] = None
-    data_creacio: datetime
+    # Nous camps per al pipeline
+    valor_setup: float = 0
+    valor_llicencia: float = 0
+    prioritat: str = "mitjana"
+    proper_pas: Optional[str] = None
+    data_seguiment: Optional[datetime] = None
+    notes_humanes: Optional[str] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
+
+    @property
+    def updated_at_fallback(self):
+        return self.updated_at or self.created_at
+
+class MunicipiPaginationOut(BaseModel):
+    items: List[MunicipiLifecycleOut]
+    total: int
 
 class MunicipiLifecycleDetailOut(MunicipiLifecycleOut):
     contactes: List[ContacteOut] = []
