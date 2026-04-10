@@ -221,7 +221,15 @@ async def repair_db_endpoint(db: Session = Depends(get_db)):
                 except Exception as e: 
                     results.append(f"Column {col} Error: {str(e)}")
 
-            # 3. FIX AGRESSIU NOT NULL
+            # 3. Reparar activitats_municipi (created_at, updated_at)
+            for col in ["created_at", "updated_at"]:
+                try: 
+                    conn.execute(text(f"ALTER TABLE activitats_municipi ADD COLUMN IF NOT EXISTS {col} TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP"))
+                    results.append(f"Column activitats_municipi.{col} OK")
+                except Exception as e: 
+                    results.append(f"Column activitats_municipi.{col} Error: {str(e)}")
+
+            # 4. FIX AGRESSIU NOT NULL
             cols_to_relax = ["municipi_id", "usuari_id", "clau", "valor"]
             for col in cols_to_relax:
                 try: 
