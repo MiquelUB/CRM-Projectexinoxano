@@ -396,7 +396,12 @@ TASQUES URGENTS:
         ]
         memory.history = new_history
         memory.updated_at = datetime.now()
-        self.db.commit()
+        
+        try:
+            self.db.commit()
+        except Exception as e_commit:
+            self.db.rollback()
+            logger.error(f"Error finalitzant la transacció del xat: {e_commit}")
         
         # Detecció d'accions sugerides (<<< Acció >>>)
         accions = []

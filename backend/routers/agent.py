@@ -87,12 +87,20 @@ async def get_agent_memory(
     """Retorna l'historial guardat per a un context concret."""
     # Prioritat a municipi_id, fallback a deal_id
     mid = municipi_id or deal_id
-    # Utilitzem directament el memory_engine
-    memory = await memory_engine.get_or_create_memory(db, current_user.id, mid)
-    return {
-        "history": memory.history,
-        "summary": memory.summary
-    }
+    try:
+        # Utilitzem directament el memory_engine
+        memory = await memory_engine.get_or_create_memory(db, current_user.id, mid)
+        return {
+            "history": memory.history or [],
+            "summary": memory.summary or ""
+        }
+    except Exception as e:
+        logger.error(f"Error a la ruta /agent/memory: {e}")
+        # Tornem un estat buit segur en comptes de 500
+        return {
+            "history": [],
+            "summary": "Error temporal recuperant la memòria."
+        }
 
 # --- Tracking Pixel (Move prefix to root as /tracking) ---
 tracking_router = APIRouter(prefix="/tracking", tags=["tracking"])

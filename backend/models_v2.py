@@ -417,7 +417,7 @@ class AgentMemoryV2(Base):
     __tablename__ = "agent_memories_v2"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     municipi_id = Column(UUID(as_uuid=True), ForeignKey("municipis_lifecycle.id"), nullable=True)
-    usuari_id = Column(UUID(as_uuid=True), nullable=False, index=True) # Decoupled per evitar errors de FK en migracions asíncrones
+    usuari_id = Column(UUID(as_uuid=True), nullable=True, index=True) # Decoupled i relaxat per evitar errors de persistència
     deal_id = Column(UUID(as_uuid=True), nullable=True, index=True)
     
     # Nivell 1: Memoria de Sessio (Xat)
