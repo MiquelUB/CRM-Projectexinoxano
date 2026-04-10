@@ -77,8 +77,10 @@ async def global_exception_handler(request: Request, exc: Exception):
             "path": request.url.path
         },
         headers={
-            "Access-Control-Allow-Origin": origins[0] if origins else "*",
-            "Access-Control-Allow-Credentials": "true"
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Allow-Methods": "*",
+            "Access-Control-Allow-Headers": "*"
         }
     )
 

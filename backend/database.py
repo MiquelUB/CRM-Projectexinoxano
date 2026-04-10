@@ -11,28 +11,30 @@ logger = logging.getLogger(__name__)
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 if not DATABASE_URL:
-    # Error clar per a producció
     logger.error("FATAL: DATABASE_URL no definida a l'entorn!")
-    # No posem fallback per evitar connexions a hosts inexistents que causen 500s silenciosos
-    # En local, el load_dotenv() hauria d'haver carregat el .env
-    raise ValueError("Falta la configuració de DATABASE_URL")
+    # No llencem ValueError aquí per permetre que l'app arrenqui i ens doni logs pel navegador
+    # Però l'engine fallarà quan s'intenti usar
+    DATABASE_URL = "postgresql://missing_url_error"
 
-engine = create_engine(
-    DATABASE_URL,
-    connect_args={"options": "-csearch_path=public"}
-)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+try:
+    engine = create_engine(
+        DATABASE_URL,
+        connect_args={"options": "-csearch_path=public"}
+    )
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+except Exception as e:
+    logger.error(f"Error creant l'engine de la BD: {e}")
+    SessionLocal = None
 
 Base = declarative_base()
 
 def get_db():
+    if SessionLocal is None:
+        logger.error("Intent d'accés a BD sense SessionLocal inicialitzat")
+        raise RuntimeError("La base de dades no està configurada correctament (SessionLocal is None)")
+    
+    db = SessionLocal()
     try:
-        db = SessionLocal()
-        try:
-            yield db
-        finally:
-            db.close()
-    except Exception as e:
-        # We can't return a JSONResponse here easily as it is a generator
-        # but we can at least log it or raise a more descriptive error if we had a logger
-        raise e
+        yield db
+    finally:
+        db.close()
