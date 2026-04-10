@@ -16,17 +16,22 @@ class MemoryEngine:
     async def get_or_create_memory(self, db: Session, usuari_id: UUID, municipi_id: Optional[UUID] = None, deal_id: Optional[UUID] = None) -> m2.AgentMemoryV2:
         """Recupera o crea una instància de memòria per a l'usuari i context (Municipi o Deal)."""
         # Intentem recuperar per municipi_id o deal_id
-        query = db.query(m2.AgentMemoryV2).filter(m2.AgentMemoryV2.usuari_id == usuari_id)
-        
-        if municipi_id:
-            query = query.filter(m2.AgentMemoryV2.municipi_id == municipi_id)
-        elif deal_id:
-            query = query.filter(m2.AgentMemoryV2.deal_id == deal_id)
-        else:
-            query = query.filter(m2.AgentMemoryV2.municipi_id == None, m2.AgentMemoryV2.deal_id == None)
-        
-        # Agafem la més recent d'aquesta sessió/context
-        memory = query.order_by(m2.AgentMemoryV2.updated_at.desc()).first()
+        try:
+            query = db.query(m2.AgentMemoryV2).filter(m2.AgentMemoryV2.usuari_id == usuari_id)
+            
+            if municipi_id:
+                query = query.filter(m2.AgentMemoryV2.municipi_id == municipi_id)
+            elif deal_id:
+                query = query.filter(m2.AgentMemoryV2.deal_id == deal_id)
+            else:
+                query = query.filter(m2.AgentMemoryV2.municipi_id == None, m2.AgentMemoryV2.deal_id == None)
+            
+            # Agafem la més recent d'aquesta sessió/context
+            memory = query.order_by(m2.AgentMemoryV2.updated_at.desc()).first()
+        except Exception as e:
+            db.rollback() # <--- Protecció contra InFailedSqlTransaction
+            print(f"ERROR: Fallida llegint la memòria de l'agent: {e}")
+            memory = None
         
         if not memory:
             try:

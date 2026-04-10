@@ -241,6 +241,7 @@ class AgentKimiK2:
                         models_v2.MunicipiLifecycle.municipi_v1_id == municipi_id
                     ).first()
                 except Exception as e:
+                    self.db.rollback() # <--- Protecció contra InFailedSqlTransaction
                     logger.warning(f"Error consultant municipi_v1_id (possiblement la columna no existeix): {e}")
                     municipi = None
                 
@@ -255,6 +256,7 @@ class AgentKimiK2:
                             if municipi:
                                 logger.info(f"Sincronitzat municipi V1 '{municipi_v1.nom}' via Match per Nom.")
                     except Exception as e:
+                        self.db.rollback() # <--- Protecció contra InFailedSqlTransaction
                         logger.error(f"Error en fallback per nom V1: {e}")
             
             if municipi:
