@@ -243,22 +243,19 @@ class AgentKimiK2:
                         models_v2.MunicipiLifecycle.municipi_v1_id == municipi_id
                     ).first()
                 except Exception as e:
-                    self.db.rollback() # <--- Protecció contra InFailedSqlTransaction
-                    logger.warning(f"Error consultant municipi_v1_id (possiblement la columna no existeix): {e}")
+                    self.db.rollback()  # <-- AFEGEIX AIXÒ
+                    logger.warning(f"Error consultant municipi_v1_id: {e}")
                     municipi = None
                 
                 if not municipi:
-                    # Segon nivell de fallback: per nom via models V1
                     try:
                         municipi_v1 = self.db.query(models.Municipi).filter(models.Municipi.id == municipi_id).first()
                         if municipi_v1:
                             municipi = self.db.query(models_v2.MunicipiLifecycle).filter(
                                 models_v2.MunicipiLifecycle.nom == municipi_v1.nom
                             ).first()
-                            if municipi:
-                                logger.info(f"Sincronitzat municipi V1 '{municipi_v1.nom}' via Match per Nom.")
                     except Exception as e:
-                        self.db.rollback() # <--- Protecció contra InFailedSqlTransaction
+                        self.db.rollback()  # <-- AFEGEIX AIXÒ
                         logger.error(f"Error en fallback per nom V1: {e}")
             
             if municipi:
@@ -370,9 +367,9 @@ TASQUES URGENTS:
 {e_list if ultims_emails else "Sense emails recents."}
 """
             except Exception as e:
-                self.db.rollback()
-                logger.error(f"Error crític en Visió d'Àguila: {e}")
-                context_str = "CONTEXT GLOBAL: Error en carregar la visió d'àguila. L'agent opera amb visió limitada."
+                self.db.rollback()  # <-- AFEGEIX AIXÒ
+                logger.error(f"Error carregant context global: {e}")
+                context_str = "CONTEXT GLOBAL: No s'ha pogut carregar la informacio d´emails."
 
         # Usar render_prompt per incloure la personalitat base i el sistema de xat
         system_prompt = prompt_manager.render_prompt("xat_conversacional", {
