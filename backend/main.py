@@ -159,50 +159,45 @@ app.include_router(tasques.router)
 @app.get("/repair-db")
 async def repair_db_endpoint(db: Session = Depends(get_db)):
     """Endpoint de diagnòstic i reparació profunda."""
-    from models_v2 import MunicipiLifecycle, EtapaFunnelEnum, TemperaturaEnum
+    from models_v2 import MunicipiLifecycle
     from sqlalchemy import text
     try:
-        # A. DIAGNÒSTIC: Quins valors té l'Enum ara?
+        # A. DIAGNÒSTIC: Quins valors té l'Enum ara? (busquem en tot l'esquema)
         with engine.connect() as conn:
-            result = conn.execute(text("SELECT enumlabel FROM pg_enum JOIN pg_type ON pg_enum.enumtypid = pg_type.oid WHERE pg_type.typname = 'etapa_funnel'"))
-            existing_enums = [r[0] for r in result]
+            result = conn.execute(text("""
+                SELECT n.nspname as schema, t.typname as type, e.enumlabel as value
+                FROM pg_type t 
+                JOIN pg_enum e ON t.oid = e.enumtypid  
+                JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace
+                WHERE t.typname = 'etapa_funnel'
+            """))
+            details = [{"schema": r[0], "type": r[1], "value": r[2]} for r in result]
+            existing_values = [d["value"] for d in details]
         
-        # B. REPARACIÓ ENUM (fora de transacció)
-        if 'lead' not in existing_enums:
+        # B. REPARACIÓ ENUM (amb l'esquema public per si de cas)
+        if 'lead' not in existing_values:
             try:
                 with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
-                    conn.execute(text("ALTER TYPE etapa_funnel ADD VALUE 'lead'"))
-                logger.info("Valor 'lead' afegit.")
-                existing_enums.append('lead')
+                    conn.execute(text("ALTER TYPE public.etapa_funnel ADD VALUE 'lead'"))
+                existing_values.append('lead')
             except Exception as e:
-                return {
-                    "status": "error", 
-                    "step": "afegir_enum_lead",
-                    "existing_enums": existing_enums,
-                    "error": str(e)
-                }
+                return {"status": "error", "at": "alter_type", "error": str(e), "existing": details}
 
-        # C. SANEJAMENT DE DADES (només si l'enum és correcte)
-        # 1. Fix EtapaActual NULL -> lead
-        affected = db.query(MunicipiLifecycle).filter(MunicipiLifecycle.etapa_actual == None).update({
-            MunicipiLifecycle.etapa_actual: EtapaFunnelEnum.lead
-        })
+        # C. SANEJAMENT AMB SQL RAW (per evitar problemes de casting de Pydantic/SQLAlchemy)
+        with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+            # Fix EtapaActual NULL -> lead (usant cast explícit)
+            res1 = conn.execute(text("UPDATE municipis_lifecycle SET etapa_actual = 'lead'::public.etapa_funnel WHERE etapa_actual IS NULL"))
+            # Fix Temperatura NULL -> freda
+            res2 = conn.execute(text("UPDATE municipis_lifecycle SET temperatura = 'freda'::public.temperatura WHERE temperatura IS NULL"))
         
-        # 2. Fix Temperatura NULL -> freda
-        affected_temp = db.query(MunicipiLifecycle).filter(MunicipiLifecycle.temperatura == None).update({
-            MunicipiLifecycle.temperatura: TemperaturaEnum.freda
-        })
-        
-        db.commit()
         return {
             "status": "success", 
-            "existing_enums": existing_enums,
-            "message": f"Sanejaments realitzats: {affected} etapes, {affected_temp} temperatures corrigides."
+            "db_details": details,
+            "message": "Sanejament realitzat amb SQL Directe."
         }
     except Exception as e:
-        db.rollback()
         logger.error(f"Error a /repair-db: {e}")
-        return {"status": "error", "message": str(e), "traceback": "Consulteu els logs"}
+        return {"status": "error", "message": str(e), "db_details": details if 'details' in locals() else []}
 
 @app.get("/db-check")
 def db_check():
