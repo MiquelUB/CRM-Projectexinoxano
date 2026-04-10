@@ -53,11 +53,10 @@ logger = logging.getLogger("uvicorn.error")
 
 # CORS configuration - MUST BE FIRST
 origins = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:3001",
     "https://crmpxx-crm-frontend.80opze.easypanel.host",
     "https://crm.projectexinoxano.com",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
 ]
 
 app.add_middleware(
@@ -66,6 +65,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 @app.middleware("http")
