@@ -85,11 +85,15 @@ class AgentKimiK2:
                     "font": "v2_sequence"
                 })
 
-            # 5. Emails V1 (legacy)
+            # 5. Emails V1 (legacy, via Deals)
             try:
+                # Obtenim l'ID antic per fer la cerca correctament
+                m_v2 = self.db.query(models_v2.MunicipiLifecycle).filter(models_v2.MunicipiLifecycle.id == municipi_id).first()
+                v1_id = m_v2.municipi_v1_id if m_v2 and m_v2.municipi_v1_id else municipi_id
+                
                 emails_v1 = self.db.query(models.Email)\
                     .join(models.Deal, models.Email.deal_id == models.Deal.id)\
-                    .filter(models.Deal.municipi_id == municipi_id)\
+                    .filter(models.Deal.municipi_id == v1_id)\
                     .order_by(desc(models.Email.data_email))\
                     .limit(limit)\
                     .all()
@@ -104,7 +108,8 @@ class AgentKimiK2:
                     })
             except Exception as e:
                 self.db.rollback()
-                logger.warning(f"No s'han pogut carregar emails V1 per al context: {e}")
+                logger.error(f"Error carregant emails V1 per cec: {e}")
+                emails_v1 = []
 
         except Exception as e:
             self.db.rollback()
