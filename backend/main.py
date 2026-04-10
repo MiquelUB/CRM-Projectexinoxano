@@ -138,6 +138,10 @@ async def force_https_middleware(request: Request, call_next):
 
 # Include routers
 app.include_router(dashboard.router)
+@app.get("/")
+async def root_health():
+    return {"status": "online", "message": "CRM PXX Backend is running", "version": "1.0.1"}
+
 from routers import municipis_api
 app.include_router(municipis_api.router, prefix="/api/v2/municipis")
 app.include_router(municipis_v2.router)
@@ -157,6 +161,7 @@ app.include_router(agent.tracking_router)
 app.include_router(tasques.router)
 
 @app.get("/repair-db")
+@app.get("/repair-db/")
 async def repair_db_endpoint(db: Session = Depends(get_db)):
     """Endpoint de diagnòstic i reparació profunda de tots els Enums."""
     from models_v2 import MunicipiLifecycle
