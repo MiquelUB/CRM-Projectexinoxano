@@ -84,7 +84,14 @@ class MemoryEngine:
             # Construir context per a la IA
             timeline_str = ""
             for a in activitats:
-                timeline_str += f"- [{a.data_activitat.strftime('%Y-%m-%d')}] {a.tipus_activitat.value}: {a.notes_comercial or ''}\n"
+                detail = ""
+                if a.contingut and isinstance(a.contingut, dict):
+                    if "subject" in a.contingut:
+                        detail = f" | Assumpte: {a.contingut['subject']}"
+                    if "body_preview" in a.contingut:
+                        detail += f" | Cos: {a.contingut['body_preview'][:200]}..."
+                
+                timeline_str += f"- [{a.data_activitat.strftime('%Y-%m-%d')}] {a.tipus_activitat.value}: {a.notes_comercial or ''}{detail}\n"
             
             # Cridar a la skill de síntesi
             try:

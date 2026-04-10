@@ -19,10 +19,13 @@ import api from "@/lib/api";
 const STAGES = [
   { id: "research", title: "🔍 Research", color: "bg-slate-50" },
   { id: "contacte", title: "📧 Contacte", color: "bg-blue-50" },
-  { id: "demo", title: "📊 Demo", color: "bg-purple-50" },
-  { id: "negociacio", title: "📄 Negociació", color: "bg-orange-50" },
-  { id: "validacio", title: "⚙️ Validació", color: "bg-gray-100" },
-  { id: "client", title: "✅ Client", color: "bg-green-50" },
+  { id: "demo_pendent", title: "📊 Demo Pendent", color: "bg-purple-50" },
+  { id: "demo_ok", title: "✨ Demo OK", color: "bg-purple-100" },
+  { id: "oferta", title: "📄 Oferta / Neg.", color: "bg-orange-50" },
+  { id: "aprovacio", title: "⚖️ Aprovació", color: "bg-amber-100" },
+  { id: "documentacio", title: "📁 Docs / Cont.", color: "bg-slate-100" },
+  { id: "contracte", title: "✅ Client", color: "bg-green-50" },
+  { id: "pausa", title: "⏸️ Pausa", color: "bg-gray-50" },
   { id: "perdut", title: "❌ Perdut", color: "bg-red-50" },
 ];
 

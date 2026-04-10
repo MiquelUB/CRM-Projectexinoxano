@@ -136,6 +136,7 @@ class AgentKimiK2:
         
         # Obtenir context del municipi si m_id
         context_str = ""
+        context_str = ""
         if municipi_id:
             municipi = self.db.query(models_v2.MunicipiLifecycle).get(municipi_id)
             if municipi:
@@ -143,6 +144,19 @@ class AgentKimiK2:
                 # Integrar Memòria Jeràrquica
                 h_memory = await memory_engine.build_hierarchical_context(self.db, municipi_id, [])
                 context_str = f"CONTEXT MUNICIPI {municipi.nom}:\n{json.dumps(context_data)}\n\nMEMÒRIA ESTRATÈGICA:\n{h_memory}"
+        else:
+            # Context GLOBAL: Veure què ha passat al CRM darrerament (emails globals)
+            try:
+                from models import Email
+                ultims_emails = self.db.query(Email).order_by(Email.data_email.desc()).limit(5).all()
+                if ultims_emails:
+                    e_list = "\n".join([f"- [{e.data_email}] {e.direccio} de {e.from_address}: {e.assumpte}" for e in ultims_emails])
+                    context_str = f"CONTEXT GLOBAL CRM (Últims emails):\n{e_list}"
+                else:
+                    context_str = "CONTEXT GLOBAL: No hi ha emails recents al sistema."
+            except Exception as e:
+                logger.error(f"Error carregant context global: {e}")
+                context_str = "CONTEXT GLOBAL: No s'ha pogut carregar la informació d'emails."
 
         system_prompt = prompt_manager.get_prompt("xat_conversacional")
         

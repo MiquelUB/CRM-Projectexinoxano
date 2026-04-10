@@ -164,15 +164,35 @@ def sync_mailbox(folder="INBOX", direccio="IN", search_criteria="UNSEEN"):
                 )
                 db.add(nova_email)
                 
-                # Log activity if vinculado
+                # --- INTEGRACIÓ V2 (Perquè l'Agent ho vegi) ---
+                import models_v2 as m2
+                municipi_id = None
                 if deal_id:
-                    activitat = models.DealActivitat(
-                        deal_id=deal_id,
-                        tipus="email_rebut",
-                        descripcio=f"Email rebut de {clean_from}: {assumpte}"
-                    )
-                    db.add(activitat)
+                    # Buscar el municipi associat al deal
+                    deal = db.query(Deal).get(deal_id)
+                    if deal:
+                        municipi_id = deal.municipi_id
+                
+                if municipi_id:
+                    # Crear activitat V2
+                    tipus_act = m2.TipusActivitat.email_rebut if direccio == "IN" else m2.TipusActivitat.email_enviat
                     
+                    activitat_v2 = m2.ActivitatsMunicipi(
+                        municipi_id=municipi_id,
+                        deal_id=deal_id,
+                        tipus_activitat=tipus_act,
+                        data_activitat=data_email,
+                        contingut={
+                            "subject": assumpte,
+                            "from": clean_from,
+                            "to": clean_to,
+                            "body_preview": cos[:1000] # Guardem un bon tros de l'email
+                        },
+                        notes_comercial=f"Email ({direccio}): {assumpte}",
+                        generat_per_ia=False
+                    )
+                    db.add(activitat_v2)
+                
                 db.commit()
             except Exception as e:
                 logger.error(f"Error processing message {num}: {e}")
