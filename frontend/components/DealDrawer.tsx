@@ -1,8 +1,4 @@
-import { useState, useEffect } from "react";
-import api from "@/lib/api";
-import { format } from "date-fns";
-import { X, Mail, CreditCard, Trash2, Save, Euro, Building2, User, Sparkles, Eye, Bot, Loader2, ArrowRight } from "lucide-react";
-import { useChatContext } from "@/contexts/ChatContext";
+import { X, Mail, CreditCard, Trash2, Save, Euro, Building2, User, Loader2 } from "lucide-react";
 
 export default function DealDrawer({ deal, onClose, onUpdate }: any) {
   // State per a camps editables
@@ -22,13 +18,6 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
   const [activitats, setActivitats] = useState<any[]>([]);
   const [llicencia, setLlicencia] = useState<any>(null);
 
-  const [aiLoading, setAiLoading] = useState(false);
-  const [tacticalMemory, setTacticalMemory] = useState<string | null>(deal.resum_tactic || null);
-  const [aiResult, setAiResult] = useState<any>(null);
-  const [aiError, setAiError] = useState<string | null>(null);
-  const [showAiModal, setShowAiModal] = useState(false);
-  
-  const { setDealContext, clearDealContext } = useChatContext();
 
   // Email Composer State
   const [showEmailComposer, setShowEmailComposer] = useState(false);
@@ -59,54 +48,6 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
     }
   };
 
-  const handleRedactarIA = async () => {
-    setAiLoading(true);
-    setAiError(null);
-    try {
-      const res = await api.agent.redactarEmail({
-        municipi_id: deal.id,
-        instruccions: composerData.instruccionsIA,
-        to_address: composerData.to
-      });
-      setComposerData(prev => ({
-        ...prev,
-        subject: res.assumpte,
-        body: res.cos_text
-      }));
-    } catch (e: any) {
-      setAiError(e.message);
-    } finally {
-      setAiLoading(false);
-    }
-  };
-
-  const handleResumIA = async () => {
-    setAiLoading(true);
-    setAiError(null);
-    try {
-      const res = await api.agent.resumirDeal({ municipi_id: deal.id });
-      setAiResult({ type: 'summary', data: res });
-      setShowAiModal(true);
-    } catch (e: any) {
-      setAiError(e.message);
-    } finally {
-      setAiLoading(false);
-    }
-  };
-
-  const handleAnalitzarIA = async () => {
-    setAiLoading(true);
-    setAiError(null);
-    try {
-      const res = await api.agent.analitzarDeal({ municipi_id: deal.id });
-      setAiResult({ type: 'analysis', data: res });
-      setShowAiModal(true);
-    } catch (e: any) {
-      setAiError(e.message);
-    } finally {
-      setAiLoading(false);
-    }
-  };
 
   const fetchActivitats = async () => {
     try {
@@ -119,20 +60,10 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
 
   useEffect(() => {
     if (deal.id) {
-      setDealContext({ 
-        id: deal.id, 
-        titol: deal.nom, 
-        municipiNom: deal.nom 
-      });
-
       fetchActivitats();
       api.municipis_v2.get_llicencia(deal.id).then((l: any) => setLlicencia(l));
     }
-
-    return () => {
-      clearDealContext();
-    };
-  }, [deal.id, setDealContext, clearDealContext]);
+  }, [deal.id]);
 
   const handleSaveAll = async () => {
     setSaving(true);
@@ -224,15 +155,6 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
               </div>
             </div>
             <div className="flex items-center gap-2">
-                <button 
-                    onClick={handleDelete} 
-                    disabled={deleting}
-                    className="flex items-center space-x-2 px-3 py-2 bg-rose-500 hover:bg-rose-600 text-white transition-all rounded-xl shadow-lg shadow-rose-500/20 group"
-                    title="ELIMINAR PER SEMPRE"
-                >
-                    {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4 group-hover:scale-110" />}
-                    <span className="text-[10px] font-black uppercase tracking-widest">Esborrar</span>
-                </button>
                 <button onClick={onClose} className="p-2 text-slate-400 hover:text-white transition-colors bg-white/5 rounded-xl border border-white/10">
                   <X className="w-5 h-5" />
                 </button>
@@ -264,7 +186,7 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
         </div>
 
         {/* Content */}
-        <div className="p-8 space-y-8 flex-1 overflow-y-auto custom-scrollbar">
+        <div className="p-8 space-y-8 flex-1 overflow-y-auto custom-scrollbar pb-32">
           {/* Secció Informació General */}
           <section className="grid grid-cols-2 gap-6">
             <div className="col-span-2 md:col-span-1">
@@ -363,14 +285,6 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
           <section>
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Diari d'Abord / Notes de Seguiment</h3>
-              <button 
-                onClick={handleAnalitzarIA}
-                disabled={aiLoading}
-                className="flex items-center space-x-1 px-3 py-1 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 rounded-lg text-[10px] font-black tracking-widest uppercase transition-colors disabled:opacity-50"
-              >
-                {aiLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-                <span>Analitzar amb Kimi</span>
-              </button>
             </div>
             <textarea
                 value={notesHumanes}
@@ -380,30 +294,6 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
             />
           </section>
 
-          {/* Footer d'accions del Drawer */}
-          <div className="pt-6 border-t flex space-x-3">
-            <button 
-                onClick={handleDelete} 
-                disabled={deleting}
-                className="flex items-center space-x-2 px-6 h-14 bg-red-50 hover:bg-red-600 text-red-600 hover:text-white rounded-2xl transition-all disabled:opacity-50 border border-red-200 group"
-                title="Eliminar aquest deal i alliberar el municipi"
-            >
-                {deleting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Trash2 className="w-5 h-5 group-hover:shake" />}
-                <span className="text-xs font-black uppercase tracking-widest">Esborrar Deal</span>
-            </button>
-            <button 
-                onClick={handleSaveAll} 
-                disabled={saving}
-                className="flex-1 h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black shadow-lg shadow-blue-100 transition-all flex items-center justify-center space-x-2"
-            >
-                {saving ? "Guardant..." : (
-                    <>
-                        <Save className="w-4 h-4" />
-                        <span>Guardar Canvis</span>
-                    </>
-                )}
-            </button>
-          </div>
 
           {/* Secció Llicència (visible només a client) */}
           {deal.etapa_actual === "client" && (
@@ -529,63 +419,30 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
           </section>
         </div>
 
-        {/* AI Modal */}
-        {showAiModal && aiResult && (
-          <div className="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6">
-            <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in duration-200">
-              <div className="bg-slate-900 p-6 flex justify-between items-center">
-                <div className="flex items-center space-x-2 text-white">
-                  <Bot className="w-5 h-5 text-blue-400" />
-                  <span className="font-black text-sm uppercase tracking-widest">Agent IA - {aiResult.type === 'summary' ? 'Resum Executiu' : 'Anàlisi de Deal'}</span>
-                </div>
-                <button onClick={() => setShowAiModal(false)} className="text-slate-400 hover:text-white transition-colors">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              
-              <div className="p-8">
-                {aiResult.type === 'summary' ? (
-                  <p className="text-slate-700 leading-relaxed font-medium">{aiResult.data.resum}</p>
-                ) : (
-                  <div className="space-y-6">
-                    <div className="bg-rose-50 p-4 rounded-2xl border border-rose-100">
-                      <label className="block text-[10px] font-black text-rose-500 uppercase tracking-widest mb-1">Obstacle Principal</label>
-                      <p className="text-rose-900 font-bold">{aiResult.data.obstacle_principal}</p>
-                    </div>
-                    <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100">
-                      <label className="block text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-1">Proper Pas Recomanat</label>
-                      <p className="text-emerald-900 font-bold">{aiResult.data.proper_pas_recomanat}</p>
-                    </div>
-                    <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100">
-                      <label className="block text-[10px] font-black text-blue-500 uppercase tracking-widest mb-1">Missatge Clau</label>
-                      <p className="text-blue-900 font-bold">{aiResult.data.missatge_clau}</p>
-                    </div>
-                    <div className="flex items-center justify-between">
-                       <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-md ${aiResult.data.urgencia === 'alta' ? 'bg-red-500 text-white' : aiResult.data.urgencia === 'mitjana' ? 'bg-amber-500 text-white' : 'bg-slate-400 text-white'}`}>
-                         Urgència: {aiResult.data.urgencia}
-                       </span>
-                       <button 
-                        onClick={() => {
-                          setProperPas(aiResult.data.proper_pas_recomanat);
-                          setShowAiModal(false);
-                        }}
-                        className="flex items-center space-x-2 text-blue-600 font-black text-xs uppercase hover:underline"
-                       >
-                         <span>Aplicar proper pas</span>
-                         <ArrowRight className="w-3 h-3" />
-                       </button>
-                    </div>
-                  </div>
-                )}
-                
-                <div className="mt-8 pt-4 border-t border-slate-100 flex justify-between items-center text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-                  <span>Model: {aiResult.data.model_usat}</span>
-                  <button onClick={() => setShowAiModal(false)} className="text-slate-900 font-black">Tancar</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Footer d'accions del Drawer - FIXE A SOTA */}
+        <div className="absolute bottom-0 left-0 right-0 p-6 bg-white/80 backdrop-blur-md border-t flex space-x-3 z-20">
+          <button 
+              onClick={handleDelete} 
+              disabled={deleting}
+              className="flex items-center space-x-2 px-6 h-14 bg-rose-50 hover:bg-rose-600 text-rose-600 hover:text-white rounded-2xl transition-all disabled:opacity-50 border border-rose-200 group"
+              title="Eliminar aquest deal per sempre"
+          >
+              {deleting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Trash2 className="w-5 h-5 group-hover:scale-110" />}
+              <span className="text-xs font-black uppercase tracking-widest">Esborrar Deal</span>
+          </button>
+          <button 
+              onClick={handleSaveAll} 
+              disabled={saving}
+              className="flex-1 h-14 bg-slate-900 hover:bg-black text-white rounded-2xl font-black shadow-xl transition-all flex items-center justify-center space-x-2"
+          >
+              {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : (
+                  <>
+                      <Save className="w-4 h-4" />
+                      <span>Guardar Canvis</span>
+                  </>
+              )}
+          </button>
+        </div>
 
         {/* Email Composer Modal */}
         {showEmailComposer && (
@@ -619,29 +476,6 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
                    />
                 </div>
 
-                {/* IA Redactor Section */}
-                <div className="bg-blue-50/50 p-4 rounded-2xl border border-blue-100 space-y-3">
-                  <div className="flex items-center justify-between text-blue-600">
-                    <div className="flex items-center space-x-2">
-                        <Sparkles className="w-4 h-4" />
-                        <span className="text-[10px] font-black uppercase tracking-widest">Redactar amb IA</span>
-                    </div>
-                  </div>
-                  <textarea 
-                    placeholder="Instruccions per a la IA (ex: 'Demana una reunió per dimarts per tancar el setup')"
-                    value={composerData.instruccionsIA}
-                    onChange={e => setComposerData({...composerData, instruccionsIA: e.target.value})}
-                    className="w-full bg-white border border-blue-100 rounded-xl px-4 py-2 text-sm font-medium text-slate-700 outline-none focus:border-blue-300 min-h-[60px]"
-                  />
-                  <button 
-                    onClick={handleRedactarIA}
-                    disabled={aiLoading || !composerData.instruccionsIA}
-                    className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50 flex items-center justify-center space-x-2"
-                  >
-                    {aiLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Bot className="w-3 h-3" />}
-                    <span>{composerData.body ? 'Regenerar Versió' : 'Generar Esborrany'}</span>
-                  </button>
-                </div>
 
                 <textarea 
                   value={composerData.body}
