@@ -223,9 +223,19 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
                 </div>
               </div>
             </div>
-            <button onClick={onClose} className="p-2 text-slate-400 hover:text-white transition-colors bg-white/5 rounded-xl">
-              <X className="w-5 h-5" />
-            </button>
+            <div className="flex items-center gap-2">
+                <button 
+                    onClick={handleDelete} 
+                    disabled={deleting}
+                    className="p-2 text-rose-400 hover:text-rose-300 transition-colors bg-white/5 rounded-xl border border-white/10"
+                    title="Eliminar Municipi"
+                >
+                    {deleting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Trash2 className="w-5 h-5" />}
+                </button>
+                <button onClick={onClose} className="p-2 text-slate-400 hover:text-white transition-colors bg-white/5 rounded-xl">
+                  <X className="w-5 h-5" />
+                </button>
+            </div>
           </div>
           
           <div className="grid grid-cols-3 gap-2">
@@ -254,47 +264,7 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
 
         {/* Content */}
         <div className="p-8 space-y-8 flex-1 overflow-y-auto custom-scrollbar">
-          {/* 🤖 KIMI K2 MISSION CONTROL CARD */}
-          <section className="bg-indigo-600 rounded-3xl p-6 shadow-xl shadow-indigo-100 relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16 blur-2xl" />
-            <div className="relative z-10">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center space-x-2 text-indigo-100">
-                  <Bot className="w-5 h-5" />
-                  <span className="text-[10px] font-black uppercase tracking-widest">Kimi K2 Intelligence</span>
-                </div>
-                <button 
-                  onClick={handleAnalitzarIA}
-                  className="bg-white/20 hover:bg-white/30 p-1.5 rounded-lg transition-colors"
-                >
-                  <Sparkles className="w-4 h-4 text-white" />
-                </button>
-              </div>
-              
-              <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20 mb-4">
-                <p className="text-white font-medium leading-relaxed">
-                  {tacticalMemory || "Analitzant l'estratègia pel municipi..."}
-                </p>
-              </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                 <button 
-                  onClick={() => handleOpenComposer()}
-                  className="bg-white text-indigo-900 py-2.5 rounded-xl font-black text-xs uppercase tracking-tight hover:scale-[1.02] transition-transform flex items-center justify-center space-x-2"
-                 >
-                   <Mail className="w-4 h-4" />
-                   <span>Redactar Email</span>
-                 </button>
-                 <button 
-                  onClick={() => alert("Pròximament: Skill Registrar Trucada")}
-                  className="bg-indigo-400 text-white py-2.5 rounded-xl font-black text-xs uppercase tracking-tight hover:bg-indigo-300 transition-colors flex items-center justify-center space-x-2 shadow-inner"
-                 >
-                   <ArrowRight className="w-4 h-4" />
-                   <span>Proper Pas</span>
-                 </button>
-              </div>
-            </div>
-          </section>
 
           {/* Secció Informació General */}
           <section className="grid grid-cols-2 gap-6">
@@ -393,14 +363,14 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
 
           <section>
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Notes de Seguiment</h3>
+              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Diari d'Abord / Notes de Seguiment</h3>
               <button 
                 onClick={handleAnalitzarIA}
                 disabled={aiLoading}
-                className="flex items-center space-x-1 px-3 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 rounded-lg text-[10px] font-black tracking-widest uppercase transition-colors disabled:opacity-50"
+                className="flex items-center space-x-1 px-3 py-1 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 rounded-lg text-[10px] font-black tracking-widest uppercase transition-colors disabled:opacity-50"
               >
                 {aiLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-                <span>Analitzar amb IA</span>
+                <span>Analitzar amb Kimi</span>
               </button>
             </div>
             <textarea
