@@ -26,18 +26,18 @@ export default function DashboardPage() {
 
   const fetchDashboardData = async () => {
     try {
-      const [kpisData, alertesData, statsData, tasquesData, accionsData] = await Promise.all([
+      const results = await Promise.allSettled([
         api.municipis_v2.kpis(),
         api.alertes.totes(),
         api.emails.getStats(),
         api.tasques.llistar({ estat: "pendent" }),
         api.dashboard.diari()
       ]);
-      setKpis(kpisData);
-      setAlertes(alertesData);
-      setEmailStats(statsData);
-      setTasques(tasquesData.items || []);
-      setAccions(accionsData || []);
+      setKpis(results[0].status === 'fulfilled' ? results[0].value : null);
+      setAlertes(results[1].status === 'fulfilled' ? results[1].value : null);
+      setEmailStats(results[2].status === 'fulfilled' ? results[2].value : null);
+      setTasques(results[3].status === 'fulfilled' ? results[3].value?.items || [] : []);
+      setAccions(results[4].status === 'fulfilled' ? results[4].value || [] : []);
     } catch (error) {
       console.error("Failed to load dashboard data", error);
     } finally {

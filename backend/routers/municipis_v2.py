@@ -66,6 +66,14 @@ def get_municipis(db: Session = Depends(get_db)):
             
     return {"items": municipis, "total": total}
 
+@router.get("/contactes")
+def get_all_contactes(db: Session = Depends(get_db)):
+    """
+    Llista tots els contactes de la V2 (municipis_lifecycle).
+    """
+    query = db.query(ContacteV2)
+    return {"items": query.all(), "total": query.count(), "page": 1}
+
 @router.get("/{id}", response_model=MunicipiLifecycleDetailOut)
 def get_municipi_detail(id: str, db: Session = Depends(get_db)):
     """
@@ -191,9 +199,58 @@ def update_notes_municipi_endpoint(id: str, payload: UpdateNotesRequest, db: Ses
     db.commit()
     return {"status": "success", "message": "Notes actualitzades d'acord"}
 
-@router.get("/contactes", response_model=List[ContacteOut])
-def get_all_contactes(db: Session = Depends(get_db)):
+class EtapaUpdate(BaseModel):
+    etapa: str
+
+@router.patch("/{id}/etapa")
+def canviar_etapa(id: str, payload: EtapaUpdate, db: Session = Depends(get_db)):
     """
-    Llista tots els contactes de la V2 (municipis_lifecycle).
+    Permet canviar l'etapa (arrossegament del Kanban).
     """
-    return db.query(ContacteV2).all()
+    m = db.query(MunicipiLifecycle).filter(MunicipiLifecycle.id == id).first()
+    if not m:
+        raise HTTPException(status_code=404, detail="Municipi no trobat")
+    
+    for enum_val in EtapaFunnelEnum:
+        if enum_val.value == payload.etapa:
+            m.etapa_actual = enum_val
+            # Update historial
+            historial = list(m.historial_etapes) if m.historial_etapes else []
+            historial.append({
+                "nova_etapa": payload.etapa,
+                "data": datetime.now(timezone.utc).isoformat()
+            })
+            m.historial_etapes = historial
+            db.commit()
+            return {"status": "success", "nova_etapa": payload.etapa}
+            
+    raise HTTPException(status_code=400, detail="Etapa invàlida")
+
+@router.put("/{id}")
+def update_municipi(id: str, payload: dict, db: Session = Depends(get_db)):
+    """
+    Permet l'edició de deals.
+    """
+    m = db.query(MunicipiLifecycle).filter(MunicipiLifecycle.id == id).first()
+    if not m:
+        raise HTTPException(status_code=404, detail="Municipi no trobat")
+    
+    for key, value in payload.items():
+        if hasattr(m, key):
+            setattr(m, key, value)
+            
+    db.commit()
+    db.refresh(m)
+    return m
+
+@router.delete("/{id}")
+def delete_municipi(id: str, db: Session = Depends(get_db)):
+    """
+    Permet l'eliminació dels municipis.
+    """
+    m = db.query(MunicipiLifecycle).filter(MunicipiLifecycle.id == id).first()
+    if not m:
+        raise HTTPException(status_code=404, detail="Municipi no trobat")
+    db.delete(m)
+    db.commit()
+    return {"status": "success"}
