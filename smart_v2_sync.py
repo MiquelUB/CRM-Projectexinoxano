@@ -30,7 +30,7 @@ def sync_v1_to_v2():
         print("--- Llegint dades de la V1... ---")
         cur.execute("""
             SELECT 
-                d.id, m.nom, m.comarca, m.poblacio, d.etapa, 
+                d.id, m.nom, m.provincia, m.poblacio, d.etapa, 
                 d.valor_setup, d.valor_llicencia, d.prioritat, 
                 d.notes_humanes, d.proper_pas, d.data_seguiment,
                 d.contacte_id, m.provincia
@@ -42,12 +42,12 @@ def sync_v1_to_v2():
         print(f"--- Migrant {len(deals_v1)} deals a municipis_lifecycle (V2)... ---")
         
         for d in deals_v1:
-            d_id, d_nom, d_comarca, d_poblacio, d_etapa, d_setup, d_llic, d_prio, d_notes, d_pas, d_seg, d_cont_id, d_prov = d
+            d_id, d_nom, d_prov_1, d_poblacio, d_etapa, d_setup, d_llic, d_prio, d_notes, d_pas, d_seg, d_cont_id, d_prov_ref = d
             
             # Map etapa
             etapa_v2 = ETAPA_MAP.get(d_etapa, 'research')
             
-            # Insert V2
+            # Insert V2 (comarca = provincia per ara)
             cur.execute("""
                 INSERT INTO public.municipis_lifecycle (
                     id, nom, comarca, poblacio, etapa_actual, 
@@ -56,7 +56,7 @@ def sync_v1_to_v2():
                     diagnostic_digital, historial_etapes
                 ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, (
-                d_id, d_nom, d_comarca, d_poblacio, etapa_v2,
+                d_id, d_nom, d_prov_1, d_poblacio, etapa_v2,
                 d_setup, d_llic, d_prio or 'mitjana',
                 d_notes, d_pas, d_seg,
                 '{}', '[]'
