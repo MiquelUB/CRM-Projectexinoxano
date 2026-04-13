@@ -1,3 +1,6 @@
+import { useState, useEffect } from "react";
+import api from "@/lib/api";
+import { format } from "date-fns";
 import { X, Mail, CreditCard, Trash2, Save, Euro, Building2, User, Loader2 } from "lucide-react";
 
 export default function DealDrawer({ deal, onClose, onUpdate }: any) {
