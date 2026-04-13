@@ -10,6 +10,9 @@ logger = logging.getLogger(__name__)
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
+if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
 if not DATABASE_URL:
     logger.error("FATAL: DATABASE_URL no definida a l'entorn!")
     # No llencem ValueError aquí per permetre que l'app arrenqui i ens doni logs pel navegador
