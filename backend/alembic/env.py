@@ -32,6 +32,8 @@ def get_url():
     url = os.getenv("DATABASE_URL")
     if not url:
          raise ValueError("DATABASE_URL no definida per a Alembic!")
+    if url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql://", 1)
     return url
 
 # other values from the config, defined by the needs of env.py,

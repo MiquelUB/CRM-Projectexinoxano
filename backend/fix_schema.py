@@ -7,7 +7,10 @@ load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
     print("FATAL: DATABASE_URL no definida! Aturant fix_schema.")
-    exit(1)
+    sys.exit(1)
+
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 def fix_db_schema():
     print(f"Connexi a la base de dades per correcci de schema...")
