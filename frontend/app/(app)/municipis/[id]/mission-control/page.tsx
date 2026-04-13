@@ -94,7 +94,7 @@ export default function MissionControlPage() {
                 {/* Grid Layout: Lateral (Recomanació) + Central (Timeline) */}
                 <div className="flex flex-col lg:grid lg:grid-cols-3 gap-6 lg:h-[calc(100vh-280px)] min-h-[600px] animate-in fade-in slide-in-from-bottom-8 duration-700">
                     
-                    {/* Columna Esquerra: Kimi K2 */}
+                    {/* Columna Esquerra: Recomanacions */}
                     <div className="lg:col-span-1 h-auto lg:h-full">
                         <KimiRecommendation 
                             municipiId={municipiId} 

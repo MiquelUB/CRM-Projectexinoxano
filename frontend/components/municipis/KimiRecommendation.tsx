@@ -36,7 +36,7 @@ export function KimiRecommendation({ municipiId, onActionComplete }: { municipiI
     };
 
     const handleMarcarPausa = async () => {
-        if (!confirm("Vols marcar aquest municipi en pausa? L'Agent afegirà una nota automàtica.")) return;
+        if (!confirm("Vols marcar aquest municipi en pausa? S'afegirà una nota automàtica.")) return;
         setPausant(true);
         try {
             const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
@@ -80,7 +80,7 @@ export function KimiRecommendation({ municipiId, onActionComplete }: { municipiI
                 <div className="bg-blue-500/20 p-1.5 rounded-lg border border-blue-500/30">
                     <Sparkles className="w-4 h-4 text-blue-400" />
                 </div>
-                <h3 className="text-[11px] font-black tracking-widest text-blue-400 uppercase">Kimi K2 Diu</h3>
+                <h3 className="text-[11px] font-black tracking-widest text-blue-400 uppercase">Acció Recomanada</h3>
             </div>
 
             <div className="z-10 flex-1 flex flex-col space-y-6">

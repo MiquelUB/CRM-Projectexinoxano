@@ -69,7 +69,7 @@ export function RedactarEmailModal({ municipiId, onClose, onSent }: { municipiId
                 <div className="p-5 border-b flex justify-between items-center bg-slate-50">
                     <div className="flex items-center space-x-2">
                         <Mail className="w-5 h-5 text-blue-600" />
-                        <h2 className="text-lg font-black tracking-tight">Redactar Email (Kimi K2)</h2>
+                        <h2 className="text-lg font-black tracking-tight">Redactar Email</h2>
                     </div>
                     <button onClick={onClose} className="p-1 hover:bg-slate-200 rounded-full"><X className="w-5 h-5" /></button>
                 </div>

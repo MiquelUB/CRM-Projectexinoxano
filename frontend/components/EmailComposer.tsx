@@ -135,7 +135,7 @@ export function EmailComposer({
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2 text-blue-600">
                 <Sparkles className="w-4 h-4" />
-                <span className="text-[10px] font-black uppercase tracking-widest">Redactar amb IA</span>
+                <span className="text-[10px] font-black uppercase tracking-widest">Assistent de Redacció</span>
               </div>
               <select 
                   value={selectedModel}

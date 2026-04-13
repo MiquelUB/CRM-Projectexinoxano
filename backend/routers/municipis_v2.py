@@ -96,6 +96,59 @@ def get_municipi_detail(id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Municipi no trobat")
     return m
 
+@router.get("/{id}/activitats")
+def get_municipi_activitats(id: str, db: Session = Depends(get_db)):
+    """
+    Retorna les activitats d'un municipi (timeline).
+    """
+    from models_v2 import ActivitatsMunicipi
+    m = db.query(MunicipiLifecycle).filter(MunicipiLifecycle.id == id).first()
+    if not m:
+        raise HTTPException(status_code=404, detail="Municipi no trobat")
+    
+    activitats = db.query(ActivitatsMunicipi).filter(
+        ActivitatsMunicipi.municipi_id == id
+    ).order_by(ActivitatsMunicipi.data_activitat.desc()).limit(50).all()
+    
+    return [
+        {
+            "id": str(a.id),
+            "tipus": a.tipus_activitat.value if hasattr(a.tipus_activitat, 'value') else a.tipus_activitat,
+            "data": a.data_activitat.isoformat() if a.data_activitat else None,
+            "notes": a.notes_comercial,
+        }
+        for a in activitats
+    ]
+
+@router.get("/{id}/llicencia")
+def get_municipi_llicencia(id: str, db: Session = Depends(get_db)):
+    """
+    Retorna la llicència activa del municipi, si existeix.
+    """
+    from sqlalchemy import text
+    m = db.query(MunicipiLifecycle).filter(MunicipiLifecycle.id == id).first()
+    if not m:
+        raise HTTPException(status_code=404, detail="Municipi no trobat")
+    
+    # Buscar a la taula de llicencies V1 per compatibilitat
+    try:
+        result = db.execute(
+            text("SELECT id, estat, data_inici, data_fi, import FROM llicencies WHERE deal_id = :did LIMIT 1"),
+            {"did": id}
+        ).fetchone()
+        if result:
+            return {
+                "id": str(result[0]),
+                "estat": result[1],
+                "data_inici": str(result[2]) if result[2] else None,
+                "data_fi": str(result[3]) if result[3] else None,
+                "import": float(result[4]) if result[4] else 0
+            }
+    except Exception:
+        pass
+    
+    return None
+
 # -- Accions de Transició --
 
 @router.post("/{id}/accio")
