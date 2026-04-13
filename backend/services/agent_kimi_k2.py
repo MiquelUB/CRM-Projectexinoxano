@@ -87,13 +87,9 @@ class AgentKimiK2:
 
             # 5. Emails V1 (legacy, via Deals)
             try:
-                # Obtenim l'ID antic per fer la cerca correctament
-                m_v2 = self.db.query(models_v2.MunicipiLifecycle).filter(models_v2.MunicipiLifecycle.id == municipi_id).first()
-                v1_id = m_v2.municipi_v1_id if m_v2 and m_v2.municipi_v1_id else municipi_id
-                
                 emails_v1 = self.db.query(models.Email)\
                     .join(models.Deal, models.Email.deal_id == models.Deal.id)\
-                    .filter(models.Deal.municipi_id == v1_id)\
+                    .filter(models.Deal.municipi_id == municipi_id)\
                     .order_by(desc(models.Email.data_email))\
                     .limit(limit)\
                     .all()
@@ -108,7 +104,7 @@ class AgentKimiK2:
                     })
             except Exception as e:
                 self.db.rollback()
-                logger.error(f"Error carregant emails V1 per cec: {e}")
+                logger.error(f"Error carregant emails V1: {e}")
                 emails_v1 = []
 
         except Exception as e:
@@ -241,16 +237,7 @@ class AgentKimiK2:
             # B-01: Fallback logic V1 -> V2 amb protecció contra columnes inexistents
             if not municipi:
                 logger.info(f"Municipi {municipi_id} no trobat a V2 per ID directe, buscant fallback V1...")
-                
-                # Intentem buscar primer pel camp de migració directament (v1_id)
-                try:
-                    municipi = self.db.query(models_v2.MunicipiLifecycle).filter(
-                        models_v2.MunicipiLifecycle.municipi_v1_id == municipi_id
-                    ).first()
-                except Exception as e:
-                    self.db.rollback()  # <-- AFEGEIX AIXÒ
-                    logger.warning(f"Error consultant municipi_v1_id: {e}")
-                    municipi = None
+                municipi = None  # municipi_v1_id column removed - skip direct lookup
                 
                 if not municipi:
                     try:
@@ -317,6 +304,27 @@ MEMÒRIA ESTRATÈGICA (KIMI MEMORY V2):
         else:
             # Context GLOBAL: REFACTORITZACIÓ "VISIÓ D'ÀGUILA"
             try:
+                # 0. Llista COMPLETA de municipis amb dades clau (perquè l'agent pugui identificar-los)
+                all_municipis = self.db.query(models_v2.MunicipiLifecycle).all()
+                municipis_detail_list = []
+                for m in all_municipis:
+                    contactes_str = ""
+                    try:
+                        if hasattr(m, 'contactes') and m.contactes:
+                            contactes_str = ", ".join([
+                                f"{c.nom} ({c.carrec}, {c.email})" 
+                                for c in m.contactes if c.actiu
+                            ])
+                    except Exception:
+                        pass
+                    diag = getattr(m, 'diagnostic_digital', {}) or {}
+                    municipis_detail_list.append(
+                        f"- {m.nom} | ID: {m.id} | Etapa: {m.etapa_actual} | Temp: {m.temperatura} "
+                        f"| Angle: {m.angle_personalitzacio or 'Cap'} "
+                        f"| Web: {diag.get('web', 'N/A')} | Tel: {diag.get('telefon_general', 'N/A')} "
+                        f"| Contactes: {contactes_str or 'Cap'}"
+                    )
+
                 # 1. Pipeline Total
                 try:
                     pipeline_stages = ["oferta", "documentacio", "contracte"]
@@ -353,12 +361,23 @@ MEMÒRIA ESTRATÈGICA (KIMI MEMORY V2):
                     logger.warning(f"Error carregant tasques globals: {e}")
 
                 # 4. Últims emails per context real-time
-                from models import Email
-                ultims_emails = self.db.query(Email).order_by(Email.data_email.desc()).limit(5).all()
-                e_list = "\n".join([f"- [{e.data_email}] {e.direccio} de {e.from_address}: {e.assumpte}" for e in ultims_emails])
+                try:
+                    from models import Email
+                    ultims_emails = self.db.query(Email).order_by(Email.data_email.desc()).limit(5).all()
+                    e_list = "\n".join([f"- [{e.data_email}] {e.direccio} de {e.from_address}: {e.assumpte}" for e in ultims_emails])
+                except Exception as e:
+                    self.db.rollback()
+                    logger.warning(f"Error carregant emails V1: {e}")
+                    ultims_emails = []
+                    e_list = ""
 
                 context_str = f"""
 VISIÓ D'ÀGUILA (CONTEXT GLOBAL CRM):
+
+MUNICIPIS AL CRM (DADES REALS - USA EXCLUSIVAMENT AQUESTES DADES, NO INVENTS RES):
+{chr(10).join(municipis_detail_list)}
+
+PIPELINE ECONÒMIC:
 - Pipeline Actiu (Setup): {total_setup}€
 - Pipeline Actiu (Llicència): {total_llicencia}€
 
@@ -370,11 +389,13 @@ TASQUES URGENTS:
 
 ÚLTIMS EMAILS AL CRM:
 {e_list if ultims_emails else "Sense emails recents."}
+
+IMPORTANT: Basa TOTES les teves respostes EXCLUSIVAMENT en les dades reals llistades aquí. Si no tens informació sobre un municipi, digues-ho clarament. NO INVENTES dades, contactes, preus ni estratègies.
 """
             except Exception as e:
-                self.db.rollback()  # <-- AFEGEIX AIXÒ
+                self.db.rollback()
                 logger.error(f"Error carregant context global: {e}")
-                context_str = "CONTEXT GLOBAL: No s'ha pogut carregar la informacio d´emails."
+                context_str = "CONTEXT GLOBAL: No s'ha pogut carregar la informació del CRM."
 
         # Usar render_prompt per incloure la personalitat base i el sistema de xat
         system_prompt = prompt_manager.render_prompt("xat_conversacional", {
