@@ -93,7 +93,6 @@ class MunicipiLifecycle(Base):
     
     # IDENTITAT
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    municipi_v1_id = Column(UUID(as_uuid=True), nullable=True, index=True) # Camp de migració per a fallback B-01
     nom = Column(String(100), nullable=False, index=True)
     comarca = Column(String(50))
     poblacio = Column(String(100))

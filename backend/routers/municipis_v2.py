@@ -17,54 +17,62 @@ def get_municipis_kpis(db: Session = Depends(get_db)):
     """
     Calcula KPIs del Pipeline V2.
     """
-    from sqlalchemy import func
-    
-    # 1. Total de municipis actius al funnel (excloent paquets/perduts)
-    total_deals = db.query(MunicipiLifecycle).filter(
-        MunicipiLifecycle.etapa_actual.notin_([EtapaFunnelEnum.perdut.value, EtapaFunnelEnum.pausa.value])
-    ).count()
-    
-    # 2. Valor Total del Pipeline (Setup + Llicència)
-    valor_setup = db.query(func.sum(MunicipiLifecycle.valor_setup)).scalar() or 0
-    valor_llicencia = db.query(func.sum(MunicipiLifecycle.valor_llicencia)).scalar() or 0
-    valor_total = float(valor_setup + valor_llicencia)
-    
-    # 3. Municipis amb seguiment per a aquest mes
-    from datetime import date
-    today = date.today()
-    start_of_month = date(today.year, today.month, 1)
-    if today.month == 12:
-        start_of_next_month = date(today.year + 1, 1, 1)
-    else:
-        start_of_next_month = date(today.year, today.month + 1, 1)
+    try:
+        from sqlalchemy import func
         
-    per_tancar = db.query(MunicipiLifecycle).filter(
-        MunicipiLifecycle.data_seguiment >= start_of_month,
-        MunicipiLifecycle.data_seguiment < start_of_next_month
-    ).count()
-    
-    return {
-        "total_deals": total_deals,
-        "valor_total_pipeline": valor_total,
-        "deals_per_tancar_aquest_mes": per_tancar,
-        "deals_sense_activitat_14_dies": 0  # Placeholder fins implementar tracking activitat_v2
-    }
+        # 1. Total de municipis actius al funnel (excloent paquets/perduts)
+        total_deals = db.query(MunicipiLifecycle).filter(
+            MunicipiLifecycle.etapa_actual.notin_([EtapaFunnelEnum.perdut, EtapaFunnelEnum.pausa])
+        ).count()
+        
+        # 2. Valor Total del Pipeline (Setup + Llicència)
+        valor_setup = db.query(func.sum(MunicipiLifecycle.valor_setup)).scalar() or 0
+        valor_llicencia = db.query(func.sum(MunicipiLifecycle.valor_llicencia)).scalar() or 0
+        valor_total = float(valor_setup + valor_llicencia)
+        
+        # 3. Municipis amb seguiment per a aquest mes
+        from datetime import date
+        today = date.today()
+        start_of_month = date(today.year, today.month, 1)
+        if today.month == 12:
+            start_of_next_month = date(today.year + 1, 1, 1)
+        else:
+            start_of_next_month = date(today.year, today.month + 1, 1)
+            
+        per_tancar = db.query(MunicipiLifecycle).filter(
+            MunicipiLifecycle.data_seguiment >= start_of_month,
+            MunicipiLifecycle.data_seguiment < start_of_next_month
+        ).count()
+        
+        return {
+            "total_deals": total_deals,
+            "valor_total_pipeline": valor_total,
+            "deals_per_tancar_aquest_mes": per_tancar,
+            "deals_sense_activitat_14_dies": 0
+        }
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error calculant KPIs: {str(e)}")
 
 @router.get("/", response_model=MunicipiPaginationOut)
 def get_municipis(db: Session = Depends(get_db)):
     """
     Llista tots els Municipis en Lifecycle.
     """
-    query = db.query(MunicipiLifecycle)
-    total = query.count()
-    municipis = query.all()
-    
-    # Mapper per assegurar que updated_at existeix per al frontend
-    for m in municipis:
-        if not hasattr(m, 'updated_at') or m.updated_at is None:
-            m.updated_at = m.created_at
-            
-    return {"items": municipis, "total": total}
+    try:
+        query = db.query(MunicipiLifecycle)
+        total = query.count()
+        municipis = query.all()
+        
+        # Mapper per assegurar que updated_at existeix per al frontend
+        for m in municipis:
+            if not hasattr(m, 'updated_at') or m.updated_at is None:
+                m.updated_at = m.created_at
+                
+        return {"items": municipis, "total": total}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error llistant municipis: {str(e)}")
 
 @router.get("/contactes")
 def get_all_contactes(db: Session = Depends(get_db)):
