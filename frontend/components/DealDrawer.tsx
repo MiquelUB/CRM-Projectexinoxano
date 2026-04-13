@@ -139,18 +139,18 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/20 flex justify-end">
-      <div className="w-[550px] h-full bg-white shadow-xl flex flex-col translate-x-0 transition-transform overflow-hidden">
-        {/* Header - Mission Control Style */}
-        <div className="bg-slate-900 text-white p-6 sticky top-0 z-10 shrink-0 border-b border-white/10 shadow-lg">
-          <div className="flex justify-between items-start mb-4">
-            <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-blue-500/10 rounded-2xl flex items-center justify-center border border-blue-500/20">
-                <Building2 className="w-6 h-6 text-blue-400" />
+    <div className="fixed inset-0 z-50 bg-black/40 flex justify-end backdrop-blur-sm">
+      <div className="w-[550px] h-full bg-white shadow-2xl flex flex-col translate-x-0 transition-transform overflow-hidden">
+        {/* Header - NOU ESTIL CARBONI (DIFERENT) */}
+        <div className="bg-[#0f172a] text-white p-7 sticky top-0 z-10 shrink-0 border-b border-white/5 shadow-2xl">
+          <div className="flex justify-between items-start mb-6">
+            <div className="flex items-center space-x-4">
+              <div className="w-14 h-14 bg-blue-500/20 rounded-2xl flex items-center justify-center border border-blue-500/30 shadow-inner">
+                <Building2 className="w-7 h-7 text-blue-400" />
               </div>
               <div>
-                <h2 className="text-xl font-black tracking-tight text-blue-50">{deal.nom}</h2>
-                <div className="flex items-center gap-2 text-blue-300 text-[10px] font-black uppercase tracking-widest mt-0.5">
+                <h2 className="text-2xl font-black tracking-tighter text-white leading-none">{deal.nom}</h2>
+                <div className="flex items-center gap-2 text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] mt-2">
                    <span>{deal.comarca}</span>
                    <span className="opacity-30">•</span>
                    <span>{deal.poblacio?.toLocaleString() || '0'} hab.</span>
