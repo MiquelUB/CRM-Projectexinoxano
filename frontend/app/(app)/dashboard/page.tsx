@@ -147,14 +147,13 @@ export default function DashboardPage() {
         </div>
       </div>
       
-      {/* Bloc Accions IA de l'Agent */}
-      <div className="glass-card p-8 flex flex-col min-h-[250px] border-l-4 border-l-blue-600">
+      {/* Bloc Accions Prioritzades — Propers Passos */}
+      <div className="glass-card p-8 flex flex-col min-h-[250px] border-l-4 border-l-indigo-600">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-2">
-            <span className="text-xl">🤖</span>
-            <h2 className="text-xl font-black text-slate-800 tracking-tight">Accions Prioritzades del Funnel</h2>
+            <h2 className="text-xl font-black text-slate-800 tracking-tight">Propers Passos del Pipeline</h2>
           </div>
-          <span className="text-xs font-bold text-slate-400 bg-slate-100 px-3 py-1 rounded-full uppercase">Motor d'Agent v2</span>
+          <span className="text-xs font-bold text-slate-400 bg-slate-100 px-3 py-1 rounded-full uppercase tracking-widest">Recomanacions</span>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

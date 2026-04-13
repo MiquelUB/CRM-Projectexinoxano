@@ -227,12 +227,13 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
                 <button 
                     onClick={handleDelete} 
                     disabled={deleting}
-                    className="p-2 text-rose-400 hover:text-rose-300 transition-colors bg-white/5 rounded-xl border border-white/10"
-                    title="Eliminar Municipi"
+                    className="flex items-center space-x-2 px-3 py-2 bg-rose-500 hover:bg-rose-600 text-white transition-all rounded-xl shadow-lg shadow-rose-500/20 group"
+                    title="ELIMINAR PER SEMPRE"
                 >
-                    {deleting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Trash2 className="w-5 h-5" />}
+                    {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4 group-hover:scale-110" />}
+                    <span className="text-[10px] font-black uppercase tracking-widest">Esborrar</span>
                 </button>
-                <button onClick={onClose} className="p-2 text-slate-400 hover:text-white transition-colors bg-white/5 rounded-xl">
+                <button onClick={onClose} className="p-2 text-slate-400 hover:text-white transition-colors bg-white/5 rounded-xl border border-white/10">
                   <X className="w-5 h-5" />
                 </button>
             </div>
@@ -386,10 +387,11 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
             <button 
                 onClick={handleDelete} 
                 disabled={deleting}
-                className="w-16 h-14 bg-red-50 hover:bg-red-100 text-red-600 rounded-2xl flex items-center justify-center transition-all disabled:opacity-50 border border-red-100"
+                className="flex items-center space-x-2 px-6 h-14 bg-red-50 hover:bg-red-600 text-red-600 hover:text-white rounded-2xl transition-all disabled:opacity-50 border border-red-200 group"
                 title="Eliminar aquest deal i alliberar el municipi"
             >
-                {deleting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Trash2 className="w-5 h-5" />}
+                {deleting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Trash2 className="w-5 h-5 group-hover:shake" />}
+                <span className="text-xs font-black uppercase tracking-widest">Esborrar Deal</span>
             </button>
             <button 
                 onClick={handleSaveAll} 
