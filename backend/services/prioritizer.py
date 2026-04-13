@@ -16,14 +16,10 @@ class ActionRecommendation:
         self.tipus_accio = tipus_accio
         self.contacte_sugerit_id = contacte_sugerit_id
 
-import json
-import asyncio
-from .openrouter_client import call_openrouter
-from .agent_kimi_k2 import AgentKimiK2
-
 async def get_daily_actions(db: Session, limit: int = 10):
     """
-    Motor de Priorització del Dashboard Diari mitjançant IA en Paral·lel.
+    Motor de Priorització del Dashboard Diari.
+    (Actulizat per ser instanci i no bloquejar per cridades a la IA massives).
     """
     active_municipis = db.query(MunicipiLifecycle).filter(
         MunicipiLifecycle.etapa_actual.notin_([
@@ -33,32 +29,57 @@ async def get_daily_actions(db: Session, limit: int = 10):
         ])
     ).all()
     
-    agent = AgentKimiK2(db)
-    
-    async def _eval_wrapper(m):
-        try:
-            res = await agent.recomanar_accio(m.id)
-            # Safe access to enum value
-            etapa_label = m.etapa_actual.value if m.etapa_actual else "desconeguda"
+    recommendations = []
+    for m in active_municipis:
+        score = 0
+        accio = "Contactar per reprendre tema."
+        tipus = "trucada"
+        
+        # 1. Base Score depending on Etapa
+        if m.etapa_actual == EtapaFunnelEnum.aprovacio:
+            score += 50
+            accio = "Preguntar si han pogut avaluar-ho."
+            tipus = "trucada"
+        elif m.etapa_actual == EtapaFunnelEnum.oferta:
+            score += 40
+            accio = "Fer seguiment de l'oferta enviada."
+            tipus = "email"
+        elif m.etapa_actual == EtapaFunnelEnum.demo_ok:
+            score += 30
+            accio = "Enviar proposta econòmica."
+            tipus = "email"
+        elif m.etapa_actual == EtapaFunnelEnum.contacte:
+            score += 20
+            accio = "Trucar per agendar Demo."
+            tipus = "trucada"
             
-            return ActionRecommendation(
+        # 2. Add priority multiplier
+        if m.prioritat == "alta":
+            score += 30
+        elif m.prioritat == "mitjana":
+            score += 15
+            
+        # 3. Add hotness multiplier
+        if m.temperatura == TemperaturaEnum.bullent:
+            score += 20
+            accio = "Tancar acord!"
+        elif m.temperatura == TemperaturaEnum.calent:
+            score += 10
+            
+        etapa_label = m.etapa_actual.value if m.etapa_actual else "desconeguda"
+        
+        recommendations.append(
+            ActionRecommendation(
                 municipi_id=str(m.id),
                 nom=m.nom,
-                score=res.get("score", 0),
+                score=score,
                 etapa=etapa_label,
-                accio_recomanada=res.get("accio", res.get("accio_recomanada", "Contactar")),
-                rao=res.get("rao", ""),
-                tipus_accio=res.get("tipus", res.get("tipus_accio", "altre")),
+                accio_recomanada=accio,
+                rao=f"Etapa {etapa_label} amb prioritat {m.prioritat}.",
+                tipus_accio=tipus,
                 contacte_sugerit_id=str(m.actor_principal_id) if m.actor_principal_id else None
             )
-        except Exception as e:
-            logger.error(f"Error avaluant municipi {m.nom}: {e}")
-            return None
-
-    tasks = [_eval_wrapper(m) for m in active_municipis]
-    results = await asyncio.gather(*tasks)
-    
-    # Filtrar els que han fallat (None) i ordenar
-    recommendations = [r for r in results if r is not None]
+        )
+        
     sorted_recs = sorted(recommendations, key=lambda x: x.score, reverse=True)
     return sorted_recs[:limit]

@@ -414,6 +414,14 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
           {/* Footer d'accions del Drawer */}
           <div className="pt-6 border-t flex space-x-3">
             <button 
+                onClick={handleDelete} 
+                disabled={deleting}
+                className="w-16 h-14 bg-red-50 hover:bg-red-100 text-red-600 rounded-2xl flex items-center justify-center transition-all disabled:opacity-50 border border-red-100"
+                title="Eliminar aquest deal i alliberar el municipi"
+            >
+                {deleting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Trash2 className="w-5 h-5" />}
+            </button>
+            <button 
                 onClick={handleSaveAll} 
                 disabled={saving}
                 className="flex-1 h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black shadow-lg shadow-blue-100 transition-all flex items-center justify-center space-x-2"
