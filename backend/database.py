@@ -22,7 +22,10 @@ if not DATABASE_URL:
 try:
     engine = create_engine(
         DATABASE_URL,
-        connect_args={"options": "-csearch_path=public"}
+        connect_args={
+            "options": "-csearch_path=public",
+            "connect_timeout": 10
+        }
     )
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 except Exception as e:

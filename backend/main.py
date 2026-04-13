@@ -22,8 +22,12 @@ async def lifespan(app: FastAPI):
     # Create default admin user if not exists
     try:
         if SessionLocal is not None:
+            # Utilitzem un bloc try/except més estricte per no bloquejar l'arrencada
+            from sqlalchemy.exc import OperationalError
             db = SessionLocal()
             try:
+                # Fem un test ràpid de connexió amb timeout via query
+                print("Verificant connexió a la base de dades...")
                 admin_user = db.query(models.Usuari).filter(models.Usuari.email == "admin@projectexinoxano.cat").first()
                 if not admin_user:
                     admin = models.Usuari(
@@ -34,12 +38,19 @@ async def lifespan(app: FastAPI):
                     )
                     db.add(admin)
                     db.commit()
+                    print("Usuari admin creat correctament.")
+                else:
+                    print("Usuari admin ja existeix.")
+            except OperationalError as oe:
+                print(f"ERROR: La base de dades no respon al procés d'arrencada (timeout): {oe}")
+            except Exception as e:
+                print(f"Error inesperat verificant admin: {e}")
             finally:
                 db.close()
         else:
-            print("AVÍS: SessionLocal no disponible en arrencar. Saltant verificació d'admin.")
+            print("AVÍS: SessionLocal no disponible en arrencar.")
     except Exception as e:
-        print(f"Error en el procés de startup: {e}")
+        print(f"Error crític en el procés de startup: {e}")
     
     yield
     
