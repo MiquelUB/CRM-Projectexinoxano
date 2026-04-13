@@ -111,6 +111,18 @@ async def monitor_v1_usage(request: Request, call_next):
     response = await call_next(request)
     return response
 
+@app.get("/db-info", tags=["debug"])
+def get_db_info():
+    import os
+    db_url = os.getenv("DATABASE_URL", "none")
+    # Hide password and user
+    if "@" in db_url:
+        safe_url = db_url.split("@")[1]
+    else:
+        safe_url = db_url
+    return {"host": safe_url}
+
+
 @app.middleware("http")
 async def force_https_middleware(request: Request, call_next):
     if request.headers.get("x-forwarded-proto") == "https":
