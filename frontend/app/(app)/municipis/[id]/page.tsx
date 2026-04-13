@@ -34,6 +34,14 @@ export default function MunicipiDetailPage() {
 
   const fetchData = async () => {
     try {
+      // Intent V2 primer (municipis_lifecycle), fallback a V1 (municipis)
+      try {
+        const response = await api.municipis_v2.detall(id as string);
+        setData(response);
+        return;
+      } catch {
+        // V2 no trobat, intentem V1
+      }
       const response = await api.municipis.detall(id as string);
       setData(response);
     } catch (e) {
