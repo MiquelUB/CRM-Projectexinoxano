@@ -20,6 +20,8 @@ def sync_v1_to_v2():
         cur = conn.cursor()
         
         print("--- Buidant taules V2 per a sincronitzacio neta... ---")
+        cur.execute("DELETE FROM public.emails_v2")
+        cur.execute("DELETE FROM public.email_drafts_v2")
         cur.execute("DELETE FROM public.activitats_municipi")
         cur.execute("DELETE FROM public.contactes_v2")
         cur.execute("DELETE FROM public.municipis_lifecycle")
