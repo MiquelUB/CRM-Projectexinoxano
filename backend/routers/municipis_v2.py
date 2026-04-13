@@ -54,7 +54,7 @@ def get_municipis_kpis(db: Session = Depends(get_db)):
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error calculant KPIs: {str(e)}")
 
-@router.get("/", response_model=MunicipiPaginationOut)
+@router.get("/")
 def get_municipis(db: Session = Depends(get_db)):
     """
     Llista tots els Municipis en Lifecycle.
@@ -64,10 +64,14 @@ def get_municipis(db: Session = Depends(get_db)):
         total = query.count()
         municipis = query.all()
         
-        # Mapper per assegurar que updated_at existeix per al frontend
+        # Mapper per assegurar compatibilitat de dades
+        priority_map = {1: "baixa", 2: "mitjana", 3: "alta"}
         for m in municipis:
             if not hasattr(m, 'updated_at') or m.updated_at is None:
                 m.updated_at = m.created_at
+            # Fix dades corruptes: prioritat numèrica → string
+            if isinstance(m.prioritat, int) or (m.prioritat and str(m.prioritat).isdigit()):
+                m.prioritat = priority_map.get(int(m.prioritat), "mitjana")
                 
         return {"items": municipis, "total": total}
     except Exception as e:
