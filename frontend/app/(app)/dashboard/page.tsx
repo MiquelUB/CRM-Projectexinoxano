@@ -29,15 +29,16 @@ export default function DashboardPage() {
       const results = await Promise.allSettled([
         api.municipis_v2.kpis(),
         api.alertes.totes(),
-        api.emails.getStats(),
         api.tasques.llistar({ estat: "pendent" }),
         api.dashboard.diari()
       ]);
       setKpis(results[0].status === 'fulfilled' ? results[0].value : null);
       setAlertes(results[1].status === 'fulfilled' ? results[1].value : null);
-      setEmailStats(results[2].status === 'fulfilled' ? results[2].value : null);
-      setTasques(results[3].status === 'fulfilled' ? results[3].value?.items || [] : []);
-      setAccions(results[4].status === 'fulfilled' ? results[4].value || [] : []);
+      setTasques(results[2].status === 'fulfilled' ? results[2].value?.items || [] : []);
+      setAccions(results[3].status === 'fulfilled' ? results[3].value || [] : []);
+      
+      // Simulem stats per no trencar la UI
+      setEmailStats({ total_emails: 0, taxa_obertura: 0 });
     } catch (error) {
       console.error("Failed to load dashboard data", error);
     } finally {
