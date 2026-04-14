@@ -103,8 +103,12 @@ const api = {
     eliminar: (id: string) => fetchAPI(`/municipis_v2/contactes/${id}`, { method: "DELETE" }),
   },
   emails: {
-    llistar: (page = 1, direccio?: string) => {
-      let url = `/emails_v2?page=${page}`;
+    llistar: (params?: any, direccio?: string) => {
+      console.log("[api] Versió comunicacions: 2026-04-14_v3");
+      if (typeof params === 'object') {
+        return fetchAPI(`/emails_v2?${new URLSearchParams(params || {})}`);
+      }
+      let url = `/emails_v2?page=${params || 1}`;
       if (direccio) url += `&direccio=${direccio}`;
       return fetchAPI(url);
     },
