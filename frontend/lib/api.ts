@@ -123,6 +123,7 @@ const api = {
       fetchAPI(`/emails/${id}/llegit`, { method: "PATCH", body: JSON.stringify({ llegit }) }),
     sync: () => fetchAPI("/emails/sync", { method: "POST" }),
     pendents: () => fetchAPI("/emails/pendents"),
+    // Stubbed until V2 stats are implemented to avoid 404s breaking the dashboard
     getStats: async () => ({ obertures: 0, clicks: 0 }),
     eliminar: (id: string) => fetchAPI(`/emails/${id}`, { method: "DELETE" }),
   },
