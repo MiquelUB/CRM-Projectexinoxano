@@ -140,7 +140,7 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex justify-end backdrop-blur-sm">
-      <div className="w-[550px] h-full bg-white shadow-2xl flex flex-col translate-x-0 transition-transform overflow-hidden">
+      <div className="w-[550px] h-full bg-white shadow-2xl flex flex-col translate-x-0 transition-transform overflow-hidden relative">
         {/* Header - NOU ESTIL CARBONI (DIFERENT) */}
         <div className="bg-[#0f172a] text-white p-7 sticky top-0 z-10 shrink-0 border-b border-white/5 shadow-2xl">
           <div className="flex justify-between items-start mb-6">
@@ -422,8 +422,8 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
           </section>
         </div>
 
-        {/* Footer d'accions del Drawer - FIXE A SOTA */}
-        <div className="absolute bottom-0 left-0 right-0 p-6 bg-white/80 backdrop-blur-md border-t flex space-x-3 z-20">
+        {/* Footer d'accions del Drawer - RELATIU PER SEGURETAT */}
+        <div className="p-6 bg-white/80 backdrop-blur-md border-t flex space-x-3 z-20 shrink-0">
           <button 
               onClick={handleDelete} 
               disabled={deleting}

@@ -24,11 +24,30 @@ class ContacteOut(BaseModel):
     class Config:
         from_attributes = True
 
+class MunicipiLifecycleCreate(BaseModel):
+    nom: str
+    comarca: Optional[str] = None
+    poblacio: Optional[str] = None
+    tipus: Optional[str] = "ajuntament"
+    provincia: Optional[str] = "Barcelona"
+    codi_postal: Optional[str] = None
+    web: Optional[str] = None
+    telefon: Optional[str] = None
+    adreca: Optional[str] = None
+    geografia: Optional[str] = None
+    notes_humanes: Optional[str] = None
+
 class MunicipiLifecycleOut(BaseModel):
     id: UUID
     nom: str
     comarca: Optional[str] = None
     poblacio: Optional[str] = None
+    tipus: Optional[str] = "ajuntament"
+    provincia: Optional[str] = "Barcelona"
+    codi_postal: Optional[str] = None
+    web: Optional[str] = None
+    telefon: Optional[str] = None
+    adreca: Optional[str] = None
     geografia: Optional[str] = None
     diagnostic_digital: Optional[dict] = None
     angle_personalitzacio: Optional[str] = None

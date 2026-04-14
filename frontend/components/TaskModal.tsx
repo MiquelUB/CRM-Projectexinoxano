@@ -26,10 +26,10 @@ export function TaskModal({ onClose, onSaved, initialDate, task }: TaskModalProp
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deals, setDeals] = useState<any[]>([]);
-  const [selectedDealId, setSelectedDealId] = useState(task?.deal_id || "");
+  const [selectedMunicipiId, setSelectedMunicipiId] = useState(task?.municipi_id || task?.deal_id || "");
 
   useState(() => {
-    api.deals.llistar().then(res => setDeals(res.items || []));
+    api.municipis_v2.llistar({ limit: "200" }).then(res => setDeals(res.items || []));
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -42,7 +42,7 @@ export function TaskModal({ onClose, onSaved, initialDate, task }: TaskModalProp
         data_venciment: dataVenciment,
         tipus,
         prioritat,
-        deal_id: selectedDealId || null
+        municipi_id: selectedMunicipiId || null
       };
 
       if (task?.id && !task.is_pseudo) {
@@ -137,15 +137,15 @@ export function TaskModal({ onClose, onSaved, initialDate, task }: TaskModalProp
             </div>
 
             <div>
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Relacionar amb Deal (Opcional)</label>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Relacionar amb Municipi / Deal (Opcional)</label>
               <select 
-                value={selectedDealId}
-                onChange={e => setSelectedDealId(e.target.value)}
+                value={selectedMunicipiId}
+                onChange={e => setSelectedMunicipiId(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all text-sm"
               >
-                <option value="">Cap deal (Tasca general)</option>
-                {deals.map(d => (
-                  <option key={d.id} value={d.id}>{d.titol} ({d.municipi?.nom})</option>
+                <option value="">Cap municipi (Tasca general)</option>
+                {deals.map((d: any) => (
+                  <option key={d.id} value={d.id}>{d.nom}</option>
                 ))}
               </select>
             </div>

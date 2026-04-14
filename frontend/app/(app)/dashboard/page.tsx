@@ -59,10 +59,7 @@ export default function DashboardPage() {
       const targetId = task.municipi_id || task.deal_id;
       if (!targetId) return;
       
-      const res = task.municipi_id 
-        ? await api.municipis_v2.detall(task.municipi_id) 
-        : await api.deals.detall(task.deal_id);
-        
+      const res = await api.municipis_v2.detall(targetId);
       setSelectedDeal(res);
     } catch (error) {
       console.error("Error fetching deal", error);

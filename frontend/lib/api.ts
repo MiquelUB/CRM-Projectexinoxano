@@ -102,35 +102,6 @@ const api = {
     editar: (id: string, data: unknown) => fetchAPI(`/municipis_v2/contactes/${id}`, { method: "PUT", body: JSON.stringify(data) }),
     eliminar: (id: string) => fetchAPI(`/municipis_v2/contactes/${id}`, { method: "DELETE" }),
   },
-  municipis: {
-    llistar: (params?: Record<string, string>) =>
-      fetchAPI(`/municipis?${new URLSearchParams(params || {})}`),
-    detall: (id: string) => fetchAPI(`/municipis/${id}`),
-    crear: (data: unknown) => fetchAPI("/municipis", { method: "POST", body: JSON.stringify(data) }),
-    editar: (id: string, data: unknown) => fetchAPI(`/municipis/${id}`, { method: "PUT", body: JSON.stringify(data) }),
-    eliminar: (id: string) => fetchAPI(`/municipis/${id}`, { method: "DELETE" }),
-  },
-  contactes: {
-    llistar: (params?: Record<string, string>) =>
-      fetchAPI(`/contactes?${new URLSearchParams(params || {})}`),
-    detall: (id: string) => fetchAPI(`/contactes/${id}`),
-    crear: (data: unknown) => fetchAPI("/contactes", { method: "POST", body: JSON.stringify(data) }),
-    editar: (id: string, data: unknown) => fetchAPI(`/contactes/${id}`, { method: "PUT", body: JSON.stringify(data) }),
-    eliminar: (id: string) => fetchAPI(`/contactes/${id}`, { method: "DELETE" }),
-  },
-  deals: {
-    llistar: (params?: Record<string, string>) =>
-      fetchAPI(`/deals?${new URLSearchParams(params || {})}`),
-    detall: (id: string) => fetchAPI(`/deals/${id}`),
-    crear: (data: unknown) => fetchAPI("/deals", { method: "POST", body: JSON.stringify(data) }),
-    editar: (id: string, data: unknown) => fetchAPI(`/deals/${id}`, { method: "PUT", body: JSON.stringify(data) }),
-    canviarEtapa: (id: string, etapa: string) =>
-      fetchAPI(`/deals/${id}/etapa`, { method: "PATCH", body: JSON.stringify({ etapa }) }),
-    actualitzarNotes: (id: string, notes: string) =>
-      fetchAPI(`/deals/${id}/notes`, { method: "PATCH", body: JSON.stringify({ notes_humanes: notes }) }),
-    kpis: () => fetchAPI("/deals/kpis"),
-    eliminar: (id: string) => fetchAPI(`/deals/${id}`, { method: "DELETE" }),
-  },
   emails: {
     llistar: (params?: Record<string, string>) =>
       fetchAPI(`/emails?${new URLSearchParams(params || {})}`),

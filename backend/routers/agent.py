@@ -24,7 +24,7 @@ class ChatMessageRequest(BaseModel):
     message: str
     municipi_id: Optional[UUID] = None
     deal_id: Optional[UUID] = None # Fallback per compatibilitat frontend
-    model: str = "moonshotai/kimi-k2-thinking"
+    model: str = "thinking-v2"
 
 @router.post("/redactar-email", response_model=schemas.AgentRedactarEmailResponse)
 async def redactar_email(
@@ -46,10 +46,10 @@ async def redactar_email(
             return {
                 "assumpte": v.get("subject", ""),
                 "cos_text": v.get("cos", ""),
-                "model_usat": "AgentKimiK2 (variants)",
+                "model_usat": "CRM AI Assistant",
                 "tokens_usats": 0
             }
-        return {"assumpte": "", "cos_text": "", "model_usat": "Error"}
+        return {"assumpte": "", "cos_text": "", "model_usat": "System Error"}
     except Exception as e:
         logger.error(f"Error redactar-email: {e}")
         raise HTTPException(status_code=500, detail=f"Error d'IA: {str(e)}")

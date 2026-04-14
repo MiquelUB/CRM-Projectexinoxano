@@ -175,13 +175,13 @@ app.include_router(auth.router)
 app.include_router(usuaris.router)
 app.include_router(municipis_v2.router, prefix="/municipis_v2")
 app.include_router(municipis_v2.router, prefix="/municipis_lifecycle")
-app.include_router(contactes.router, prefix="/contactes", tags=["contactes"])
-app.include_router(municipis.router)
-app.include_router(contactes.router)
-app.include_router(deals.router)
-app.include_router(emails.router)
-app.include_router(llicencies.router)
-app.include_router(pagaments.router)
+# app.include_router(contactes.router, prefix="/contactes", tags=["contactes"])
+# app.include_router(municipis.router)
+# app.include_router(contactes.router)
+# app.include_router(deals.router)
+# app.include_router(emails.router)
+# app.include_router(llicencies.router)
+# app.include_router(pagaments.router)
 app.include_router(alertes.router)
 app.include_router(agent.router)
 app.include_router(agent.tracking_router)
@@ -237,9 +237,15 @@ async def repair_db_endpoint(db: Session = Depends(get_db)):
                 "valor_setup": "NUMERIC(10,2) DEFAULT 0",
                 "valor_llicencia": "NUMERIC(10,2) DEFAULT 0",
                 "proper_pas": "TEXT",
-                "prioritat": "INTEGER DEFAULT 3",
+                "prioritat": "VARCHAR(50) DEFAULT 'mitjana'",
                 "data_seguiment": "TIMESTAMP WITH TIME ZONE",
-                "notes_humanes": "TEXT"
+                "notes_humanes": "TEXT",
+                "tipus": "VARCHAR(50) DEFAULT 'ajuntament'",
+                "provincia": "VARCHAR(50) DEFAULT 'Barcelona'",
+                "codi_postal": "VARCHAR(20)",
+                "web": "VARCHAR(255)",
+                "telefon": "VARCHAR(50)",
+                "adreca": "TEXT"
             }
             for col, col_type in lifecycle_cols.items():
                 try: 

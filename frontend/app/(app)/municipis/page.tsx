@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { Search, MapPin, Settings, X, Save, Building2, Globe, Phone, Map as MapIcon, Users as UsersIcon } from "lucide-react";
+import { Search, MapPin, Settings, X, Save, Building2, Globe, Phone, Map as MapIcon, Users as UsersIcon, Trash2 } from "lucide-react";
 import Link from "next/link";
 
 export default function MunicipisPage() {
@@ -58,7 +58,7 @@ export default function MunicipisPage() {
     try {
       const params: any = { limit: "50" };
       if (q) params.cerca = q; // The backend uses 'cerca' for filtering by name
-      const response = await api.municipis.llistar(params);
+      const response = await api.municipis_v2.llistar(params);
       setItems(response.items || []);
     } catch (e) {
       console.error(e);
@@ -84,9 +84,9 @@ export default function MunicipisPage() {
       };
       
       if (editingId) {
-        await api.municipis.editar(editingId, dataToSave);
+        await api.municipis_v2.editar(editingId, dataToSave);
       } else {
-        await api.municipis.crear(dataToSave);
+        await api.municipis_v2.crear(dataToSave);
       }
       setIsModalOpen(false);
       setEditingId(null);
@@ -114,7 +114,7 @@ export default function MunicipisPage() {
     e.stopPropagation();
     if (!window.confirm("Estàs segur que vols eliminar aquest municipi?")) return;
     try {
-      await api.municipis.eliminar(id);
+      await api.municipis_v2.eliminar(id);
       fetchData(search);
     } catch (error: any) {
       alert(`Error en eliminar: ${error.message}`);

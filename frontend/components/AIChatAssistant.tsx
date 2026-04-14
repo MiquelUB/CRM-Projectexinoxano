@@ -28,7 +28,7 @@ interface Message {
   accions_suggerides?: string[];
 }
 
-export function KimiChat() {
+export function AIChatAssistant() {
   const { dealContext, isChatOpen, setIsChatOpen, clearDealContext } = useChatContext();
   const [isExpanded, setIsExpanded] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -57,8 +57,8 @@ export function KimiChat() {
         } else {
           // Missatge de benvinguda si no hi ha historial
           const welcomeMsg = dealContext 
-            ? `Hola! Soc l'agent Kimi K2. Estic analitzant el deal **${dealContext.titol}**. En què et puc ajudar?`
-            : "Hola! Soc l'agent Kimi K2, el teu assistent d'estratègia CRM. Com et puc ajudar avui?";
+            ? `Hola! Soc el teu Assistent CRM. Estic analitzant el municipi **${dealContext.nom || dealContext.titol}**. En què et puc ajudar?`
+            : "Hola! Soc l'Assistent CRM. Com et puc ajudar avui?";
           
           setMessages([{
             role: "assistant",
@@ -175,12 +175,12 @@ export function KimiChat() {
         onClick={togglePanel}
         className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[60] group transition-all duration-300 transform hover:scale-105"
         role="button"
-        aria-label="Obrir xat amb Kimi"
+        aria-label="Obrir xat amb l'Assistent"
         tabIndex={0}
       >
         <div className="relative">
           <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
-          <button className="relative flex items-center space-x-3 bg-white px-4 sm:px-5 py-3 sm:py-3.5 rounded-2xl shadow-xl border border-blue-50" aria-label="Parla amb Kimi">
+          <button className="relative flex items-center space-x-3 bg-white px-4 sm:px-5 py-3 sm:py-3.5 rounded-2xl shadow-xl border border-blue-50" aria-label="Parla amb l'Assistent">
             <div className="relative">
               <div className="w-10 h-10 bg-gradient-to-tr from-blue-600 to-indigo-700 rounded-xl flex items-center justify-center text-white shadow-lg">
                 <Bot className="w-6 h-6" />
@@ -188,7 +188,7 @@ export function KimiChat() {
               <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-green-500 border-2 border-white rounded-full"></div>
             </div>
             <div className="flex flex-col items-start pr-2">
-              <span className="text-sm font-bold text-slate-800">Kimi K2</span>
+              <span className="text-sm font-bold text-slate-800">Assistent CRM</span>
               <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider tabular-nums">Online</span>
             </div>
           </button>
@@ -198,7 +198,7 @@ export function KimiChat() {
   }
 
   return (
-    <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[60] w-[calc(100vw-2rem)] sm:w-[400px] h-[75vh] max-h-[600px] flex flex-col bg-white rounded-3xl shadow-2xl border border-blue-100/50 overflow-hidden animate-in slide-in-from-bottom-4 duration-300" aria-label="Xat Kimi">
+    <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[60] w-[calc(100vw-2rem)] sm:w-[400px] h-[75vh] max-h-[600px] flex flex-col bg-white rounded-3xl shadow-2xl border border-blue-100/50 overflow-hidden animate-in slide-in-from-bottom-4 duration-300" aria-label="Xat Assistent">
       {/* Header */}
       <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-5 flex items-center justify-between text-white shrink-0">
         <div className="flex items-center space-x-3">
@@ -207,7 +207,7 @@ export function KimiChat() {
           </div>
           <div>
             <div className="flex items-center space-x-2">
-              <h3 className="font-bold tracking-tight">Agent Kimi K2</h3>
+              <h3 className="font-bold tracking-tight">Assistent CRM</h3>
               <Sparkles className="w-3.5 h-3.5 text-blue-200 fill-blue-200" />
             </div>
             {dealContext ? (
@@ -300,7 +300,7 @@ export function KimiChat() {
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             disabled={isLoading}
-            placeholder={dealContext ? "Pregunta sobre aquest deal..." : "Pregunta a Kimi..."}
+            placeholder={dealContext ? "Pregunta sobre aquest deal..." : "Pregunta a l'Assistent..."}
             className="flex-1 bg-transparent border-none focus:ring-0 text-sm py-2 px-3 text-slate-700 placeholder:text-slate-400"
           />
           <button
@@ -317,7 +317,7 @@ export function KimiChat() {
           </button>
         </form>
         <p className="text-[9px] text-center text-slate-400 mt-2.5 font-medium uppercase tracking-widest opacity-70">
-          Powered by Kimi K2 Doctrine
+          Powered by AI
         </p>
       </div>
 

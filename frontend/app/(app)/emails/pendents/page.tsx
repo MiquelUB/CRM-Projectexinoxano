@@ -19,7 +19,7 @@ export default function EmailsPendentsPage() {
     try {
       const [emailsRes, dealsRes] = await Promise.all([
         api.emails.pendents(),
-        api.deals.llistar()
+        api.municipis_v2.llistar({ limit: "200" })
       ]);
       setEmails(emailsRes.items || []);
       setDeals(dealsRes.items || []);
@@ -69,9 +69,9 @@ export default function EmailsPendentsPage() {
                 defaultValue=""
               >
                 <option value="" disabled>Selecciona un Deal...</option>
-                {deals.filter(d => d.etapa !== "tancat_perdut").map(deal => (
+                {deals.filter(d => d.etapa_actual !== "perdut").map(deal => (
                   <option key={deal.id} value={deal.id}>
-                    {deal.municipi.nom} - {deal.titol} ({deal.etapa})
+                    {deal.nom} ({deal.etapa_actual})
                   </option>
                 ))}
               </select>

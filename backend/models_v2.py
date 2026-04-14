@@ -98,6 +98,14 @@ class MunicipiLifecycle(Base):
     poblacio = Column(String(100))
     geografia = Column(Enum(GeografiaEnum, name="geografia", native_enum=True), nullable=True)
     
+    # Dades de V1 Unificades
+    tipus = Column(String(50), default='ajuntament')
+    provincia = Column(String(50), default='Barcelona')
+    codi_postal = Column(String(20))
+    web = Column(String(255))
+    telefon = Column(String(50))
+    adreca = Column(Text)
+    
     # DIAGNÒSTIC
     diagnostic_digital = Column(JSONB, default={})  # app_propia, google_maps_pois, wikiloc_rutes, buit_digital, patrimoni, context_politic
     angle_personalitzacio = Column(Text)

@@ -12,7 +12,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from sqlalchemy.orm import Session
 from database import SessionLocal
-from models import Email, Deal, Contacte, Municipi
+import models_v2 as m2
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -28,36 +28,28 @@ def extract_domain(email_addr):
         return None
     return email_addr.split("@")[-1].lower()
 
-def auto_assign_deal(db: Session, email_addr: str) -> str:
+def auto_assign_municipi(db: Session, email_addr: str) -> str:
     from sqlalchemy import or_
-    prev_email = db.query(Email).filter(
-        or_(Email.from_address == email_addr, Email.to_address == email_addr),
-        Email.deal_id.isnot(None)
-    ).order_by(Email.data_email.desc()).first()
+    # Buscar ultim email vinculat per trobar el municipi
+    prev_email = db.query(m2.EmailV2).filter(
+        or_(m2.EmailV2.from_address == email_addr, m2.EmailV2.to_address == email_addr)
+    ).order_by(m2.EmailV2.data_enviament.desc()).first()
     
-    if prev_email and prev_email.deal and prev_email.deal.etapa != "tancat_perdut":
-        return str(prev_email.deal_id)
+    if prev_email and prev_email.municipi_id:
+        return str(prev_email.municipi_id)
         
-    contacte = db.query(Contacte).filter(Contacte.email == email_addr).first()
-    if contacte:
-        deal = db.query(Deal).filter(
-            Deal.municipi_id == contacte.municipi_id,
-            Deal.etapa != "tancat_perdut"
-        ).order_by(Deal.created_at.desc()).first()
-        if deal:
-            return str(deal.id)
+    # Buscar per contacte
+    contacte = db.query(m2.ContacteV2).filter(m2.ContacteV2.email == email_addr).first()
+    if contacte and contacte.municipi_id:
+        return str(contacte.municipi_id)
             
+    # Buscar per domini web del municipi
     domain = extract_domain(email_addr)
     if domain and domain not in ["gmail.com", "hotmail.com", "yahoo.com", "outlook.com"]:
-        municipis = db.query(Municipi).all()
+        municipis = db.query(m2.MunicipiLifecycle).all()
         for m in municipis:
             if m.web and domain in m.web.lower():
-                deal = db.query(Deal).filter(
-                    Deal.municipi_id == m.id,
-                    Deal.etapa != "tancat_perdut"
-                ).order_by(Deal.created_at.desc()).first()
-                if deal:
-                    return str(deal.id)
+                return str(m.id)
     return None
 
 def decode_mime_header(raw_header):
@@ -115,7 +107,7 @@ def sync_mailbox(folder="INBOX", direccio="IN", search_criteria="UNSEEN"):
                 msg = email.message_from_bytes(raw_email)
                 message_id_extern = msg.get("Message-ID", "").strip()
                 
-                if message_id_extern and db.query(Email).filter(Email.message_id_extern == message_id_extern).first():
+                if message_id_extern and db.query(m2.EmailV2).filter(m2.EmailV2.message_id_extern == message_id_extern).first():
                     continue
                     
                 assumpte = decode_mime_header(msg.get("Subject", ""))
@@ -148,64 +140,40 @@ def sync_mailbox(folder="INBOX", direccio="IN", search_criteria="UNSEEN"):
                     except: pass
                 
                 target_addr = clean_from if direccio == "IN" else clean_to
-                deal_id = auto_assign_deal(db, target_addr)
+                municipi_id = auto_assign_municipi(db, target_addr)
                 
-                nova_email = Email(
-                    deal_id=deal_id,
+                dir_v2 = "entrada" if direccio == "IN" else "sortida"
+                
+                # 1. Crear registre a emails_v2 (V2 UNIFICAT)
+                email_v2 = m2.EmailV2(
+                    municipi_id=municipi_id,
                     from_address=clean_from,
                     to_address=clean_to,
-                    assumpte=assumpte[:500],
+                    assumpte=assumpte[:200],
                     cos=cos,
-                    direccio=direccio,
-                    llegit=(direccio == "OUT"),
-                    sincronitzat=True,
+                    direccio=dir_v2,
+                    data_enviament=data_email,
                     message_id_extern=message_id_extern,
-                    data_email=data_email
+                    obert=(direccio == "OUT"),
+                    respost=(direccio == "IN"),
+                    sentiment_resposta=m2.SentimentEnum.neutre if direccio == "IN" else None
                 )
-                db.add(nova_email)
-                
-                # --- INTEGRACIÓ V2 (Perquè l'Agent ho vegi) ---
-                import models_v2 as m2
-                municipi_id = None
-                if deal_id:
-                    # Buscar el municipi associat al deal
-                    deal = db.query(Deal).get(deal_id)
-                    if deal:
-                        municipi_id = deal.municipi_id
+                db.add(email_v2)
                 
                 if municipi_id:
-                    # Crear activitat V2
-                    tipus_act = m2.TipusActivitat.email_rebut if direccio == "IN" else m2.TipusActivitat.email_enviat
-                    dir_v2 = "entrada" if direccio == "IN" else "sortida"
-                    
-                    # 1. Crear registre a emails_v2 (NOU)
-                    email_v2 = m2.EmailV2(
-                        municipi_id=municipi_id,
-                        contacte_id=None, # Hauríem de buscar el contacte si clean_from match
-                        assumpte=assumpte[:200],
-                        cos=cos,
-                        direccio=dir_v2,
-                        data_enviament=data_email,
-                        obert=(direccio == "OUT"),
-                        respost=(direccio == "IN"), # Placeholder simple
-                        sentiment_resposta=m2.SentimentEnum.neutre if direccio == "IN" else None
-                    )
-                    db.add(email_v2)
-                    
                     # 2. Crear activitat de timeline
+                    tipus_act = m2.TipusActivitat.email_rebut if direccio == "IN" else m2.TipusActivitat.email_enviat
                     activitat_v2 = m2.ActivitatsMunicipi(
                         municipi_id=municipi_id,
-                        deal_id=deal_id,
                         tipus_activitat=tipus_act,
                         data_activitat=data_email,
                         contingut={
                             "subject": assumpte,
                             "from": clean_from,
                             "to": clean_to,
-                            "body_preview": cos[:1000] # Guardem un bon tros de l'email
+                            "body_preview": cos[:1000]
                         },
-                        notes_comercial=f"Email ({direccio}) sincronitzat via IMAP",
-                        generat_per_ia=False
+                        notes_comercial=f"Email ({direccio}) sincronitzat via IMAP V2"
                     )
                     db.add(activitat_v2)
                 
@@ -230,3 +198,6 @@ def sync_all_emails():
     date_since = (datetime.now() - timedelta(days=2)).strftime("%d-%b-%Y")
     sync_mailbox("Sent", "OUT", f'SINCE "{date_since}"')
     logger.info("IMAP email sync finished.")
+
+if __name__ == "__main__":
+    sync_all_emails()

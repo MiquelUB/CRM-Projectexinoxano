@@ -2,7 +2,15 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
 from models_v2 import MunicipiLifecycle, ContacteV2, EtapaFunnelEnum, TemperaturaEnum
-from schemas_v2 import MunicipiLifecycleOut, MunicipiLifecycleDetailOut, ContacteCreate, ContacteOut, AccioCreate, MunicipiPaginationOut
+from schemas_v2 import (
+    MunicipiLifecycleOut, 
+    MunicipiLifecycleDetailOut, 
+    MunicipiLifecycleCreate,
+    ContacteCreate, 
+    ContacteOut, 
+    AccioCreate, 
+    MunicipiPaginationOut
+)
 from typing import List
 from datetime import datetime, timezone
 from pydantic import BaseModel
@@ -54,14 +62,44 @@ def get_municipis_kpis(db: Session = Depends(get_db)):
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error calculant KPIs: {str(e)}")
 
+@router.post("/")
+def create_municipi(payload: MunicipiLifecycleCreate, db: Session = Depends(get_db)):
+    """
+    Crea un nou Municipi Lifecycle (V2).
+    """
+    try:
+        new_m = MunicipiLifecycle(
+            nom=payload.nom,
+            comarca=payload.comarca,
+            poblacio=payload.poblacio,
+            tipus=payload.tipus,
+            provincia=payload.provincia,
+            codi_postal=payload.codi_postal,
+            web=payload.web,
+            telefon=payload.telefon,
+            adreca=payload.adreca,
+            geografia=payload.geografia,
+            notes_humanes=payload.notes_humanes
+        )
+        db.add(new_m)
+        db.commit()
+        db.refresh(new_m)
+        return new_m
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error creant municipi: {str(e)}")
+
 @router.get("/")
-def get_municipis(db: Session = Depends(get_db)):
+def get_municipis(cerca: str = None, limit: int = 50, db: Session = Depends(get_db)):
     """
     Llista tots els Municipis en Lifecycle.
     """
     try:
         query = db.query(MunicipiLifecycle)
+        if cerca:
+            query = query.filter(MunicipiLifecycle.nom.ilike(f"%{cerca}%"))
         total = query.count()
+        query = query.limit(limit)
         municipis = query.all()
         
         # Mapper per assegurar compatibilitat de dades

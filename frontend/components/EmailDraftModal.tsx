@@ -274,7 +274,7 @@ export function EmailDraftModal({
                          <Sparkles className="w-4 h-4" />
                      </div>
                      <div className="flex-1">
-                         <p className="text-xs font-black text-blue-700 uppercase tracking-wider">Recomanació de l'Agent d'IA</p>
+                         <p className="text-xs font-black text-blue-700 uppercase tracking-wider">Recomanació Estratègica</p>
                          <p className="text-sm font-bold text-slate-800 mt-0.5">{accioRecomanada}</p>
                          <p className="text-xs text-slate-600 mt-1">{rao}</p>
                      </div>
@@ -285,7 +285,7 @@ export function EmailDraftModal({
               <div className="bg-slate-50/70 p-4 rounded-xl border border-slate-100 flex flex-col space-y-3">
                   <div className="flex items-center space-x-1.5">
                       <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-                      <p className="text-xs font-black text-slate-500 uppercase tracking-wider">Xat amb l'Agent (Estratègia i Dubtes)</p>
+                      <p className="text-xs font-black text-slate-500 uppercase tracking-wider">Xat d'Estratègia i Dubtes</p>
                   </div>
                   
                   <div className="max-h-[180px] overflow-y-auto space-y-2 flex flex-col p-2 bg-white/50 rounded-lg border border-slate-100/80">
@@ -307,7 +307,7 @@ export function EmailDraftModal({
                       {chatLoading && (
                           <div className="self-start bg-slate-100 text-slate-400 p-2.5 rounded-2xl rounded-bl-none text-xs italic flex items-center space-x-1 border border-slate-200/40">
                               <Loader2 className="w-3 h-3 animate-spin" />
-                              <span>L'Agent està escrivint...</span>
+                              <span>Pensant...</span>
                           </div>
                       )}
                   </div>
@@ -389,7 +389,7 @@ export function EmailDraftModal({
                  {isGenerating && (
                      <div className="flex flex-col items-center justify-center p-8 space-y-3 bg-blue-50/50 rounded-2xl border border-blue-100">
                          <Loader2 className="w-7 h-7 text-blue-600 animate-spin" />
-                         <p className="text-xs font-bold text-blue-700 uppercase tracking-wider">Generant variants amb Kimi K2...</p>
+                         <p className="text-xs font-bold text-blue-700 uppercase tracking-wider">Generant variants amb IA...</p>
                      </div>
                  )}
 
