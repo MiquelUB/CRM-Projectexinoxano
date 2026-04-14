@@ -11,6 +11,7 @@ from typing import Optional
 from sqlalchemy import or_
 
 
+# VERSION_STAMP: 2026-04-14_20:41_FORCE_PUSH
 router = APIRouter(prefix="/emails_v2", tags=["Emails v2"])
 
 @router.post("/drafts/nou/{municipi_id}")
