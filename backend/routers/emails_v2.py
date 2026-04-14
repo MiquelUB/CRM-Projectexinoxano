@@ -1,14 +1,17 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request, Query
 from sqlalchemy.orm import Session
+from sqlalchemy import or_
+from typing import List, Optional
+import uuid
 from uuid import UUID
+from datetime import datetime
 from database import get_db
+import traceback
+
 from models_v2 import MunicipiLifecycle, ContacteV2, EmailDraftV2, EmailSequenciaV2, EstatDraftEnum
 from schemas_v2 import EmailDraftCreateRequest, EmailDraftEditRequest, EmailDraftSelectVariantRequest, EmailDraftSendRequest, EmailSequenciaGenerateRequest
 from services.draft_generator import generar_draft
 from services.sequenciador import generar_sequencia_prospeccio, preparar_email_sequencia
-from datetime import datetime
-from typing import Optional
-from sqlalchemy import or_
 
 
 # VERSION_STAMP: 2026-04-14_20:41_FORCE_PUSH
