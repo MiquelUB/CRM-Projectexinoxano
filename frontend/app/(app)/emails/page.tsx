@@ -210,7 +210,7 @@ export default function EmailsPage() {
                 </td>
                 <td className="px-8 py-5">
                   <p className="text-[11px] font-bold text-slate-400">
-                    {format(new Date(email.data_email), "dd/MM/yyyy • HH:mm")}
+                    {email.data_email ? format(new Date(email.data_email), "dd/MM/yyyy • HH:mm") : (email.data_enviament ? format(new Date(email.data_enviament), "dd/MM/yyyy • HH:mm") : "Data desconeguda")}
                   </p>
                 </td>
                 <td className="px-8 py-5 text-right">
@@ -275,7 +275,7 @@ export default function EmailsPage() {
             </div>
             <div className="p-6 border-t bg-slate-50 rounded-b-3xl flex justify-between items-center">
                 <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                  Data: {format(new Date(selectedEmail.data_email), "dd/MM/yyyy HH:mm:ss")}
+                  Data: {selectedEmail.data_email ? format(new Date(selectedEmail.data_email), "dd/MM/yyyy HH:mm:ss") : (selectedEmail.data_enviament ? format(new Date(selectedEmail.data_enviament), "dd/MM/yyyy HH:mm:ss") : "Data desconeguda")}
                 </div>
                 <div className="flex space-x-2">
                     {selectedEmail.direccio === "IN" && (
