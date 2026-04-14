@@ -103,29 +103,27 @@ const api = {
     eliminar: (id: string) => fetchAPI(`/municipis_v2/contactes/${id}`, { method: "DELETE" }),
   },
   emails: {
-    llistar: (params?: Record<string, string>) =>
-      fetchAPI(`/emails?${new URLSearchParams(params || {})}`),
+    llistar: (page = 1, direccio?: string) => {
+      let url = `/emails_v2?page=${page}`;
+      if (direccio) url += `&direccio=${direccio}`;
+      return fetchAPI(url);
+    },
     enviar: (data: any) => {
-      const body = data instanceof FormData ? data : (() => {
-        const fd = new FormData();
-        Object.entries(data).forEach(([key, value]) => {
-          if (value !== null && value !== undefined) {
-            fd.append(key, value as any);
-          }
-        });
-        return fd;
-      })();
-      return fetchAPI("/emails/enviar", { method: "POST", body });
+      // Simplificat per V2 via JSON o FormData si cal
+      return fetchAPI("/emails_v2/enviar", { 
+        method: "POST", 
+        body: data instanceof FormData ? data : JSON.stringify(data) 
+      });
     },
     vincular: (id: string, dealId: string) =>
-      fetchAPI(`/emails/${id}/deal`, { method: "PATCH", body: JSON.stringify({ deal_id: dealId }) }),
+      fetchAPI(`/emails_v2/${id}/deal`, { method: "PATCH", body: JSON.stringify({ deal_id: dealId }) }),
     marcarLlegit: (id: string, llegit: boolean) =>
-      fetchAPI(`/emails/${id}/llegit`, { method: "PATCH", body: JSON.stringify({ llegit }) }),
-    sync: () => fetchAPI("/emails/sync", { method: "POST" }),
-    pendents: () => fetchAPI("/emails/pendents"),
+      fetchAPI(`/emails_v2/${id}/llegit`, { method: "PATCH", body: JSON.stringify({ llegit }) }),
+    sync: () => fetchAPI("/emails_v2/sync", { method: "POST" }),
+    pendents: () => fetchAPI("/emails_v2/pendents"),
     // Stubbed until V2 stats are implemented to avoid 404s breaking the dashboard
     getStats: async () => ({ obertures: 0, clicks: 0 }),
-    eliminar: (id: string) => fetchAPI(`/emails/${id}`, { method: "DELETE" }),
+    eliminar: (id: string) => fetchAPI(`/emails_v2/${id}`, { method: "DELETE" }),
   },
   llicencies: {
     llistar: (params?: Record<string, string>) =>
