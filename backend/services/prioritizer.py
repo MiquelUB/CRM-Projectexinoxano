@@ -52,12 +52,18 @@ async def get_daily_actions(db: Session, limit: int = 10):
             score += 20
             accio = "Trucar per agendar Demo."
             tipus = "trucada"
+        elif m.etapa_actual == EtapaFunnelEnum.research:
+            score += 10
+            accio = "Investigar necessitats i contactar."
+            tipus = "email"
             
         # 2. Add priority multiplier
         if m.prioritat == "alta":
             score += 30
         elif m.prioritat == "mitjana":
             score += 15
+        else: # low priority or null
+            score += 5
             
         # 3. Add hotness multiplier
         if m.temperatura == TemperaturaEnum.bullent:
