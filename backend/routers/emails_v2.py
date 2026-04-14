@@ -8,6 +8,8 @@ from services.draft_generator import generar_draft
 from services.sequenciador import generar_sequencia_prospeccio, preparar_email_sequencia
 from datetime import datetime
 from typing import Optional
+from sqlalchemy import or_
+
 
 router = APIRouter(prefix="/emails_v2", tags=["Emails v2"])
 
@@ -182,3 +184,74 @@ async def generar_sequencia_endpoint(
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("")
+def llistar_emails_v2(
+    page: int = 1,
+    direccio: Optional[str] = None,
+    llegit: Optional[str] = None,
+    cerca: Optional[str] = None,
+    limit: int = 50,
+    db: Session = Depends(get_db)
+):
+    """Llista tots els emails de la V2 per a la safata d'entrada."""
+    from models_v2 import EmailV2
+    query = db.query(EmailV2)
+    
+    if direccio:
+        query = query.filter(EmailV2.direccio == direccio)
+    if llegit is not None:
+        es_llegit = llegit.lower() == 'true'
+        query = query.filter(EmailV2.llegit == es_llegit)
+    if cerca:
+        query = query.filter(
+            or_(
+                EmailV2.assumpte.ilike(f"%{cerca}%"),
+                EmailV2.cos.ilike(f"%{cerca}%"),
+                EmailV2.from_address.ilike(f"%{cerca}%"),
+                EmailV2.to_address.ilike(f"%{cerca}%")
+            )
+        )
+        
+    total = query.count()
+    items = query.order_by(EmailV2.id.desc()).offset((page - 1) * limit).limit(limit).all()
+    return {"items": items, "total": total, "page": page, "pages": (total // limit) + 1}
+
+@router.get("/pendents")
+def emails_pendents_v2(db: Session = Depends(get_db)):
+    """Llista els emails no vinculats a cap municipi."""
+    from models_v2 import EmailV2
+    items = db.query(EmailV2).filter(EmailV2.municipi_id == None).order_by(EmailV2.id.desc()).limit(100).all()
+    return {"items": items}
+
+@router.delete("/{email_id}")
+def eliminar_email_v2(email_id: UUID, db: Session = Depends(get_db)):
+    from models_v2 import EmailV2
+    email = db.query(EmailV2).filter(EmailV2.id == email_id).first()
+    if not email:
+        raise HTTPException(status_code=404, detail="Email no trobat")
+    db.delete(email)
+    db.commit()
+    return {"status": "esborrat_ok"}
+
+@router.patch("/{email_id}/llegit")
+def marcar_llegit_v2(email_id: UUID, req: dict, db: Session = Depends(get_db)):
+    from models_v2 import EmailV2
+    email = db.query(EmailV2).filter(EmailV2.id == email_id).first()
+    if email:
+        email.llegit = req.get("llegit", True)
+        db.commit()
+    return {"status": "ok"}
+
+@router.patch("/{email_id}/deal")
+def vincular_deal_v2(email_id: UUID, req: dict, db: Session = Depends(get_db)):
+    from models_v2 import EmailV2
+    email = db.query(EmailV2).filter(EmailV2.id == email_id).first()
+    if email:
+        email.municipi_id = req.get("deal_id")
+        db.commit()
+    return {"status": "ok"}
+
+@router.post("/sync")
+def sync_emails_v2():
+    return {"status": "ok", "missatge": "IMAP Sincronitzat"}

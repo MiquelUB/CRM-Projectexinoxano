@@ -103,29 +103,14 @@ const api = {
     eliminar: (id: string) => fetchAPI(`/municipis_v2/contactes/${id}`, { method: "DELETE" }),
   },
   emails: {
-    llistar: (params?: any, direccio?: string) => {
-      console.log("[api] Versió comunicacions: 2026-04-14_v3");
-      if (typeof params === 'object') {
-        return fetchAPI(`/emails_v2?${new URLSearchParams(params || {})}`);
-      }
-      let url = `/emails_v2?page=${params || 1}`;
-      if (direccio) url += `&direccio=${direccio}`;
-      return fetchAPI(url);
-    },
-    enviar: (data: any) => {
-      // Simplificat per V2 via JSON o FormData si cal
-      return fetchAPI("/emails_v2/enviar", { 
-        method: "POST", 
-        body: data instanceof FormData ? data : JSON.stringify(data) 
-      });
-    },
-    vincular: (id: string, dealId: string) =>
+    llistar: (params?: Record<string, string>) => 
+      fetchAPI(`/emails_v2?${new URLSearchParams(params || {})}`),
+    pendents: () => fetchAPI("/emails_v2/pendents"),
+    vincular: (id: string, dealId: string) => 
       fetchAPI(`/emails_v2/${id}/deal`, { method: "PATCH", body: JSON.stringify({ deal_id: dealId }) }),
-    marcarLlegit: (id: string, llegit: boolean) =>
+    marcarLlegit: (id: string, llegit: boolean) => 
       fetchAPI(`/emails_v2/${id}/llegit`, { method: "PATCH", body: JSON.stringify({ llegit }) }),
     sync: () => fetchAPI("/emails_v2/sync", { method: "POST" }),
-    pendents: () => fetchAPI("/emails_v2/pendents"),
-    // Stubbed until V2 stats are implemented to avoid 404s breaking the dashboard
     getStats: async () => ({ obertures: 0, clicks: 0 }),
     eliminar: (id: string) => fetchAPI(`/emails_v2/${id}`, { method: "DELETE" }),
   },
