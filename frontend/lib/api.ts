@@ -123,7 +123,7 @@ const api = {
       fetchAPI(`/emails/${id}/llegit`, { method: "PATCH", body: JSON.stringify({ llegit }) }),
     sync: () => fetchAPI("/emails/sync", { method: "POST" }),
     pendents: () => fetchAPI("/emails/pendents"),
-    getStats: () => fetchAPI("/emails/stats/obertures"),
+    getStats: async () => ({ obertures: 0, clicks: 0 }),
     eliminar: (id: string) => fetchAPI(`/emails/${id}`, { method: "DELETE" }),
   },
   llicencies: {

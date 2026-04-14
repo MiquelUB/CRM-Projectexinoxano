@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
-from models import Tasca, Deal
+from models import Tasca
+from models_v2 import MunicipiLifecycle
 from schemas import TascaCreate, TascaUpdate, TascaOut, TascaListResponse
 from uuid import UUID
 from typing import List, Optional
@@ -36,27 +37,21 @@ def get_tasques(
             
         tasques = query.order_by(Tasca.data_venciment.asc()).all()
         
-        # 2. Get deal follow-ups (pseudo-tasks)
-        from sqlalchemy.orm import joinedload
-        deal_query = db.query(Deal).options(
-            joinedload(Deal.municipi),
-            joinedload(Deal.contacte)
-        ).filter(Deal.data_seguiment.is_not(None))
+        # 2. Get deal follow-ups (pseudo-tasks) V2
+        deal_query = db.query(MunicipiLifecycle).filter(MunicipiLifecycle.data_seguiment.is_not(None))
         
-        if deal_id:
-            deal_query = deal_query.filter(Deal.id == deal_id)
         if municipi_id:
-            deal_query = deal_query.filter(Deal.municipi_id == municipi_id)
+            deal_query = deal_query.filter(MunicipiLifecycle.id == municipi_id)
         if data_inici:
-            deal_query = deal_query.filter(Deal.data_seguiment >= data_inici)
+            deal_query = deal_query.filter(MunicipiLifecycle.data_seguiment >= data_inici)
         if data_fi:
-            deal_query = deal_query.filter(Deal.data_seguiment <= data_fi)
+            deal_query = deal_query.filter(MunicipiLifecycle.data_seguiment <= data_fi)
         
         deals_with_followup = deal_query.all()
         
         pseudo_tasques = []
         for d in deals_with_followup:
-            if d.etapa in ['guanyat', 'perdut', 'tancat_guanyat']:
+            if d.etapa_actual and d.etapa_actual.value in ['perdut', 'pausa']:
                 continue
                 
             tipus = "altre"
@@ -70,25 +65,21 @@ def get_tasques(
             elif "reunio" in pp or "reunió" in pp or "meeting" in pp:
                 tipus = "reunio"
 
-            # Context enrichment
-            nom_municipi = d.municipi.nom if d.municipi else "Desconegut"
-            nom_contacte = d.contacte.nom if d.contacte else ""
-            
             pseudo_tasques.append({
                 "id": str(d.id), 
-                "titol": d.proper_pas or f"Seguiment: {d.titol}",
-                "descripcio": f"Deal: {d.titol} ({nom_municipi})" + (f" - {nom_contacte}" if nom_contacte else ""),
+                "titol": d.proper_pas or f"Seguiment: {d.nom}",
+                "descripcio": f"Deal: {d.nom} ({d.provincia})",
                 "data_venciment": d.data_seguiment,
                 "tipus": tipus,
                 "prioritat": d.prioritat or "mitjana",
                 "estat": "pendent",
-                "deal_id": d.id,
-                "municipi_id": d.municipi_id,
-                "contacte_id": d.contacte_id,
-                "entitat_nom": nom_municipi,
-                "contacte_nom": nom_contacte,
+                "deal_id": d.id, # A la V2 el deal_id és el mateix municipi_id
+                "municipi_id": d.id,
+                "contacte_id": d.actor_principal_id,
+                "entitat_nom": d.nom,
+                "contacte_nom": "Actor Principal", 
                 "created_at": d.created_at,
-                "updated_at": d.updated_at,
+                "updated_at": getattr(d, 'updated_at', d.created_at),
                 "is_pseudo": True
             })
         
