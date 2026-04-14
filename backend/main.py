@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from database import engine, Base, SessionLocal, get_db
 import models
 from auth import get_password_hash
-from routers import municipis, contactes, deals, auth, emails, llicencies, pagaments, alertes, usuaris, agent, tasques, dashboard, municipis_v2, emails_v2, activitats_v2
+from routers import auth, emails, llicencies, pagaments, alertes, usuaris, agent, tasques, dashboard, municipis_v2, emails_v2, activitats_v2
 import scheduler
 
 @asynccontextmanager
@@ -174,12 +174,13 @@ app.include_router(activitats_v2.router, prefix="/api/v2")
 app.include_router(auth.router)
 app.include_router(usuaris.router)
 app.include_router(municipis_v2.router, prefix="/municipis_v2")
-app.include_router(municipis.router, prefix="/municipis", tags=["Municipis (V1)"])
-app.include_router(contactes.router, prefix="/contactes", tags=["Contactes (V1)"])
-app.include_router(deals.router, prefix="/deals", tags=["Deals (V1)"])
-app.include_router(emails.router, prefix="/emails", tags=["Emails (V1)"])
-app.include_router(llicencies.router, prefix="/llicencies", tags=["Llicencies (V1)"])
-app.include_router(pagaments.router, prefix="/pagaments", tags=["Pagaments (V1)"])
+# V1 Routers deprecated in favor of V2
+# app.include_router(municipis.router, prefix="/municipis", tags=["Municipis (V1)"])
+# app.include_router(contactes.router, prefix="/contactes", tags=["Contactes (V1)"])
+# app.include_router(deals.router, prefix="/deals", tags=["Deals (V1)"])
+# app.include_router(emails.router, prefix="/emails", tags=["Emails (V1)"])
+# app.include_router(llicencies.router, prefix="/llicencies", tags=["Llicencies (V1)"])
+# app.include_router(pagaments.router, prefix="/pagaments", tags=["Pagaments (V1)"])
 app.include_router(alertes.router)
 app.include_router(agent.router)
 app.include_router(agent.tracking_router)

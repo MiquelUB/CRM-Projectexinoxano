@@ -52,11 +52,19 @@ def get_municipis_kpis(db: Session = Depends(get_db)):
             MunicipiLifecycle.data_seguiment < start_of_next_month
         ).count()
         
+        # 4. Inactive deals (14 days)
+        from datetime import timedelta
+        data_limit_activitat = datetime.now() - timedelta(days=14)
+        sense_activitat = db.query(MunicipiLifecycle).filter(
+            MunicipiLifecycle.etapa_actual.notin_([EtapaFunnelEnum.perdut, EtapaFunnelEnum.pausa, EtapaFunnelEnum.client]),
+            MunicipiLifecycle.data_ultima_accio < data_limit_activitat
+        ).count()
+        
         return {
             "total_deals": total_deals,
             "valor_total_pipeline": valor_total,
             "deals_per_tancar_aquest_mes": per_tancar,
-            "deals_sense_activitat_14_dies": 0
+            "deals_sense_activitat_14_dies": sense_activitat
         }
     except Exception as e:
         db.rollback()
@@ -314,16 +322,32 @@ def canviar_etapa(id: str, payload: EtapaUpdate, db: Session = Depends(get_db)):
     if not m:
         raise HTTPException(status_code=404, detail="Municipi no trobat")
     
+    from models_v2 import ActivitatsMunicipi, TipusActivitat
+    
     for enum_val in EtapaFunnelEnum:
         if enum_val.value == payload.etapa:
+            old_val = m.etapa_actual.value if m.etapa_actual else "unknown"
             m.etapa_actual = enum_val
+            
             # Update historial
             historial = list(m.historial_etapes) if m.historial_etapes else []
             historial.append({
+                "etapa_anterior": old_val,
                 "nova_etapa": payload.etapa,
                 "data": datetime.now(timezone.utc).isoformat()
             })
             m.historial_etapes = historial
+            
+            # Log Activity
+            activitat = ActivitatsMunicipi(
+                municipi_id=m.id,
+                tipus_activitat=TipusActivitat.canvi_etapa,
+                notes_comercial=f"Canvi d'etapa (Kanban): de '{old_val}' a '{payload.etapa}'",
+                data_activitat=datetime.now(timezone.utc)
+            )
+            db.add(activitat)
+            m.data_ultima_accio = datetime.now(timezone.utc)
+            
             db.commit()
             return {"status": "success", "nova_etapa": payload.etapa}
             
@@ -332,15 +356,30 @@ def canviar_etapa(id: str, payload: EtapaUpdate, db: Session = Depends(get_db)):
 @router.put("/{id}")
 def update_municipi(id: str, payload: dict, db: Session = Depends(get_db)):
     """
-    Permet l'edició de deals.
+    Permet l'edició de deals. Ara també registra un log d'activitat si canvia l'etapa.
     """
     m = db.query(MunicipiLifecycle).filter(MunicipiLifecycle.id == id).first()
     if not m:
         raise HTTPException(status_code=404, detail="Municipi no trobat")
     
+    from models_v2 import ActivitatsMunicipi, TipusActivitat
+    
+    old_etapa = m.etapa_actual
+    
     for key, value in payload.items():
         if hasattr(m, key):
             setattr(m, key, value)
+    
+    # If etapa changed, log it
+    if 'etapa_actual' in payload and payload['etapa_actual'] != old_etapa.value:
+        activitat = ActivitatsMunicipi(
+            municipi_id=m.id,
+            tipus_activitat=TipusActivitat.canvi_etapa,
+            notes_comercial=f"Canvi d'etapa (Edició): de '{old_etapa.value}' a '{payload['etapa_actual']}'",
+            data_activitat=datetime.now(timezone.utc)
+        )
+        db.add(activitat)
+        m.data_ultima_accio = datetime.now(timezone.utc)
             
     db.commit()
     db.refresh(m)

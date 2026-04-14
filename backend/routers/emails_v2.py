@@ -31,6 +31,7 @@ async def crear_draft_endpoint(
     try:
         draft = await generar_draft(db, municipi, req.tipus, contacte)
         db.add(draft)
+        municipi.data_ultima_accio = datetime.utcnow()
         db.commit()
         db.refresh(draft)
         
@@ -131,6 +132,8 @@ def enviar_draft_endpoint(
         draft.estat = EstatDraftEnum.programat
         draft.data_enviament = req.data_programada
 
+    if draft.municipi:
+        draft.municipi.data_ultima_accio = datetime.utcnow()
     db.commit()
     return {'status': 'enviat' if req.mode == 'immediat' else 'programat'}
 
@@ -157,6 +160,7 @@ def enviar_manual_endpoint(
         data_enviament=datetime.utcnow()
     )
     db.add(nou_email)
+    municipi.data_ultima_accio = datetime.utcnow()
     db.commit()
     return {"status": "enviat_manualment"}
 

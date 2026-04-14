@@ -10,6 +10,7 @@ import os
 from database import get_db
 import models
 import schemas
+from models_v2 import EmailV2 # Added V2
 from auth import get_current_user
 from services.agent_kimi_k2 import AgentKimiK2
 from services.memory_engine import memory_engine
@@ -113,17 +114,22 @@ async def track_email(token: str, request: Request, db: Session = Depends(get_db
         b'\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82'
     )
     
-    email = db.query(models.Email).filter(models.Email.tracking_token == token).first()
+    # Try V2 first, fallback to V1 for legacy emails
+    email = db.query(EmailV2).filter(EmailV2.tracking_token == token).first()
     if email:
-        # Increment total counter
-        email.nombre_obertures += 1
-        
-        # Only set first open date if not set
+        email.cops_obert += 1
         if not email.obert:
             email.obert = True
             email.data_obertura = datetime.now()
-        
-        email.ip_obertura = request.client.host if request.client else "desconeguda"
         db.commit()
+    else:
+        # Fallback tracking legacy (V1)
+        email_v1 = db.query(models.Email).filter(models.Email.tracking_token == token).first()
+        if email_v1:
+            email_v1.nombre_obertures += 1
+            if not email_v1.obert:
+                email_v1.obert = True
+                email_v1.data_obertura = datetime.now()
+            db.commit()
     
     return Response(content=pixel, media_type="image/png")
