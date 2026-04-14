@@ -169,8 +169,8 @@ async def root_health(request: Request):
 
 from routers import municipis_api
 app.include_router(municipis_api.router, prefix="/api/v2/municipis")
-app.include_router(emails_v2.router, prefix="/api/v2")
-app.include_router(activitats_v2.router, prefix="/api/v2")
+app.include_router(emails_v2.router)
+app.include_router(activitats_v2.router)
 app.include_router(auth.router)
 app.include_router(usuaris.router)
 app.include_router(municipis_v2.router, prefix="/municipis_v2")
