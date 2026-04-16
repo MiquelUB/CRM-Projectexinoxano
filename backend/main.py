@@ -16,10 +16,17 @@ import scheduler
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Start APScheduler jobs
+    # 1. Run migrations/fixes (Contactes columns)
+    try:
+        from fix_contactes_db import fix_contactes_columns
+        fix_contactes_columns()
+    except Exception as e:
+        print(f"Error migració contactes: {e}")
+
+    # 2. Start APScheduler jobs (Email Sync)
     scheduler.start_scheduler()
     
-    # Create default admin user if not exists
+    # 3. Create default admin user if not exists
     try:
         db = SessionLocal()
         try:
@@ -119,7 +126,6 @@ def db_check(db: Session = Depends(get_db)):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-# --- LEGACY ROUTE REDIRECTS (Compatibility Layer) ---
 # Include Unified Routers
 app.include_router(auth.router)
 app.include_router(usuaris.router)
