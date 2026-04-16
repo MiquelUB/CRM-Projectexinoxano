@@ -35,13 +35,13 @@ export function TaskModal({ onClose, onSaved, initialDate, task }: TaskModalProp
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    try {
+      const priorityMap: Record<string, number> = { baixa: 1, mitjana: 2, alta: 3 };
       const data = {
         titol,
         descripcio,
         data_venciment: dataVenciment,
         tipus,
-        prioritat,
+        prioritat: typeof prioritat === 'string' ? priorityMap[prioritat] : prioritat,
         municipi_id: selectedMunicipiId || null
       };
 

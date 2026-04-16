@@ -29,7 +29,7 @@ class MemoryEngine:
         if not memory:
             try:
                 memory = models.AgentMemory(
-                    id=uuid.uuid4(), usuari_id=usuari_id, municipi_id=municipi_id, history=[], summary="", confianca=1.0
+                    id=uuid.uuid4(), usuari_id=usuari_id, municipi_id=municipi_id, history=[], summary=""
                 )
                 db.add(memory)
                 db.commit()
@@ -43,9 +43,10 @@ class MemoryEngine:
 
     @staticmethod
     async def get_tactical_summary(db: Session, municipi_id: Any) -> str:
-        mem = db.query(models.MemoriaMunicipi).filter(models.MemoriaMunicipi.municipi_id == municipi_id).first()
+        # Busquem la memòria compartida o de l'usuari admin per a aquest municipi
+        mem = db.query(models.AgentMemory).filter(models.AgentMemory.municipi_id == municipi_id).order_by(models.AgentMemory.updated_at.desc()).first()
         
-        if not mem or not mem.resum_tactic or (mem.data_resum and (datetime.now(timezone.utc) - mem.data_resum).days > 3):
+        if not mem or not mem.summary or (mem.updated_at and (datetime.now(timezone.utc) - mem.updated_at.replace(tzinfo=timezone.utc)).days > 3):
             activitats = db.query(models.Activitat)\
                 .filter(models.Activitat.municipi_id == municipi_id)\
                 .order_by(models.Activitat.data_activitat.desc())\
@@ -56,25 +57,27 @@ class MemoryEngine:
             
             timeline_str = ""
             for a in activitats:
-                timeline_str += f"- [{a.data_activitat.strftime('%Y-%m-%d')}] {a.tipus_activitat.value}: {a.notes_comercial or ''}\n"
+                data_act = a.data_activitat.strftime('%Y-%m-%d') if a.data_activitat else "S/D"
+                timeline_str += f"- [{data_act}] {a.tipus_activitat}: {a.notes_comercial or ''}\n"
             
             try:
                 res = await kimi_agent.call_skill("generar_resum_tactic", timeline_str)
                 resum = res["content"].strip()
                 
                 if not mem:
-                    mem = models.MemoriaMunicipi(municipi_id=municipi_id, resum_tactic=resum, data_resum=datetime.now(timezone.utc))
+                    mem = models.AgentMemory(municipi_id=municipi_id, summary=resum)
                     db.add(mem)
                 else:
-                    mem.resum_tactic = resum
-                    mem.data_resum = datetime.now(timezone.utc)
+                    mem.summary = resum
+                    mem.updated_at = datetime.now(timezone.utc)
                 
                 db.commit()
                 return resum
-            except Exception:
-                return mem.resum_tactic if mem else "No s'ha pogut generar el resum."
+            except Exception as e:
+                logger.error(f"Error generant resum tactic: {e}")
+                return mem.summary if mem else "No s'ha pogut generar el resum."
         
-        return mem.resum_tactic
+        return mem.summary
 
     @classmethod
     async def build_hierarchical_context(cls, db: Session, municipi_id: Any, session_history: List[Dict] = []) -> str:

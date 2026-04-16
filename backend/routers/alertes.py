@@ -10,7 +10,7 @@ router = APIRouter(prefix="/alertes", tags=["Alertes"])
 @router.get("/count")
 def get_alertes_count(db: Session = Depends(get_db)):
     tasques_urgents = db.query(models.Tasca).filter(
-        (models.Tasca.prioritat == 3) | (models.Tasca.prioritat == "alta"), 
+        models.Tasca.prioritat == 3, 
         models.Tasca.estat == "pendent"
     ).count()
     
@@ -32,7 +32,7 @@ def get_alertes(db: Session = Depends(get_db)):
     try:
         # 1. Tasques Urgents
         tasques_urgents = db.query(models.Tasca).filter(
-            (models.Tasca.prioritat == 3) | (models.Tasca.prioritat == "alta"),
+            models.Tasca.prioritat == 3,
             models.Tasca.estat == "pendent"
         ).all()
         

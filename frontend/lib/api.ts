@@ -135,5 +135,6 @@ const api = {
 // Aliases for compatibility during transition
 api.municipis_v2 = api.municipis;
 api.contactes_v2 = api.contactes;
+api.emails_v2 = api.emails;
 
 export default api;
