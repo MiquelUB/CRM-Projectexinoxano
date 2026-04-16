@@ -1,6 +1,6 @@
-
 import smtplib
 import socket
+import logging
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import os
@@ -10,6 +10,9 @@ import sys
 from dotenv import load_dotenv
 
 load_dotenv()
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -23,7 +26,7 @@ SMTP_USER = os.getenv("SMTP_USER", "miquel@projectexinoxano.cat")
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
 SMTP_SSL = str(os.getenv("SMTP_SSL", "true")).lower() == "true"
 SMTP_TLS = str(os.getenv("SMTP_TLS", "false")).lower() == "true"
-BASE_URL = os.getenv("BASE_URL", "https://crm.projectexinoxano.cat")
+BASE_URL = os.getenv("BASE_URL", "https://crmpxx-crm-backend.80opze.easypanel.host")
 
 from email.mime.base import MIMEBase
 from email import encoders
