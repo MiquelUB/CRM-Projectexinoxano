@@ -22,7 +22,7 @@ export function removeToken() {
 async function fetchAPI(endpoint: string, options?: RequestInit) {
   const token = getToken();
   const fullUrl = `${BASE_URL}${endpoint}`;
-  console.log(`[fetchAPI] Unified Call:`, fullUrl, `| Method:`, options?.method || "GET");
+  console.log(`🚀 [API UNIFIED]`, fullUrl, `| Method:`, options?.method || "GET");
 
   const headers: Record<string, string> = {};
   if (token) {
@@ -132,9 +132,5 @@ const api = {
   },
 };
 
-// Aliases for compatibility during transition
-api.municipis_v2 = api.municipis;
-api.contactes_v2 = api.contactes;
-api.emails_v2 = api.emails;
 
 export default api;

@@ -27,7 +27,7 @@ export default function DashboardPage() {
   const fetchDashboardData = async () => {
     try {
       const results = await Promise.allSettled([
-        api.municipis_v2.kpis(),
+        api.municipis.kpis(),
         api.alertes.totes(),
         api.tasques.llistar({ estat: "pendent" }),
         api.dashboard.diari()
@@ -64,7 +64,7 @@ export default function DashboardPage() {
       const targetId = task.municipi_id || task.deal_id;
       if (!targetId) return;
       
-      const res = await api.municipis_v2.detall(targetId);
+      const res = await api.municipis.detall(targetId);
       setSelectedDeal(res);
     } catch (error) {
       console.error("Error fetching deal", error);

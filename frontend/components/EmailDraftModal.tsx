@@ -103,7 +103,7 @@ export function EmailDraftModal({
     try {
       const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
       const token = sessionStorage.getItem("token");
-      const res = await fetch(`${BASE_URL}/emails_v2/drafts/nou/${municipiId}`, {
+      const res = await fetch(`${BASE_URL}/emails/drafts/nou/${municipiId}`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -188,14 +188,14 @@ export function EmailDraftModal({
 
       if (draftId) {
           // 1. Desar canvis si hi ha draft actualment activa
-          await fetch(`${BASE_URL}/emails_v2/drafts/${draftId}/editar`, {
+          await fetch(`${BASE_URL}/emails/drafts/${draftId}/editar`, {
               method: "POST",
               headers: { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token}` }) },
               body: JSON.stringify({ subject, cos: body })
           });
 
           // 2. Enviar draft
-          const res = await fetch(`${BASE_URL}/emails_v2/drafts/${draftId}/enviar`, {
+          const res = await fetch(`${BASE_URL}/emails/drafts/${draftId}/enviar`, {
             method: "POST",
             headers: { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token}` }) },
             body: JSON.stringify({ mode: "immediat" })
@@ -203,7 +203,7 @@ export function EmailDraftModal({
           if (!res.ok) throw new Error("Error enviant draft");
       } else {
           // 3. Enviar manualment si no hem usat la IA (Variants buides)
-          const res = await fetch(`${BASE_URL}/emails_v2/enviar_manual/${municipiId}`, {
+          const res = await fetch(`${BASE_URL}/emails/enviar_manual/${municipiId}`, {
               method: "POST",
               headers: { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token}` }) },
               body: JSON.stringify({ subject, cos: body })

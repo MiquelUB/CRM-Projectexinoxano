@@ -58,7 +58,7 @@ export default function MunicipisPage() {
     try {
       const params: any = { limit: "50" };
       if (q) params.cerca = q; // The backend uses 'cerca' for filtering by name
-      const response = await api.municipis_v2.llistar(params);
+      const response = await api.municipis.llistar(params);
       setItems(response.items || []);
     } catch (e) {
       console.error(e);
@@ -84,9 +84,9 @@ export default function MunicipisPage() {
       };
       
       if (editingId) {
-        await api.municipis_v2.editar(editingId, dataToSave);
+        await api.municipis.editar(editingId, dataToSave);
       } else {
-        await api.municipis_v2.crear(dataToSave);
+        await api.municipis.crear(dataToSave);
       }
       setIsModalOpen(false);
       setEditingId(null);
@@ -114,7 +114,7 @@ export default function MunicipisPage() {
     e.stopPropagation();
     if (!window.confirm("Estàs segur que vols eliminar aquest municipi?")) return;
     try {
-      await api.municipis_v2.eliminar(id);
+      await api.municipis.eliminar(id);
       fetchData(search);
     } catch (error: any) {
       alert(`Error en eliminar: ${error.message}`);

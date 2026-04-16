@@ -35,7 +35,7 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
   const handleSendEmail = async () => {
     setSendingEmail(true);
     try {
-      await api.emails_v2.enviar({
+      await api.emails.enviar({
         municipi_id: deal.id,
         to: composerData.to,
         assumpte: composerData.subject,
@@ -54,7 +54,7 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
 
   const fetchActivitats = async () => {
     try {
-      const res = await api.municipis_v2.get_activitats(deal.id);
+      const res = await api.municipis.get_activitats(deal.id);
       setActivitats(Array.isArray(res) ? res : (res.items || []));
     } catch (e) {
       console.error("Error carregant activitats", e);
@@ -64,14 +64,14 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
   useEffect(() => {
     if (deal.id) {
       fetchActivitats();
-      api.municipis_v2.get_llicencia(deal.id).then((l: any) => setLlicencia(l));
+      api.municipis.get_llicencia(deal.id).then((l: any) => setLlicencia(l));
     }
   }, [deal.id]);
 
   const handleSaveAll = async () => {
     setSaving(true);
     try {
-      await api.municipis_v2.editar(deal.id, {
+      await api.municipis.editar(deal.id, {
         nom,
         valor_setup: parseFloat(valorSetup),
         valor_llicencia: parseFloat(valorLlicencia),
@@ -93,7 +93,7 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
     if (!window.confirm("Estàs segur que vols eliminar aquest municipi?")) return;
     setDeleting(true);
     try {
-      await api.municipis_v2.eliminar(deal.id);
+      await api.municipis.eliminar(deal.id);
       if (onUpdate) onUpdate();
       onClose();
     } catch (e: any) {

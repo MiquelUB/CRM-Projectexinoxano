@@ -48,7 +48,7 @@ export default function KanbanBoard() {
 
   const fetchDeals = async () => {
     try {
-      const response = await api.municipis_v2.llistar({ limit: "200" });
+      const response = await api.municipis.llistar({ limit: "200" });
       setDeals(response.items || []);
     } catch (e) {
       console.error(e);
@@ -95,7 +95,7 @@ export default function KanbanBoard() {
 
     try {
       // Persistir el canvi a la base de dades V2
-      await api.municipis_v2.canviarEtapa(dealId as string, currentDeal.etapa_actual);
+      await api.municipis.canviarEtapa(dealId as string, currentDeal.etapa_actual);
     } catch (error) {
       console.error("Error actualitzant etapa:", error);
       fetchDeals(); // Revertir a l'estat del servidor

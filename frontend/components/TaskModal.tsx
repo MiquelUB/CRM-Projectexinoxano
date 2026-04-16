@@ -29,7 +29,7 @@ export function TaskModal({ onClose, onSaved, initialDate, task }: TaskModalProp
   const [selectedMunicipiId, setSelectedMunicipiId] = useState(task?.municipi_id || task?.deal_id || "");
 
   useState(() => {
-    api.municipis_v2.llistar({ limit: "200" }).then(res => setDeals(res.items || []));
+    api.municipis.llistar({ limit: "200" }).then(res => setDeals(res.items || []));
   });
 
   const handleSubmit = async (e: React.FormEvent) => {

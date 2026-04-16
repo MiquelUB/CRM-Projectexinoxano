@@ -40,8 +40,8 @@ export default function DealsPage() {
   const loadSelectData = async () => {
     try {
       const [munRes, conRes] = await Promise.all([
-        api.municipis_v2.llistar({ limit: "200" }),
-        api.contactes_v2.llistar({ limit: "200" })
+        api.municipis.llistar({ limit: "200" }),
+        api.contactes.llistar({ limit: "200" })
       ]);
       setMunicipis(munRes.items || []);
       setContactes(conRes.items || []);
@@ -78,7 +78,7 @@ export default function DealsPage() {
       };
       
       // Actualitzem el municipi per "activar-lo" com a deal
-      await api.municipis_v2.editar(formData.municipi_id, dataToSave);
+      await api.municipis.editar(formData.municipi_id, dataToSave);
       
       setIsModalOpen(false);
       setFormData({

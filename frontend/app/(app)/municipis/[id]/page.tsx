@@ -43,7 +43,7 @@ export default function MunicipiDetailPage() {
 
   const fetchData = async () => {
     try {
-      const res = await api.municipis_v2.detall(id as string);
+      const res = await api.municipis.detall(id as string);
       setData(res);
       
       // Initialize editable fields
@@ -57,8 +57,8 @@ export default function MunicipiDetailPage() {
 
       // Fetch related data
       const [activities, llicenciaRes] = await Promise.all([
-        api.municipis_v2.get_activitats(id as string),
-        api.municipis_v2.get_llicencia(id as string)
+        api.municipis.get_activitats(id as string),
+        api.municipis.get_llicencia(id as string)
       ]);
       setActivitats(Array.isArray(activities) ? activities : (activities.items || []));
       setLlicencia(llicenciaRes);
@@ -73,7 +73,7 @@ export default function MunicipiDetailPage() {
   const handleSaveAll = async () => {
     setSaving(true);
     try {
-      await api.municipis_v2.editar(id as string, {
+      await api.municipis.editar(id as string, {
         nom,
         valor_setup: parseFloat(valorSetup),
         valor_llicencia: parseFloat(valorLlicencia),
@@ -95,7 +95,7 @@ export default function MunicipiDetailPage() {
     if (!window.confirm("Estàs segur que vols eliminar aquest municipi?")) return;
     setDeleting(true);
     try {
-      await api.municipis_v2.eliminar(id as string);
+      await api.municipis.eliminar(id as string);
       router.push("/pipeline");
     } catch (e: any) {
       alert(`Error al eliminar: ${e.message}`);

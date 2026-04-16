@@ -19,7 +19,7 @@ export default function EmailsPendentsPage() {
     try {
       const [emailsRes, dealsRes] = await Promise.all([
         api.emails.pendents(),
-        api.municipis_v2.llistar({ limit: "200" })
+        api.municipis.llistar({ limit: "200" })
       ]);
       setEmails(emailsRes.items || []);
       setDeals(dealsRes.items || []);

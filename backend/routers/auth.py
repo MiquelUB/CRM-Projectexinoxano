@@ -7,11 +7,20 @@ from typing import Any
 from database import get_db
 import models
 import schemas
+try:
+    from schemas import Token
+except ImportError:
+    # Fallback in case of weird import issues during startup
+    from pydantic import BaseModel
+    class Token(BaseModel):
+        access_token: str
+        token_type: str
+
 from auth import verify_password, create_access_token, get_current_user, ACCESS_TOKEN_EXPIRE_MINUTES
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-@router.post("/login", response_model=schemas.Token)
+@router.post("/login", response_model=Token)
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user = db.query(models.Usuari).filter(models.Usuari.email == form_data.username.lower()).first()
     if not user or not verify_password(form_data.password, user.password_hash):

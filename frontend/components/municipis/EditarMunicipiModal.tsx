@@ -17,7 +17,7 @@ export function EditarMunicipiModal({ municipi, onClose, onUpdated }: { municipi
     const handleSave = async () => {
         setSaving(true);
         try {
-            await api.municipis_v2.editar(municipi.id, {
+            await api.municipis.editar(municipi.id, {
                 nom: formData.nom,
                 poblacio: parseInt(formData.poblacio) || null,
                 etapa_actual: formData.etapa_actual,
