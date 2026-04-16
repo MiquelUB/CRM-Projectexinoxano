@@ -109,6 +109,16 @@ async def transparent_legacy_rewriter(request: Request, call_next):
     response = await call_next(request)
     return response
 
+@app.get("/debug/schema")
+def debug_schema():
+    from sqlalchemy import inspect
+    try:
+        inspector = inspect(engine)
+        cols = inspector.get_columns("contactes")
+        return {"table": "contactes", "columns": cols}
+    except Exception as e:
+        return {"error": str(e)}
+
 # Standard health routes
 @app.get("/")
 async def root_health():
