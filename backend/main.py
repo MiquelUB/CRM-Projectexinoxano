@@ -107,41 +107,12 @@ def db_check(db: Session = Depends(get_db)):
         return {"status": "error", "message": str(e)}
 
 # --- LEGACY ROUTE REDIRECTS (Compatibility Layer) ---
-from fastapi.responses import RedirectResponse
-
-@app.api_route("/municipis_v2/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
-async def legacy_municipis_redirect(request: Request, path: str):
-    # Fix: If the path is exactly 'contactes', redirect to the global contactes router
-    if path == "contactes":
-        url = "/contactes"
-    else:
-        url = f"/municipis/{path}" if path else "/municipis"
-    
-    query_params = str(request.query_params)
-    if query_params: url += f"?{query_params}"
-    return RedirectResponse(url=url, status_code=307)
-
-@app.api_route("/contactes_v2/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
-async def legacy_contactes_redirect(request: Request, path: str):
-    url = f"/contactes/{path}" if path else "/contactes"
-    query_params = str(request.query_params)
-    if query_params: url += f"?{query_params}"
-    return RedirectResponse(url=url, status_code=307)
-
-@app.api_route("/emails_v2/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
-async def legacy_emails_redirect(request: Request, path: str):
-    url = f"/emails/{path}" if path else "/emails"
-    query_params = str(request.query_params)
-    if query_params: url += f"?{query_params}"
-    return RedirectResponse(url=url, status_code=307)
-
-@app.api_route("/municipis_lifecycle/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
-async def legacy_lifecycle_redirect(request: Request, path: str):
-    # Map lifecycle calls to the unified municipis router
-    url = f"/municipis/{path}" if path else "/municipis"
-    query_params = str(request.query_params)
-    if query_params: url += f"?{query_params}"
-    return RedirectResponse(url=url, status_code=307)
+# --- LEGACY COMPATIBILITY LAYER (No redirects, direct response) ---
+app.include_router(municipis.router, prefix="/municipis_v2", tags=["Legacy"])
+app.include_router(emails.router, prefix="/emails_v2", tags=["Legacy"])
+app.include_router(contactes.router, prefix="/contactes_v2", tags=["Legacy"])
+app.include_router(municipis.router, prefix="/municipis_lifecycle", tags=["Legacy"])
+# ---------------------------------------------------
 # ---------------------------------------------------
 
 # Include Unified Routers

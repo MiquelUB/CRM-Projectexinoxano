@@ -129,12 +129,15 @@ def llistar_emails(
         # Convertir objecte a dict manualment per assegurar formats
         d = {c.name: getattr(item, c.name) for c in item.__table__.columns}
         
-        # BLINDATGE DE DATA: Si és nul·la o invàlida, enviem la data actual en format ISO
+        # BLINDATGE DE DATA (Versió Ultra-Compatible): 
+        # Convertim a format "YYYY-MM-DD HH:MM:SS" que és universal per a qualsevol JS
         data_valida = d.get("data_enviament") or d.get("created_at") or datetime.now(timezone.utc)
         if isinstance(data_valida, datetime):
-            d["data_enviament"] = data_valida.isoformat()
+            d["data_enviament"] = data_valida.strftime("%Y-%m-%d %H:%M:%S")
+            d["data_email"] = d["data_enviament"] # Duplicat per seguretat legacy
         else:
             d["data_enviament"] = str(data_valida)
+            d["data_email"] = str(data_valida)
             
         d["deal_id"] = item.municipi_id
         mapped_items.append(d)
