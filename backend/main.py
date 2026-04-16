@@ -83,9 +83,22 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 @app.middleware("http")
-async def force_https_middleware(request: Request, call_next):
+async def transparent_legacy_rewriter(request: Request, call_next):
+    path = request.url.path
+    # Traductor de rutes velles a noves
+    if "_v2" in path or "municipis_lifecycle" in path:
+        new_path = path.replace("_v2", "").replace("municipis_lifecycle", "municipis")
+        # Ajust especial per a contactes que abans penjaven de municipis
+        if "/municipis/contactes" in new_path:
+            new_path = new_path.replace("/municipis/contactes", "/contactes")
+        
+        # Modifiquem la ruta interna del "scope" de FastAPI
+        request.scope["path"] = new_path
+        logger.info(f"DEBUG REWRITE: {path} -> {new_path}")
+
     if request.headers.get("x-forwarded-proto") == "https":
         request.scope["scheme"] = "https"
+        
     response = await call_next(request)
     return response
 
@@ -107,14 +120,6 @@ def db_check(db: Session = Depends(get_db)):
         return {"status": "error", "message": str(e)}
 
 # --- LEGACY ROUTE REDIRECTS (Compatibility Layer) ---
-# --- LEGACY COMPATIBILITY LAYER (No redirects, direct response) ---
-app.include_router(municipis.router, prefix="/municipis_v2", tags=["Legacy"])
-app.include_router(emails.router, prefix="/emails_v2", tags=["Legacy"])
-app.include_router(contactes.router, prefix="/contactes_v2", tags=["Legacy"])
-app.include_router(municipis.router, prefix="/municipis_lifecycle", tags=["Legacy"])
-# ---------------------------------------------------
-# ---------------------------------------------------
-
 # Include Unified Routers
 app.include_router(auth.router)
 app.include_router(usuaris.router)
