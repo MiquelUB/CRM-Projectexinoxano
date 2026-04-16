@@ -1,5 +1,6 @@
 import psycopg2
 import os
+import sys
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -19,46 +20,46 @@ def fix_db_schema():
     cur = None
     
     try:
-        # Connexi amb autocommit per evitar problemes de transaccions amb DDL
+        # Connexió amb autocommit per evitar problemes de transaccions amb DDL
         conn = psycopg2.connect(DATABASE_URL)
-        conn.autocommit = True  #  CLAU: Cada operaci DDL es commiteja automticament
+        conn.autocommit = True  # CLAU: Cada operació DDL es commiteja automàticament
         cur = conn.cursor()
         
         # 1. Assegurar Extensions
-        print(" creant extensions necessries...")
+        print(" creant extensions necessàries...")
         cur.execute('CREATE EXTENSION IF NOT EXISTS "pgcrypto";')
         
-        # 2. Verificar si municipis_lifecycle existeix abans d'afegir columnes
+        # 2. Verificar si municipis existeix abans d'afegir columnes
         cur.execute("""
             SELECT EXISTS (
                 SELECT FROM information_schema.tables 
-                WHERE table_name = 'municipis_lifecycle'
+                WHERE table_name = 'municipis'
             );
         """)
         
         if cur.fetchone()[0]:
-            print(" Verificant existncia de columnes a municipis_lifecycle...")
+            print(" Verificant existència de columnes a municipis...")
             
             # Verificar si usuari_asignat ja existeix
             cur.execute("""
                 SELECT column_name 
                 FROM information_schema.columns 
-                WHERE table_name='municipis_lifecycle' 
+                WHERE table_name='municipis' 
                   AND column_name='usuari_asignat'
             """)
             
             if not cur.fetchone():
-                print(" Afegint columna usuari_asignat a municipis_lifecycle...")
+                print(" Afegint columna usuari_asignat a municipis...")
                 cur.execute("""
-                    ALTER TABLE public.municipis_lifecycle 
+                    ALTER TABLE public.municipis 
                     ADD COLUMN usuari_asignat VARCHAR(50);
                 """)
             else:
                 print(" Columna usuari_asignat ja existeix")
         else:
-            print(" Taula municipis_lifecycle no existeix encara (Alembic la crear)")
+            print(" Taula municipis no existeix encara (Alembic la crearà)")
         
-        print(" Correcci de schema finalitzada (control passat a Alembic).")
+        print(" Correcció de schema finalitzada (control passat a Alembic).")
         
     except Exception as e:
         print(f" Error corregint schema: {e}")
