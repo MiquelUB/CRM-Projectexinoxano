@@ -55,14 +55,21 @@ def send_email_from_crm(to_address: str, assumpte: str, cos: str, municipi_id: s
     
     server = None
     try:
+        print(f"DEBUG SEND: Connecting to {SMTP_HOST}:{SMTP_PORT} (SSL: {SMTP_SSL}, TLS: {SMTP_TLS})")
         if SMTP_SSL:
-            server = smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, timeout=20)
+            server = smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, timeout=15)
         else:
-            server = smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=20)
-            if SMTP_TLS: server.starttls()
+            server = smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15)
+            if SMTP_TLS:
+                print("DEBUG SEND: Starting TLS sequence...")
+                server.starttls()
         
+        print(f"DEBUG SEND: Attempting login as {SMTP_USER}...")
         server.login(SMTP_USER, SMTP_PASSWORD)
+        print("DEBUG SEND: Login successful. Sending message...")
         server.send_message(msg)
+        server.quit()
+        print("DEBUG SEND: Email sent successfully and connection closed.")
     except Exception as e:
         logger.error(f"Error SMTP: {e}")
         # Secondary attempt

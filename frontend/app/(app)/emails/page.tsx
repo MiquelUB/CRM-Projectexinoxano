@@ -82,13 +82,15 @@ export default function EmailsPage() {
   );
 
   const safeFormatDate = (dateStr: string | null | undefined) => {
-    if (!dateStr) return "Data pendent";
+    if (!dateStr) return "N/A";
     try {
-      const d = new Date(dateStr);
-      if (isNaN(d.getTime())) return "Data invàlida";
-      return format(d, "dd/MM/yyyy HH:mm");
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return "N/A";
+      // Si la data és massa llunyana o invàlida per formatDistance, fem servir format estàndard
+      return formatDistanceToNow(date, { addSuffix: true, locale: ca });
     } catch (e) {
-      return "Data error";
+      console.error("Date formatting error:", e);
+      return "Data invàlida";
     }
   };
 
