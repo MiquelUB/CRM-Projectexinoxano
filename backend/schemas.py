@@ -4,6 +4,26 @@ from uuid import UUID
 from datetime import datetime
 from models import EtapaFunnelEnum, TemperaturaEnum, CarrecEnum, ToComunicacioEnum, TipusActivitat
 
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class UsuariBase(BaseModel):
+    email: EmailStr
+    nom: str
+    rol: str = "comercial"
+    actiu: bool = True
+
+class UsuariCreate(UsuariBase):
+    password: str
+
+class UsuariOut(UsuariBase):
+    id: UUID
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
 class ContacteCreate(BaseModel):
     nom: str
     carrec: CarrecEnum
