@@ -6,14 +6,29 @@ import { X, Mail, CreditCard, Trash2, Save, Euro, Building2, User, Loader2 } fro
 export default function DealDrawer({ deal, onClose, onUpdate }: any) {
   // State per a camps editables
   // State per a camps editables (V2 MunicipiLifecycle)
+  const safeFormatDate = (dateStr: string | null | undefined, formatStr: string = "dd/MM/yyyy") => {
+    if (!dateStr) return "N/A";
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return "Invalid";
+      return format(d, formatStr);
+    } catch (e) {
+      return "Error";
+    }
+  };
+
   const [nom, setNom] = useState(deal.nom || "");
   const [valorSetup, setValorSetup] = useState(deal.valor_setup?.toString() || "0");
   const [valorLlicencia, setValorLlicencia] = useState(deal.valor_llicencia?.toString() || "0");
   const [prioritat, setPrioritat] = useState(deal.prioritat || "mitjana");
   const [properPas, setProperPas] = useState(deal.proper_pas || "");
-  const [dataSeguiment, setDataSeguiment] = useState(
-    deal.data_seguiment ? new Date(deal.data_seguiment).toISOString().split('T')[0] : ""
-  );
+  const [dataSeguiment, setDataSeguiment] = useState(() => {
+    if (!deal.data_seguiment) return "";
+    try {
+      const d = new Date(deal.data_seguiment);
+      return isNaN(d.getTime()) ? "" : d.toISOString().split('T')[0];
+    } catch { return ""; }
+  });
   const [notesHumanes, setNotesHumanes] = useState(deal.notes_humanes || "");
   
   const [saving, setSaving] = useState(false);
@@ -312,11 +327,11 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
                      </p>
                      <p className="flex justify-between">
                          <span className="text-emerald-600 font-bold uppercase text-[10px]">Inici</span>
-                         <span className="font-bold">{format(new Date(llicencia.data_inici), "dd/MM/yyyy")}</span>
+                         <span className="font-bold">{safeFormatDate(llicencia.data_inici)}</span>
                      </p>
                      <p className="flex justify-between">
                          <span className="text-emerald-600 font-bold uppercase text-[10px]">Renovació</span>
-                         <span className="font-black text-rose-500">{format(new Date(llicencia.data_renovacio), "dd/MM/yyyy")}</span>
+                         <span className="font-black text-rose-500">{safeFormatDate(llicencia.data_renovacio)}</span>
                      </p>
 
                      {llicencia.pagaments?.length > 0 && (
@@ -327,7 +342,7 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
                              <div key={p.id} className="flex items-center justify-between bg-white/50 p-2 rounded-lg border border-emerald-100/50">
                                <div>
                                  <p className="text-[10px] font-black text-slate-700">{p.tipus.toUpperCase()}</p>
-                                 <p className="text-[9px] font-bold text-slate-400">{format(new Date(p.data_emisio), "dd/MM/yy")} • {Number(p.import).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</p>
+                                 <p className="text-[9px] font-bold text-slate-400">{safeFormatDate(p.data_emisio, "dd/MM/yy")} • {Number(p.import).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</p>
                                </div>
                                <div className="flex items-center gap-2">
                                   <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-md uppercase ${p.estat === 'pagat' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
@@ -396,7 +411,7 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
                                 {a.tipus_activitat.replace('_', ' ')}
                                 {a.generat_per_ia && <span className="ml-2 text-blue-500">✨ IA-GEN</span>}
                              </span>
-                             <span className="text-[10px] text-slate-400 font-bold">{format(new Date(a.data_activitat), "dd MMM, HH:mm")}</span>
+                             <span className="text-[10px] text-slate-400 font-bold">{safeFormatDate(a.data_activitat, "dd MMM, HH:mm")}</span>
                           </div>
                           
                           {/* Contingut específic basat en tipus */}
