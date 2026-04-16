@@ -87,15 +87,9 @@ export default function EmailsPage() {
 
   const safeFormatDate = (dateStr: string | null | undefined) => {
     if (!dateStr) return "N/A";
-    try {
-      const date = new Date(dateStr);
-      if (isNaN(date.getTime())) return "N/A";
-      // Si la data és massa llunyana o invàlida per formatDistance, fem servir format estàndard
-      return formatDistanceToNow(date, { addSuffix: true, locale: ca });
-    } catch (e) {
-      console.error("Date formatting error:", e);
-      return "Data invàlida";
-    }
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return "N/A";
+    return d.toLocaleDateString('ca-ES') + " " + d.toLocaleTimeString('ca-ES', { hour: '2-digit', minute: '2-digit' });
   };
 
   return (
