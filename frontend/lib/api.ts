@@ -107,6 +107,8 @@ const api = {
       }
       return fetchAPI(`/emails/enviar_manual/${data.municipi_id}`, { method: "POST", body: JSON.stringify(data) });
     },
+    marcarLlegit: (id: string, llegit: boolean) => 
+      fetchAPI(`/emails/${id}/llegit`, { method: "PATCH", body: JSON.stringify({ llegit }) }),
   },
   tasques: {
     llistar: (params?: Record<string, string>) =>
