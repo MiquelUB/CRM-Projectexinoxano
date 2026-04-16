@@ -38,7 +38,12 @@ export function CalendarWidget({ tasques, onSelectDate, onNewTask, onSelectTask 
   const prevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
 
   const getTasquesForDay = (day: Date) => {
-    return tasques.filter(t => isSameDay(new Date(t.data_venciment), day));
+    return tasques.filter(t => {
+      if (!t.data_venciment) return false;
+      const tDate = new Date(t.data_venciment);
+      if (isNaN(tDate.getTime())) return false;
+      return isSameDay(tDate, day);
+    });
   };
 
   const getDayIcon = (type: string) => {
