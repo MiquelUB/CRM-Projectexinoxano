@@ -43,11 +43,22 @@ def get_contacte(id: UUID, db: Session = Depends(get_db)):
 
 @router.post("", response_model=schemas.ContacteOut, status_code=status.HTTP_201_CREATED)
 def create_contacte(contacte: schemas.ContacteCreate, db: Session = Depends(get_db)):
-    db_contacte = models.Contacte(**contacte.model_dump())
-    db.add(db_contacte)
-    db.commit()
-    db.refresh(db_contacte)
-    return db_contacte
+    try:
+        print(f"DEBUG: Intentant crear contacte: {contacte.model_dump()}")
+        db_contacte = models.Contacte(**contacte.model_dump())
+        db.add(db_contacte)
+        db.commit()
+        db.refresh(db_contacte)
+        return db_contacte
+    except Exception as e:
+        import traceback
+        error_msg = traceback.format_exc()
+        print(f"❌ ERROR CREANT CONTACTE: {error_msg}")
+        db.rollback()
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Error intern al desar contacte: {str(e)}"
+        )
 
 @router.put("/{id}", response_model=schemas.ContacteOut)
 def update_contacte(id: UUID, contacte: schemas.ContacteUpdate, db: Session = Depends(get_db)):
