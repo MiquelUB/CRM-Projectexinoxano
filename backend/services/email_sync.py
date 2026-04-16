@@ -142,7 +142,7 @@ def sync_mailbox(folder="INBOX", direccio="IN", search_criteria="UNSEEN"):
                 target_addr = clean_from if direccio == "IN" else clean_to
                 municipi_id = auto_assign_municipi(db, target_addr)
                 
-                dir_v2 = "entrada" if direccio == "IN" else "sortida"
+                dir_v2 = "IN" if direccio == "IN" else "OUT"
                 
                 # 1. Crear registre a emails_v2 (V2 UNIFICAT)
                 email_v2 = m2.EmailV2(

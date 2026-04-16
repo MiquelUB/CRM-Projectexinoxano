@@ -143,16 +143,25 @@ def enviar_draft_endpoint(
     db.commit()
     return {'status': 'enviat' if req.mode == 'immediat' else 'programat'}
 
+from fastapi import Form
+
 @router.post("/enviar_manual/{municipi_id}")
-def enviar_manual_endpoint(
+async def enviar_manual_endpoint(
     municipi_id: UUID,
-    req: EmailDraftEditRequest,  # reusing subject, cos body schema
+    subject: str = Form(None),
+    cos: str = Form(None),
+    # Optional JSON fallback
+    req: Optional[EmailDraftEditRequest] = None,
     db: Session = Depends(get_db)
 ):
     """
-    Crea i desa un email manualment (sense draft prèvia ni IA).
+    Crea i desa un email manualment (des de la UI). Ara suporta Form dades per als adjunts.
     """
     from models_v2 import EmailV2
+    
+    # Prioritat als camps Form (multipart), fallback a JSON
+    final_subject = subject or (req.subject if req else "")
+    final_cos = cos or (req.cos if req else "")
     
     municipi = db.query(MunicipiLifecycle).filter(MunicipiLifecycle.id == municipi_id).first()
     if not municipi:
@@ -161,10 +170,19 @@ def enviar_manual_endpoint(
     # Guardar a l'històric d'emails enviats
     nou_email = EmailV2(
         municipi_id=municipi_id,
-        assumpte=req.subject,
-        cos=req.cos,
-        data_enviament=datetime.utcnow()
+        assumpte=final_subject,
+        cos=final_cos,
+        from_address="comercial@projectexinoxano.cat", # Default sender
+        to_address=municipi.telefon if not hasattr(municipi, 'email') else getattr(municipi, 'email', ""), # Fallback
+        direccio="OUT",
+        data_enviament=datetime.utcnow(),
+        llegit=True
     )
+    
+    # Intenta trobar el mail del contacte principal si existeix
+    if municipi.actor_principal:
+        nou_email.to_address = municipi.actor_principal.email
+
     db.add(nou_email)
     municipi.data_ultima_accio = datetime.utcnow()
     db.commit()
@@ -218,8 +236,17 @@ def llistar_emails_v2(
         )
         
     total = query.count()
-    items = query.order_by(EmailV2.id.desc()).offset((page - 1) * limit).limit(limit).all()
-    return {"items": items, "total": total, "page": page, "pages": (total // limit) + 1}
+    items = query.order_by(EmailV2.data_enviament.desc()).offset((page - 1) * limit).limit(limit).all()
+    
+    # Map for frontend compatibility (municipi_id -> deal_id)
+    mapped_items = []
+    for item in items:
+        d = {c.name: getattr(item, c.name) for c in item.__table__.columns}
+        d["deal_id"] = item.municipi_id
+        # Ensure dates are serializable if not handled by encoder
+        mapped_items.append(d)
+
+    return {"items": mapped_items, "total": total, "page": page, "pages": (total // limit) + 1}
 
 @router.get("/pendents")
 def emails_pendents_v2(db: Session = Depends(get_db)):

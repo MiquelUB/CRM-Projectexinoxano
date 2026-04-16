@@ -59,6 +59,7 @@ class MunicipiLifecycleOut(BaseModel):
     valor_setup: float = 0
     valor_llicencia: float = 0
     prioritat: str = "mitjana"
+    actor_principal: Optional[ContacteOut] = None
     proper_pas: Optional[str] = None
     data_seguiment: Optional[datetime] = None
     notes_humanes: Optional[str] = None

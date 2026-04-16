@@ -113,7 +113,14 @@ const api = {
     sync: () => fetchAPI("/emails_v2/sync", { method: "POST" }),
     getStats: async () => ({ obertures: 0, clicks: 0 }),
     eliminar: (id: string) => fetchAPI(`/emails_v2/${id}`, { method: "DELETE" }),
-    enviar: (data: any) => fetchAPI(`/emails_v2/enviar_manual/${data.municipi_id}`, { method: "POST", body: JSON.stringify(data) }),
+    enviar: (data: any) => {
+      // Si és FormData (com en EmailComposer), hem de vigilar la URL
+      if (data instanceof FormData) {
+        const mid = data.get("municipi_id") || data.get("deal_id");
+        return fetchAPI(`/emails_v2/enviar_manual/${mid}`, { method: "POST", body: data });
+      }
+      return fetchAPI(`/emails_v2/enviar_manual/${data.municipi_id}`, { method: "POST", body: JSON.stringify(data) });
+    },
   },
   llicencies: {
     llistar: (params?: Record<string, string>) =>

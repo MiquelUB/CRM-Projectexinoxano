@@ -55,7 +55,7 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
   const fetchActivitats = async () => {
     try {
       const res = await api.municipis_v2.get_activitats(deal.id);
-      setActivitats(res.items || []);
+      setActivitats(Array.isArray(res) ? res : (res.items || []));
     } catch (e) {
       console.error("Error carregant activitats", e);
     }

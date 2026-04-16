@@ -139,6 +139,7 @@ class MunicipiLifecycle(Base):
     usuari_asignat = Column(String(50), default='fundador')
     
     # Relacions
+    actor_principal = relationship("ContacteV2", foreign_keys=[actor_principal_id], lazy="joined")
     contactes = relationship("ContacteV2", back_populates="municipi", lazy="joined", cascade="all, delete-orphan", foreign_keys="[ContacteV2.municipi_id]")
     emails = relationship("EmailV2", back_populates="municipi", cascade="all, delete-orphan")
     trucades = relationship("TrucadaV2", back_populates="municipi", cascade="all, delete-orphan")
@@ -190,6 +191,7 @@ class EmailV2(Base):
     assumpte = Column(String(200))
     cos = Column(Text)
     direccio = Column(String(10)) # 'sortida' or 'entrada'
+    llegit = Column(Boolean, default=False)
     message_id_extern = Column(String(500), unique=True, nullable=True)
     tracking_token = Column(String(100), unique=True, nullable=True)
     
