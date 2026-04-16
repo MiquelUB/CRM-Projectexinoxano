@@ -81,6 +81,17 @@ export default function EmailsPage() {
     </div>
   );
 
+  const safeFormatDate = (dateStr: string | null | undefined) => {
+    if (!dateStr) return "Data pendent";
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return "Data invàlida";
+      return format(d, "dd/MM/yyyy HH:mm");
+    } catch (e) {
+      return "Data error";
+    }
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <div className="flex justify-between items-start">
@@ -210,7 +221,7 @@ export default function EmailsPage() {
                 </td>
                 <td className="px-8 py-5">
                   <p className="text-[11px] font-bold text-slate-400">
-                    {email.data_enviament ? format(new Date(email.data_enviament), "dd/MM/yyyy HH:mm") : (email.data_email ? format(new Date(email.data_email), "dd/MM/yyyy HH:mm") : "Data pendent")}
+                    {safeFormatDate(email.data_enviament || email.data_email)}
                   </p>
                 </td>
                 <td className="px-8 py-5 text-right">
@@ -275,7 +286,7 @@ export default function EmailsPage() {
             </div>
             <div className="p-6 border-t bg-slate-50 rounded-b-3xl flex justify-between items-center">
                 <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                  Data: {selectedEmail.data_enviament ? format(new Date(selectedEmail.data_enviament), "dd/MM/yyyy HH:mm") : (selectedEmail.data_email ? format(new Date(selectedEmail.data_email), "dd/MM/yyyy HH:mm") : "Data pendent")}
+                  Data: {safeFormatDate(selectedEmail.data_enviament || selectedEmail.data_email)}
                 </div>
                 <div className="flex space-x-2">
                     {selectedEmail.direccio === "IN" && (

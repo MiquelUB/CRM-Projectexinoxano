@@ -1,7 +1,7 @@
-
 const isBrowser = typeof window !== "undefined";
-const defaultHost = isBrowser ? window.location.hostname : "127.0.0.1";
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || `http://${defaultHost}:8000`;
+const defaultHost = isBrowser ? window.location.host : "127.0.0.1:8000";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || (isBrowser ? `${window.location.protocol}//${window.location.host}` : `http://${defaultHost}`);
+// Si estem al backend de EasyPanel, la URL ja ve sense port o amb el protocol correcte.
 
 function getToken(): string | null {
   if (typeof window === "undefined") return null;
