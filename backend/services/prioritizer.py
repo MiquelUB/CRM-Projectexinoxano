@@ -1,5 +1,6 @@
+
 from sqlalchemy.orm import Session
-from models_v2 import MunicipiLifecycle, EtapaFunnelEnum, TemperaturaEnum, ContacteV2
+from models import Municipi, EtapaFunnelEnum, TemperaturaEnum, Contacte
 from datetime import datetime
 import logging
 
@@ -19,10 +20,9 @@ class ActionRecommendation:
 async def get_daily_actions(db: Session, limit: int = 10):
     """
     Motor de Priorització del Dashboard Diari.
-    (Actulizat per ser instanci i no bloquejar per cridades a la IA massives).
     """
-    active_municipis = db.query(MunicipiLifecycle).filter(
-        MunicipiLifecycle.etapa_actual.notin_([
+    active_municipis = db.query(Municipi).filter(
+        Municipi.etapa_actual.notin_([
             EtapaFunnelEnum.client,
             EtapaFunnelEnum.perdut,
             EtapaFunnelEnum.pausa
@@ -58,9 +58,10 @@ async def get_daily_actions(db: Session, limit: int = 10):
             tipus = "email"
             
         # 2. Add priority multiplier
-        if m.prioritat == "alta":
+        prio = str(m.prioritat).lower() if m.prioritat else "mitjana"
+        if prio == "alta" or prio == "3":
             score += 30
-        elif m.prioritat == "mitjana":
+        elif prio == "mitjana" or prio == "2":
             score += 15
         else: # low priority or null
             score += 5
@@ -81,7 +82,7 @@ async def get_daily_actions(db: Session, limit: int = 10):
                 score=score,
                 etapa=etapa_label,
                 accio_recomanada=accio,
-                rao=f"Etapa {etapa_label} amb prioritat {m.prioritat}.",
+                rao=f"Etapa {etapa_label} amb prioritat {prio}.",
                 tipus_accio=tipus,
                 contacte_sugerit_id=str(m.actor_principal_id) if m.actor_principal_id else None
             )

@@ -1,45 +1,25 @@
-# ESTAT DE LA MIGRACIÓ DE DADES (V1 → V2)
+# ESTAT DE LA MIGRACIÓ I UNIFICACIÓ DE DADES (FINALITZADA)
 
-Aquest document detalla l'estat de transició entre el model legacy (V1) i la nova arquitectura unificada (V2).
+Aquest document confirma el tancament de la transició entre els models legacy (V1/V2) cap a l'arquitectura unificada final.
 
-## 🚀 Fase 1: Fonaments (COMPLETADA)
-- [x] Disseny de `models_v2.py`.
-- [x] Migracions d'Alembic inicials.
-- [x] Script de migració `migrate_v1_to_v2.py` executat amb èxit.
-- [x] Sistema de Prompts centralitzat (Fase 1.3).
+## 🏁 Fase Final: Unificació Total (COMPLETADA - 16/04/2026)
+- [x] **Consolidació de Models**: Tota la lògica resideix ara a `models.py` i `schemas.py`.
+- [x] **Purga de Fitxers Legacy**: Eliminats tots els fitxers `*_v2.py`, `models_v2.py`, `schemas_v2.py` i routers duplicats.
+- [x] **Eliminació de Bridges**: Suprimida tota la lògica de compatibilitat V1/V2 a `main.py` i serveis.
+- [x] **Target EasyPanel**: Confirmada la connexió exclusiva a la base de dades d'EasyPanel. Supabase eliminat completament de l'entorn.
+- [x] **Frontend Sincronitzat**: `api.ts` apunta exclusivament als endpoints unificats.
 
-## ✅ Fase 1.4: Deprecar Models V1 (COMPLETADA)
-- [x] Fase 2.1: Arquitectura d'Agent Unificat amb Skills (COMPLETADA)
-- [x] Fase 2.2: Sistema de Memòria Jeràrquica CRM - Sessió, Municipi, Global (COMPLETADA)
-- [x] Marcat de `models.py` com a DEPRECATED.
-- [x] Implementació de logging de detecció de queries V1 (middleware).
-- [x] Auditoria d'endpoints legacy i migració d'endpoints crítics (Municipis Detail, Contactes List).
-
-### Endpoints que encara usen V1
-| Endpoint | Model Afectat | Grau d'Urgència |
+## ✅ Resum de l'Arquitectura Unificada
+| Component | Estat | Descripció |
 | :--- | :--- | :--- |
-| `/api/municipis` | `models.Municipi` | CRÍTIC |
-| `/api/contactes` | `models.Contacte` | CRÍTIC |
-| `/api/emails` | `models.Email` | CRÍTIC |
-| `/api/deals` | `models.Deal` | ALTA |
-| `/api/tasques` | `models.Tasca` | MITJANA |
-| `/api/pagaments` | `models.Pagament` | BAIXA |
+| **BBDD Estructural** | UNIFICADA | Taules netes (`municipis`, `contactes`, `emails`, `tasques`). |
+| **Rutes API** | ESTÀNDARD | `/municipis`, `/emails`, `/contactes`, `/tasques`, `/alertes`. |
+| **Serveis IA** | OPTIMITZATS | Kimi K2 i Memory Engine operant sobre models unificats. |
+| **Sincronització** | ACTIVA | Sincronització IMAP/SMTP vinculada directament al model d'Emails. |
 
-## 📅 Pla de Migració d'Endpoints
-
-### Setmana 1: Endpoints de Consulta (Lectura)
-1. Migrar `GET /api/municipis` a `models_v2.MunicipiLifecycle`.
-2. Migrar `GET /api/contactes` a `models_v2.ContacteV2`.
-3. Validar que el frontend (Next.js) llegeix correctament els nous UUIDs.
-
-### Setmana 2: Endpoints d'Escriptura
-1. Migrar `POST /api/municipis`.
-2. Migrar `POST /api/contactes`.
-3. Implementar logic de sincronització bidireccional si fos necessari (opcional).
-
-### Deadline d'Eliminació (Fase C)
-* **Eliminació de `models.py`**: Prevista per al 01/05/2026.
-* **Eliminació de taules V1 a la DB**: Prevista per al 15/05/2026.
+## 🛠️ Accions Posteriors Recomanades
+1. **Drop Legacy Tables**: Es recomana esborrar físicament les taules `*_v1_backup` i les taules antigues de la base de dades de producció un cop verificada l'estabilitat durant 24-48h.
+2. **Review Logs**: Monitoritzar el dashboard per si queda algun component de tercers o widget que encara intenti fer crides a rutes `/v2/` antigues (tot i que s'han mapejat els aliases).
 
 ---
-*Darrera actualització: 09/04/2026*
+*Darrera actualització: 16/04/2026 - Unificació Final Completada per Antigravity.*

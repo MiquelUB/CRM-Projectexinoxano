@@ -1,32 +1,27 @@
-from fastapi import APIRouter, Depends
+
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
 import models
-from datetime import datetime, timedelta
-# Import schemas only if needed, for simplicity we return counts or raw dicts
+from datetime import datetime, timedelta, timezone
 
 router = APIRouter(prefix="/alertes", tags=["Alertes"])
 
 @router.get("/count")
 def get_alertes_count(db: Session = Depends(get_db)):
-    from models_v2 import TascaV2, EmailV2
-    from models import Llicencia, Pagament
-    
-    tasques_urgents = db.query(TascaV2).filter(TascaV2.prioritat == "alta", TascaV2.estat == "pendent").count()
-    emails_pendents = db.query(EmailV2).filter(EmailV2.municipi_id == None).count()
-    vencuts = db.query(Pagament).filter(Pagament.estat == "vencut").count()
-    
-    target_date = datetime.now().date() + timedelta(days=30)
-    renovacions = db.query(Llicencia).filter(
-        Llicencia.data_renovacio <= target_date,
-        Llicencia.estat == "activa"
+    tasques_urgents = db.query(models.Tasca).filter(
+        (models.Tasca.prioritat == 3) | (models.Tasca.prioritat == "alta"), 
+        models.Tasca.estat == "pendent"
     ).count()
     
-    total = tasques_urgents + emails_pendents + vencuts + renovacions
+    emails_pendents = db.query(models.Email).filter(models.Email.municipi_id == None).count()
+    vencuts = db.query(models.Pagament).filter(models.Pagament.estat == "vencut").count()
+    
+    # We can add more logic here if needed
+    total = tasques_urgents + emails_pendents + vencuts
     
     return {
         "total": total,
-        "renovacions": renovacions,
         "vencuts": vencuts,
         "emails_pendents": emails_pendents,
         "tasques_urgents": tasques_urgents
@@ -35,42 +30,26 @@ def get_alertes_count(db: Session = Depends(get_db)):
 @router.get("/")
 def get_alertes(db: Session = Depends(get_db)):
     try:
-        from models_v2 import TascaV2, EmailV2, MunicipiLifecycle
-        from models import Llicencia, Pagament
-        
         # 1. Tasques Urgents
-        tasques_v2 = db.query(TascaV2).filter(TascaV2.prioritat == "alta", TascaV2.estat == "pendent").all()
-        
-        # 2. Emails Pendents
-        emails_pendents = db.query(EmailV2).filter(EmailV2.municipi_id == None).limit(50).all()
-        
-        # 3. Renovacions
-        target_date = datetime.now().date() + timedelta(days=30)
-        renovacions_query = db.query(Llicencia).filter(
-            Llicencia.data_renovacio <= target_date,
-            Llicencia.estat == "activa"
+        tasques_urgents = db.query(models.Tasca).filter(
+            (models.Tasca.prioritat == 3) | (models.Tasca.prioritat == "alta"),
+            models.Tasca.estat == "pendent"
         ).all()
         
-        # 4. Pagaments Vencuts
-        vencuts_query = db.query(Pagament).filter(Pagament.estat == "vencut").all()
+        # 2. Emails Pendents
+        emails_pendents = db.query(models.Email).filter(models.Email.municipi_id == None).limit(50).all()
+        
+        # 3. Pagaments Vencuts
+        vencuts = db.query(models.Pagament).filter(models.Pagament.estat == "vencut").all()
 
         return {
-            "renovacions": [
-                {
-                    "id": str(r.id),
-                    "data_renovacio": r.data_renovacio,
-                    "municipi_id": str(r.deal.municipi_id) if (r.deal and r.deal.municipi_id) else None,
-                    "nom_municipi": r.deal.municipi.nom if (r.deal and r.deal.municipi) else "Municipi desconegut"
-                } for r in renovacions_query
-            ],
             "pagaments_vencuts": [
                 {
                     "id": str(p.id),
                     "import": float(p.import_),
-                    "data_limit": p.data_limit,
-                    "municipi_id": str(p.llicencia.deal.municipi_id) if (p.llicencia and p.llicencia.deal) else None,
-                    "nom_municipi": p.llicencia.deal.municipi.nom if (p.llicencia and p.llicencia.deal and p.llicencia.deal.municipi) else "Municipi desconegut"
-                } for p in vencuts_query
+                    "data_limit": p.data_limit if hasattr(p, 'data_limit') else None,
+                    "nom_municipi": p.llicencia.municipi.nom if (p.llicencia and p.llicencia.municipi) else "Innominat"
+                } for p in vencuts
             ],
             "tasques_urgents": [
                  {
@@ -79,25 +58,18 @@ def get_alertes(db: Session = Depends(get_db)):
                     "descripcio": t.descripcio,
                     "data_venciment": t.data_venciment,
                     "tipus": "tasca",
-                    "prioritat": t.prioritat,
                     "municipi_id": str(t.municipi_id),
                     "nom_municipi": (t.municipi.nom if t.municipi else "CRM"),
-                    "is_pseudo": False
-                } for t in tasques_v2
+                } for t in tasques_urgents
             ],
             "emails_pendents": [
                 {
                     "id": str(e.id),
                     "assumpte": e.assumpte,
                     "from": e.from_address,
-                    "data": e.data_enviament
+                    "data": e.data_enviament if hasattr(e, 'data_enviament') else e.data_email
                 } for e in emails_pendents
             ]
         }
     except Exception as e:
-        import traceback
-        return {
-            "error": str(e),
-            "traceback": traceback.format_exc(),
-            "status": "error"
-        }
+        raise HTTPException(status_code=500, detail=str(e))

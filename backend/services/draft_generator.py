@@ -1,31 +1,30 @@
+
 import json
 from sqlalchemy.orm import Session
 from uuid import UUID
 from typing import Optional
 from .openrouter_client import call_openrouter
 from .agent_manager import kimi_agent
-from models_v2 import MunicipiLifecycle, ContacteV2, EmailDraftV2, EstatDraftEnum, CarrecEnum, TrucadaV2, ReunioV2, EmailV2
+from models import Municipi, Contacte, EmailDraft, Email
 import logging
 
 logger = logging.getLogger(__name__)
 
 from .agent_kimi_k2 import AgentKimiK2
 
-async def generar_draft(db: Session, municipi: MunicipiLifecycle, tipus: str, contacte: Optional[ContacteV2] = None) -> EmailDraftV2:
+async def generar_draft(db: Session, municipi: Municipi, tipus: str, contacte: Optional[Contacte] = None) -> EmailDraft:
     agent = AgentKimiK2(db)
     variants = await agent.redactar_email(municipi.id, contacte.id if contacte else None, tipus)
 
     if not variants:
         raise ValueError("Error IA generant variants d'email")
 
-    # Escollir la millor basat en score (si l'IA el retorna) o la primera
     millor = variants[0]
     idx_millor = 0
     
-    return EmailDraftV2(
+    return EmailDraft(
         municipi_id=municipi.id,
         contacte_id=contacte.id if contacte else None,
-        estat=EstatDraftEnum.esborrany,
         subject=millor.get('subject', 'Proposta PXX'),
         cos=millor.get('cos', ''),
         generat_per_ia=True,

@@ -1,3 +1,4 @@
+
 import os
 import sys
 import imaplib
@@ -5,14 +6,14 @@ import email
 from email.header import decode_header
 from email.utils import parsedate_to_datetime
 import re
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import logging
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from sqlalchemy.orm import Session
 from database import SessionLocal
-import models_v2 as m2
+import models
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -30,23 +31,20 @@ def extract_domain(email_addr):
 
 def auto_assign_municipi(db: Session, email_addr: str) -> str:
     from sqlalchemy import or_
-    # Buscar ultim email vinculat per trobar el municipi
-    prev_email = db.query(m2.EmailV2).filter(
-        or_(m2.EmailV2.from_address == email_addr, m2.EmailV2.to_address == email_addr)
-    ).order_by(m2.EmailV2.data_enviament.desc()).first()
+    prev_email = db.query(models.Email).filter(
+        or_(models.Email.from_address == email_addr, models.Email.to_address == email_addr)
+    ).order_by(models.Email.data_enviament.desc()).first()
     
     if prev_email and prev_email.municipi_id:
         return str(prev_email.municipi_id)
         
-    # Buscar per contacte
-    contacte = db.query(m2.ContacteV2).filter(m2.ContacteV2.email == email_addr).first()
+    contacte = db.query(models.Contacte).filter(models.Contacte.email == email_addr).first()
     if contacte and contacte.municipi_id:
         return str(contacte.municipi_id)
             
-    # Buscar per domini web del municipi
     domain = extract_domain(email_addr)
     if domain and domain not in ["gmail.com", "hotmail.com", "yahoo.com", "outlook.com"]:
-        municipis = db.query(m2.MunicipiLifecycle).all()
+        municipis = db.query(models.Municipi).all()
         for m in municipis:
             if m.web and domain in m.web.lower():
                 return str(m.id)
@@ -82,15 +80,14 @@ def sync_mailbox(folder="INBOX", direccio="IN", search_criteria="UNSEEN"):
         mail.login(IMAP_USER, IMAP_PASSWORD)
         
         status, messages = mail.select(folder)
+        if status != "OK" and folder != "INBOX":
+            for alt_name in ["Sent", "Enviados", "Enviats", "&AOk-nviats", "Sent Items", "INBOX.Sent", "INBOX.Enviados"]:
+                status, messages = mail.select(f'"{alt_name}"')
+                if status == "OK": break
+        
         if status != "OK":
-            if folder != "INBOX":
-                for alt_name in ["Sent", "Enviados", "Enviats", "&AOk-nviats", "Sent Items", "INBOX.Sent", "INBOX.Enviados"]:
-                    status, messages = mail.select(f'"{alt_name}"')
-                    if status == "OK":
-                        break
-            if status != "OK":
-                logger.error(f"Could not select folder {folder} or its alternatives.")
-                return
+            logger.error(f"Could not select folder {folder}.")
+            return
 
         status, response = mail.search(None, search_criteria)
         if status != "OK" or not response[0]:
@@ -102,12 +99,12 @@ def sync_mailbox(folder="INBOX", direccio="IN", search_criteria="UNSEEN"):
             try:
                 status, data = mail.fetch(num, '(RFC822)')
                 if status != "OK": continue
-                    
+                
                 raw_email = data[0][1]
                 msg = email.message_from_bytes(raw_email)
                 message_id_extern = msg.get("Message-ID", "").strip()
                 
-                if message_id_extern and db.query(m2.EmailV2).filter(m2.EmailV2.message_id_extern == message_id_extern).first():
+                if message_id_extern and db.query(models.Email).filter(models.Email.message_id_extern == message_id_extern).first():
                     continue
                     
                 assumpte = decode_mime_header(msg.get("Subject", ""))
@@ -117,8 +114,7 @@ def sync_mailbox(folder="INBOX", direccio="IN", search_criteria="UNSEEN"):
                 try:
                     data_email = parsedate_to_datetime(msg.get("Date"))
                 except:
-                    from dateutil.tz import tzutc
-                    data_email = datetime.now(tzutc())
+                    data_email = datetime.now(timezone.utc)
                     
                 clean_from = extract_email_address(from_address)
                 clean_to = extract_email_address(to_address)
@@ -129,53 +125,41 @@ def sync_mailbox(folder="INBOX", direccio="IN", search_criteria="UNSEEN"):
                         if part.get_content_type() in ["text/plain", "text/html"]:
                             try:
                                 body = part.get_payload(decode=True)
-                                if body:
-                                    cos += body.decode(part.get_content_charset() or 'utf-8', errors='replace')
+                                if body: cos += body.decode(part.get_content_charset() or 'utf-8', errors='replace')
                             except: pass
                 else:
                     try:
                         body = msg.get_payload(decode=True)
-                        if body:
-                            cos = body.decode(msg.get_content_charset() or 'utf-8', errors='replace')
+                        if body: cos = body.decode(msg.get_content_charset() or 'utf-8', errors='replace')
                     except: pass
                 
                 target_addr = clean_from if direccio == "IN" else clean_to
                 municipi_id = auto_assign_municipi(db, target_addr)
                 
-                dir_v2 = "IN" if direccio == "IN" else "OUT"
+                dir_unificat = "entrada" if direccio == "IN" else "sortida"
                 
-                # 1. Crear registre a emails_v2 (V2 UNIFICAT)
-                email_v2 = m2.EmailV2(
+                email_obj = models.Email(
                     municipi_id=municipi_id,
                     from_address=clean_from,
                     to_address=clean_to,
                     assumpte=assumpte[:200],
                     cos=cos,
-                    direccio=dir_v2,
+                    direccio=dir_unificat,
                     data_enviament=data_email,
                     message_id_extern=message_id_extern,
-                    obert=(direccio == "OUT"),
-                    respost=(direccio == "IN"),
-                    sentiment_resposta=m2.SentimentEnum.neutre if direccio == "IN" else None
+                    llegit=(direccio == "OUT")
                 )
-                db.add(email_v2)
+                db.add(email_obj)
                 
                 if municipi_id:
-                    # 2. Crear activitat de timeline
-                    tipus_act = m2.TipusActivitat.email_rebut if direccio == "IN" else m2.TipusActivitat.email_enviat
-                    activitat_v2 = m2.ActivitatsMunicipi(
+                    tipus_act = models.TipusActivitat.email_rebut if direccio == "IN" else models.TipusActivitat.email_enviat
+                    activitat = models.Activitat(
                         municipi_id=municipi_id,
                         tipus_activitat=tipus_act,
                         data_activitat=data_email,
-                        contingut={
-                            "subject": assumpte,
-                            "from": clean_from,
-                            "to": clean_to,
-                            "body_preview": cos[:1000]
-                        },
-                        notes_comercial=f"Email ({direccio}) sincronitzat via IMAP V2"
+                        notes_comercial=f"Email ({direccio}) sincronitzat via IMAP"
                     )
-                    db.add(activitat_v2)
+                    db.add(activitat)
                 
                 db.commit()
             except Exception as e:
@@ -183,19 +167,15 @@ def sync_mailbox(folder="INBOX", direccio="IN", search_criteria="UNSEEN"):
                 db.rollback()
                 
     except Exception as e:
-        logger.error(f"Global sync error in {folder}: {e}")
+        logger.error(f"Global sync error: {e}")
     finally:
-        if mail:
-            try:
-                mail.logout()
-            except: pass
+        if mail: mail.logout()
         db.close()
 
 def sync_all_emails():
     logger.info("Starting IMAP email sync...")
     sync_mailbox("INBOX", "IN", "UNSEEN")
-    
-    date_since = (datetime.now() - timedelta(days=2)).strftime("%d-%b-%Y")
+    date_since = (datetime.now(timezone.utc) - timedelta(days=2)).strftime("%d-%b-%Y")
     sync_mailbox("Sent", "OUT", f'SINCE "{date_since}"')
     logger.info("IMAP email sync finished.")
 

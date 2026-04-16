@@ -1,174 +1,166 @@
-import os
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
-from typing import List, Optional
-from sqlalchemy.orm import Session
-from sqlalchemy import desc
-from database import get_db
-from models import Email, Deal
-from schemas import EmailResponse, EmailPendentsResponse, EmailCreate, EmailUpdate
-import uuid
-import math
 
-from services.email_sender import send_email_from_crm
-from services.email_sync import sync_all_emails
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request, Query, Form, Body
+from sqlalchemy.orm import Session
+from sqlalchemy import or_
+from typing import List, Optional
+from uuid import UUID
+from datetime import datetime, timezone
+import traceback
+
+from database import get_db
+from models import Municipi, Contacte, Email, EmailDraft, EmailSequencia, TipusActivitat
+from schemas import EmailOut, EmailDraftCreateRequest, EmailDraftEditRequest, EmailDraftSelectVariantRequest, EmailDraftSendRequest, EmailSequenciaGenerateRequest
+
+from services.draft_generator import generar_draft
+from services.sequenciador import generar_sequencia_prospeccio, preparar_email_sequencia
 
 router = APIRouter(prefix="/emails", tags=["Emails"])
 
-@router.get("/pendents", response_model=EmailPendentsResponse)
-def get_emails_pendents(db: Session = Depends(get_db)):
-    emails = db.query(Email).filter(Email.deal_id.is_(None)).order_by(desc(Email.data_email)).all()
-    return {"items": emails, "total": len(emails)}
+@router.post("/drafts/nou/{municipi_id}")
+async def crear_draft_endpoint(
+    municipi_id: UUID,
+    req: EmailDraftCreateRequest,
+    db: Session = Depends(get_db)
+):
+    municipi = db.query(Municipi).filter(Municipi.id == municipi_id).first()
+    if not municipi:
+        raise HTTPException(status_code=404, detail="Municipi no trobat")
+    
+    contacte = None
+    if req.contacte_id:
+        contacte = db.query(Contacte).filter(Contacte.id == req.contacte_id).first()
 
-@router.post("/sync")
-def force_sync_emails(db: Session = Depends(get_db)):
     try:
-        sync_all_emails()
-        sincronitzats = db.query(Email).filter(Email.sincronitzat == True).count()
-        return {"message": "Sync complete", "sincronitzats": sincronitzats}
+        draft = await generar_draft(db, municipi, req.tipus, contacte)
+        db.add(draft)
+        municipi.data_ultima_accio = datetime.now(timezone.utc)
+        db.commit()
+        db.refresh(draft)
+        
+        return {
+            'draft_id': draft.id,
+            'variants': draft.variants_generades,
+            'subject_inicial': draft.subject,
+            'cos_inicial': draft.cos,
+            'angle_personalitzacio': municipi.angle_personalitzacio
+        }
     except Exception as e:
+        db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/stats/obertures")
-def get_email_stats(db: Session = Depends(get_db)):
-    from datetime import datetime, timedelta
-    trenta_dies_enrera = datetime.now() - timedelta(days=30)
-    
-    total_rebuts = db.query(Email).count()
-    
-    enviats = db.query(Email).filter(
-        Email.direccio == "OUT",
-        Email.data_email >= trenta_dies_enrera
-    ).count()
-    
-    oberts = db.query(Email).filter(
-        Email.direccio == "OUT",
-        Email.obert == True,
-        Email.data_email >= trenta_dies_enrera
-    ).count()
-    
-    taxa = (oberts / enviats * 100) if enviats > 0 else 0
-    
+@router.get("/drafts/{draft_id}")
+def obtenir_draft(draft_id: UUID, db: Session = Depends(get_db)):
+    draft = db.query(EmailDraft).filter(EmailDraft.id == draft_id).first()
+    if not draft:
+        raise HTTPException(status_code=404, detail="Draft no trobat")
+        
     return {
-        "enviats_30d": enviats,
-        "oberts_30d": oberts,
-        "taxa_obertura": round(taxa, 1),
-        "total_emails": total_rebuts
+        'draft_id': draft.id,
+        'subject': draft.subject,
+        'cos': draft.cos,
+        'variants': draft.variants_generades if hasattr(draft, 'variants_generades') else [],
+        'angle_personalitzacio': draft.municipi.angle_personalitzacio if draft.municipi else None
     }
 
-from typing import Optional
+@router.post("/enviar_manual/{municipi_id}")
+async def enviar_manual_endpoint(
+    municipi_id: UUID,
+    subject: str = Form(None),
+    cos: str = Form(None),
+    req: Optional[EmailDraftEditRequest] = None,
+    db: Session = Depends(get_db)
+):
+    final_subject = subject or (req.subject if req else "")
+    final_cos = cos or (req.cos if req else "")
+    
+    municipi = db.query(Municipi).filter(Municipi.id == municipi_id).first()
+    if not municipi:
+        raise HTTPException(status_code=404, detail="Municipi no trobat")
 
-@router.get("/", response_model=EmailResponse)
-def get_emails(deal_id: str = None, direccio: str = None, llegit: bool = None, cerca: Optional[str] = None, page: int = 1, db: Session = Depends(get_db)):
+    nou_email = Email(
+        municipi_id=municipi_id,
+        assumpte=final_subject,
+        cos=final_cos,
+        from_address="comercial@projectexinoxano.cat",
+        to_address=municipi.email if hasattr(municipi, 'email') and municipi.email else "",
+        direccio="OUT",
+        data_enviament=datetime.now(timezone.utc),
+        llegit=True
+    )
+    
+    if municipi.actor_principal and hasattr(municipi.actor_principal, 'email'):
+        nou_email.to_address = municipi.actor_principal.email
+
+    db.add(nou_email)
+    municipi.data_ultima_accio = datetime.now(timezone.utc)
+    db.commit()
+    return {"status": "enviat_manualment"}
+
+@router.get("", response_model=dict)
+def llistar_emails(
+    page: int = 1,
+    direccio: Optional[str] = None,
+    llegit: Optional[bool] = None,
+    cerca: Optional[str] = None,
+    limit: int = 50,
+    db: Session = Depends(get_db)
+):
     query = db.query(Email)
-    if deal_id:
-        query = query.filter(Email.deal_id == deal_id)
+    
     if direccio:
         query = query.filter(Email.direccio == direccio)
     if llegit is not None:
         query = query.filter(Email.llegit == llegit)
     if cerca:
-        from sqlalchemy import or_
-        query = query.filter(or_(
-            Email.assumpte.ilike(f"%{cerca}%"),
-            Email.cos.ilike(f"%{cerca}%"),
-            Email.to_address.ilike(f"%{cerca}%")
-        ))
+        query = query.filter(
+            or_(
+                Email.assumpte.ilike(f"%{cerca}%"),
+                Email.cos.ilike(f"%{cerca}%"),
+                Email.from_address.ilike(f"%{cerca}%"),
+                Email.to_address.ilike(f"%{cerca}%")
+            )
+        )
         
     total = query.count()
-    limit = 50
-    offset = (page - 1) * limit
+    items = query.order_by(Email.data_enviament.desc()).offset((page - 1) * limit).limit(limit).all()
     
-    emails = query.order_by(desc(Email.data_email)).offset(offset).limit(limit).all()
-    
-    return {
-        "items": emails,
-        "total": total,
-        "page": page,
-        "total_pages": math.ceil(total / limit)
-    }
+    mapped_items = []
+    for item in items:
+        d = {c.name: getattr(item, c.name) for c in item.__table__.columns}
+        d["deal_id"] = item.municipi_id
+        mapped_items.append(d)
 
-@router.post("/enviar")
-async def enviar_email(
-    to: str = Form(...),
-    assumpte: str = Form(...),
-    cos: str = Form(...),
-    deal_id: Optional[str] = Form(None),
-    contacte_id: Optional[str] = Form(None),
-    files: List[UploadFile] = File(None),
+    return {"items": mapped_items, "total": total, "page": page, "pages": (total // limit) + 1}
+
+@router.patch("/{email_id}/deal")
+def vincular_email_a_municipi(
+    email_id: UUID, 
+    payload: dict = Body(...), 
     db: Session = Depends(get_db)
 ):
-    # Process files
-    attachments = []
-    if files:
-        for f in files:
-            try:
-                content = await f.read()
-                if content:
-                    attachments.append({
-                        "filename": f.filename,
-                        "content": content
-                    })
-            except Exception as e:
-                print(f"Error reading file {f.filename}: {e}")
-
-    try:
-        email_enviat = send_email_from_crm(to, assumpte, cos, deal_id, contacte_id, attachments)
-        return {"message": "S'ha enviat correctament", "email_id": email_enviat.id}
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Failed to send email: {str(e)}")
-
-@router.get("/{id}")
-def get_email(id: str, db: Session = Depends(get_db)):
-    email = db.query(Email).filter(Email.id == id).first()
+    email = db.query(Email).filter(Email.id == email_id).first()
     if not email:
-        raise HTTPException(status_code=404, detail="Email not found")
-    return email
-
-@router.patch("/{id}/deal")
-def assign_deal_to_email(id: str, payload: dict, db: Session = Depends(get_db)):
-    email = db.query(Email).filter(Email.id == id).first()
-    if not email:
-        raise HTTPException(status_code=404, detail="Email not found")
-        
-    deal_id = payload.get("deal_id")
-    if deal_id:
-        deal = db.query(Deal).filter(Deal.id == deal_id).first()
-        if not deal:
-            raise HTTPException(status_code=404, detail="Deal not found")
-        email.deal_id = deal_id
-    else:
-        email.deal_id = None
-        
-    db.commit()
-    db.refresh(email)
-    return email
-
-@router.patch("/{id}/llegit")
-def mark_email_read(id: str, payload: dict, db: Session = Depends(get_db)):
-    email = db.query(Email).filter(Email.id == id).first()
-    if not email:
-        raise HTTPException(status_code=404, detail="Email not found")
-        
-    llegit = payload.get("llegit")
-    if isinstance(llegit, bool):
-        email.llegit = llegit
-        db.commit()
-        db.refresh(email)
-        
-    return email
-
-@router.delete("/{id}")
-def delete_email(id: str, db: Session = Depends(get_db)):
-    email = db.query(Email).filter(Email.id == id).first()
-    if not email:
-        raise HTTPException(status_code=404, detail="Email not found")
+        raise HTTPException(status_code=404, detail="Email no trobat")
     
-    try:
-        db.delete(email)
-        db.commit()
-        return {"message": "Email eliminated successfully"}
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+    mid = payload.get("deal_id") or payload.get("municipi_id")
+    if not mid:
+        raise HTTPException(status_code=400, detail="Falta deal_id o municipi_id")
+        
+    email.municipi_id = UUID(mid) if isinstance(mid, str) else mid
+    db.commit()
+    return {"status": "vinculat_ok"}
+
+@router.delete("/{email_id}")
+def eliminar_email(email_id: UUID, db: Session = Depends(get_db)):
+    email = db.query(Email).filter(Email.id == email_id).first()
+    if not email:
+        raise HTTPException(status_code=404, detail="Email no trobat")
+    db.delete(email)
+    db.commit()
+    return {"status": "esborrat_ok"}
+
+@router.post("/sync")
+def sync_emails(background_tasks: BackgroundTasks):
+    from services.email_sync import sync_all_emails
+    background_tasks.add_task(sync_all_emails)
+    return {"status": "ok", "missatge": "Sincronització iniciada"}
