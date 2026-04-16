@@ -126,11 +126,34 @@ def llistar_emails(
     
     mapped_items = []
     for item in items:
+        # Convertir objecte a dict manualment per assegurar formats
         d = {c.name: getattr(item, c.name) for c in item.__table__.columns}
+        
+        # BLINDATGE DE DATA: Si és nul·la o invàlida, enviem la data actual en format ISO
+        data_valida = d.get("data_enviament") or d.get("created_at") or datetime.now(timezone.utc)
+        if isinstance(data_valida, datetime):
+            d["data_enviament"] = data_valida.isoformat()
+        else:
+            d["data_enviament"] = str(data_valida)
+            
         d["deal_id"] = item.municipi_id
         mapped_items.append(d)
 
     return {"items": mapped_items, "total": total, "page": page, "pages": (total // limit) + 1}
+
+@router.patch("/{email_id}/llegit")
+def marcar_llegit(
+    email_id: UUID, 
+    payload: dict = Body(...), 
+    db: Session = Depends(get_db)
+):
+    email = db.query(Email).filter(Email.id == email_id).first()
+    if not email:
+        raise HTTPException(status_code=404, detail="Email no trobat")
+    
+    email.llegit = payload.get("llegit", True)
+    db.commit()
+    return {"status": "ok", "llegit": email.llegit}
 
 @router.patch("/{email_id}/deal")
 def vincular_email_a_municipi(
