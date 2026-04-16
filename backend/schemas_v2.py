@@ -150,3 +150,19 @@ class ContactePaginationOut(BaseModel):
     items: List[ContacteOut]
     total: int
     page: int
+
+class EmailV2Out(BaseModel):
+    id: UUID
+    municipi_id: Optional[UUID] = None
+    contacte_id: Optional[UUID] = None
+    from_address: Optional[str] = None
+    to_address: Optional[str] = None
+    assumpte: Optional[str] = None
+    cos: Optional[str] = None
+    direccio: Optional[str] = None
+    data_enviament: datetime
+    obert: bool = False
+    respost: bool = False
+    
+    class Config:
+        from_attributes = True

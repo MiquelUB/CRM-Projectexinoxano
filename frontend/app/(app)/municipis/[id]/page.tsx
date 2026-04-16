@@ -11,6 +11,7 @@ import Link from "next/link";
 export default function MunicipiDetailPage() {
   const { id } = useParams();
   const [data, setData] = useState<any>(null);
+  const [activitats, setActivitats] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
   // Email states
@@ -34,8 +35,12 @@ export default function MunicipiDetailPage() {
 
   const fetchData = async () => {
     try {
-      const response = await api.municipis_v2.detall(id as string);
-      setData(response);
+      const [res, activities] = await Promise.all([
+        api.municipis_v2.detall(id as string),
+        api.municipis_v2.get_activitats(id as string)
+      ]);
+      setData(res);
+      setActivitats(activities);
     } catch (e) {
       console.error(e);
     } finally {
@@ -88,17 +93,10 @@ export default function MunicipiDetailPage() {
           </div>
           
           <div className="mt-8 md:mt-0 flex flex-col items-end space-y-4">
-            <Link 
-                href={`/municipis/${id}/mission-control`}
-                className="bg-slate-900 hover:bg-slate-800 text-white px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest shadow-xl flex items-center space-x-2 transition-all transform hover:scale-105"
-            >
-                <Sparkles className="w-4 h-4 text-blue-400" />
-                <span>Obrir Mission Control</span>
-            </Link>
             <div className="glass-card p-6 bg-white/40 border-white/20 shadow-none backdrop-blur-none text-right">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2 leading-none">Despesa Energètica Estimada</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] mb-2 leading-none">Pressupost Estimat</p>
               <p className="text-4xl font-black text-slate-800 tracking-tighter">
-                  {Number(data.pressupost_energia || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}
+                  {Number(data.valor_setup || 0 + data.valor_llicencia || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}
               </p>
             </div>
           </div>
@@ -149,34 +147,77 @@ export default function MunicipiDetailPage() {
           )}
         </div>
 
-        {/* Deals */}
-        <div className="glass-card p-8 border-white/60">
-          <div className="flex items-center justify-between mb-8">
-            <h3 className="text-xl font-black text-slate-800 tracking-tight">Acords i Oportunitats</h3>
-            <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${data.deals?.length ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'}`}>
-                {data.deals?.length || 0} Actius
+        {/* Info i Notes */}
+        <div className="glass-card p-8 border-white/60 flex flex-col">
+            <h3 className="text-xl font-black text-slate-800 tracking-tight mb-8">Informació i Notes</h3>
+            <div className="space-y-6 flex-1">
+                <div>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Notes de Seguiment</label>
+                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 text-sm text-slate-600 font-medium leading-relaxed min-h-[100px]">
+                        {data.notes_humanes || "Sense notes addicionals."}
+                    </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="p-4 bg-blue-50/50 rounded-2xl border border-blue-100">
+                        <span className="text-[9px] font-black text-blue-400 uppercase block mb-1">Etapa Actual</span>
+                        <span className="text-sm font-black text-blue-700 uppercase">{data.etapa_actual?.replace('_', ' ')}</span>
+                    </div>
+                    <div className="p-4 bg-amber-50/50 rounded-2xl border border-amber-100">
+                        <span className="text-[9px] font-black text-amber-400 uppercase block mb-1">Temperatura</span>
+                        <span className="text-sm font-black text-amber-700 uppercase">{data.temperatura}</span>
+                    </div>
+                </div>
             </div>
-          </div>
+        </div>
+      </div>
+
+      {/* Timeline d'Activitat */}
+      <div className="glass-card p-10 border-white/60">
+          <h3 className="text-2xl font-black text-slate-800 tracking-tighter mb-8 flex items-center">
+             <Sparkles className="w-6 h-6 mr-3 text-blue-500" />
+             Historial d'Activitat Universal
+          </h3>
           
-          {data.deals?.length ? (
-            <div className="space-y-4">
-              {data.deals.map((d: any) => (
-                <DealCard key={d.id} deal={d} />
-              ))}
+          {activitats.length > 0 ? (
+            <div className="space-y-6 relative before:absolute before:left-4 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-100">
+                {activitats.map((a, i) => (
+                    <div key={a.id} className="relative pl-12">
+                        <div className={`absolute left-0 top-1 w-8 h-8 rounded-full border-4 border-white shadow-sm flex items-center justify-center text-xs z-10 ${
+                            a.tipus === 'email_enviat' ? 'bg-blue-500 text-white' :
+                            a.tipus === 'email_rebut' ? 'bg-indigo-500 text-white' :
+                            a.tipus === 'canvi_etapa' ? 'bg-purple-500 text-white' :
+                            'bg-slate-400 text-white'
+                        }`}>
+                            {a.tipus === 'email_enviat' ? '📧' :
+                             a.tipus === 'email_rebut' ? '📥' :
+                             a.tipus === 'canvi_etapa' ? '⚙️' : '📝'}
+                        </div>
+                        <div className="bg-white p-6 rounded-2xl border border-slate-100 hover:border-blue-100 transition-colors shadow-sm">
+                            <div className="flex justify-between items-start mb-2">
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{a.tipus?.replace('_', ' ')}</span>
+                                <span className="text-[10px] font-bold text-slate-300">{new Date(a.data).toLocaleString('ca-ES')}</span>
+                            </div>
+                            <p className="text-slate-700 text-sm font-medium leading-relaxed">
+                                {a.notes}
+                            </p>
+                        </div>
+                    </div>
+                ))}
             </div>
           ) : (
-            <div className="py-20 text-center opacity-30">
-                <div className="text-4xl mb-2">🤝</div>
-                <p className="text-sm font-bold italic">No hi ha activitat comercial actualment</p>
+            <div className="py-12 bg-slate-50/50 rounded-3xl border border-dashed border-slate-200 text-center">
+                <p className="text-slate-400 font-bold italic text-sm">No s'ha registrat cap activitat encara.</p>
             </div>
           )}
-        </div>
       </div>
     </div>
 
     {isComposerOpen && (
       <EmailComposer 
-        onClose={() => setIsComposerOpen(false)}
+        onClose={() => {
+            setIsComposerOpen(false);
+            fetchData(); // Refresh activities after sending
+        }}
         initialTo={composerConfig.to}
         initialSubject={composerConfig.subject}
         contacteId={composerConfig.contacteId}

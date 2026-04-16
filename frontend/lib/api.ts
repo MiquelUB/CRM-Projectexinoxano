@@ -113,6 +113,7 @@ const api = {
     sync: () => fetchAPI("/emails_v2/sync", { method: "POST" }),
     getStats: async () => ({ obertures: 0, clicks: 0 }),
     eliminar: (id: string) => fetchAPI(`/emails_v2/${id}`, { method: "DELETE" }),
+    enviar: (data: any) => fetchAPI(`/emails_v2/enviar_manual/${data.municipi_id}`, { method: "POST", body: JSON.stringify(data) }),
   },
   llicencies: {
     llistar: (params?: Record<string, string>) =>
@@ -156,13 +157,7 @@ const api = {
     chatMunicipi: (data: any) => fetchAPI("/agent/chat_municipi", { method: "POST", body: JSON.stringify(data) }),
     getActivitatContext: (municipiId: string) => fetchAPI(`/agent/context/${municipiId}`),
   },
-  emails_v2: {
-    llistar: (params?: Record<string, string>) =>
-      fetchAPI(`/emails_v2?${new URLSearchParams(params || {})}`),
-    detall: (id: string) => fetchAPI(`/emails_v2/${id}`),
-    sync: () => fetchAPI("/emails_v2/sync", { method: "POST" }),
-    enviar: (data: any) => fetchAPI(`/emails_v2/enviar_manual/${data.municipi_id}`, { method: "POST", body: JSON.stringify(data) }),
-  },
+
   tasques: {
     llistar: (params?: Record<string, string>) =>
       fetchAPI(`/tasques?${new URLSearchParams(params || {})}`),

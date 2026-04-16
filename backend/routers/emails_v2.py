@@ -257,5 +257,7 @@ def vincular_deal_v2(email_id: UUID, req: dict, db: Session = Depends(get_db)):
     return {"status": "ok"}
 
 @router.post("/sync")
-def sync_emails_v2():
-    return {"status": "ok", "missatge": "IMAP Sincronitzat"}
+def sync_emails_v2(background_tasks: BackgroundTasks):
+    from services.email_sync import sync_all_emails
+    background_tasks.add_task(sync_all_emails)
+    return {"status": "ok", "missatge": "Sincronització iniciada en segon pla"}

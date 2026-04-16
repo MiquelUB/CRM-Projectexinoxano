@@ -182,14 +182,18 @@ class EmailV2(Base):
     __tablename__ = "emails_v2"
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    municipi_id = Column(UUID(as_uuid=True), ForeignKey("municipis_lifecycle.id"), nullable=False)
+    municipi_id = Column(UUID(as_uuid=True), ForeignKey("municipis_lifecycle.id"), nullable=True)
     contacte_id = Column(UUID(as_uuid=True), ForeignKey("contactes_v2.id"), nullable=True)
     
-    data_enviament = Column(DateTime(timezone=True), server_default=func.now())
+    from_address = Column(String(255))
+    to_address = Column(String(255))
     assumpte = Column(String(200))
     cos = Column(Text)
     direccio = Column(String(10)) # 'sortida' or 'entrada'
+    message_id_extern = Column(String(500), unique=True, nullable=True)
     tracking_token = Column(String(100), unique=True, nullable=True)
+    
+    data_enviament = Column(DateTime(timezone=True), server_default=func.now())
     
     # Tracking
     obert = Column(Boolean, default=False)

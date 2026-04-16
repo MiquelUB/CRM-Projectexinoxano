@@ -60,11 +60,19 @@ def get_municipis_kpis(db: Session = Depends(get_db)):
             MunicipiLifecycle.data_ultima_accio < data_limit_activitat
         ).count()
         
+        # 5. Email stats
+        from models_v2 import EmailV2
+        total_emails = db.query(EmailV2).count()
+        emails_oberts = db.query(EmailV2).filter(EmailV2.obert == True).count()
+        taxa = round((emails_oberts / total_emails * 100), 1) if total_emails > 0 else 0
+        
         return {
             "total_deals": total_deals,
             "valor_total_pipeline": valor_total,
             "deals_per_tancar_aquest_mes": per_tancar,
-            "deals_sense_activitat_14_dies": sense_activitat
+            "deals_sense_activitat_14_dies": sense_activitat,
+            "total_emails": total_emails,
+            "taxa_obertura": taxa
         }
     except Exception as e:
         db.rollback()

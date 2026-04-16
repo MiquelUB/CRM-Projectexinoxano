@@ -224,7 +224,7 @@ export default function ConfiguracioPage() {
                   <h3 className="text-lg font-black text-slate-800 mb-6">Etapes del Pipeline (Kanban)</h3>
                   <div className="space-y-3">
                       {[
-                        "Prospecte", "Contacte Inicial", "Demo Feta", "Proposta", "Tramitació", "Tancat", "Perdut"
+                        "Lead", "Research", "Contacte", "Demo Pendent", "Demo OK", "Oferta", "Documentació", "Aprovació", "Contracte", "Client", "Pausa", "Perdut"
                       ].map((s, i) => (
                           <div key={s} className="flex justify-between items-center p-4 bg-white border border-slate-100 rounded-xl shadow-sm">
                               <div className="flex items-center space-x-4">

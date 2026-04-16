@@ -34,7 +34,13 @@ export default function DashboardPage() {
       ]);
       setKpis(results[0].status === 'fulfilled' ? results[0].value : null);
       setAlertes(results[1].status === 'fulfilled' ? results[1].value : null);
-      setEmailStats({ obertures: 0, clicks: 0 }); // Simulat perquè no peti
+      
+      const kpiData = results[0].status === 'fulfilled' ? results[0].value : {};
+      setEmailStats({ 
+          total_emails: kpiData.total_emails || 0, 
+          taxa_obertura: kpiData.taxa_obertura || 0 
+      });
+      
       setTasques(results[2].status === 'fulfilled' ? results[2].value?.items || [] : []);
       setAccions(results[3].status === 'fulfilled' ? results[3].value || [] : []);
     } catch (error) {
