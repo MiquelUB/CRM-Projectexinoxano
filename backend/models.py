@@ -178,7 +178,7 @@ class Contacte(Base):
     municipi_id = Column(UUID(as_uuid=True), ForeignKey("municipis.id"), nullable=False)
     
     nom = Column(String(100), nullable=False)
-    carrec = Column(Enum(CarrecEnum, name="carrec", native_enum=True), nullable=False)
+    carrec = Column(String(100), default="altre")
     email = Column(String(100))
     telefon = Column(String(20))
     
@@ -188,7 +188,7 @@ class Contacte(Base):
     angles_exitosos = Column(JSONB, default=[])
     angles_fallits = Column(JSONB, default=[])
     moment_optimal = Column(String(10))
-    to_preferit = Column(Enum(ToComunicacioEnum, name="to_comunicacio", native_enum=True), nullable=True)
+    to_preferit = Column(String(50), nullable=True)
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     

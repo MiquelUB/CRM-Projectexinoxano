@@ -26,7 +26,7 @@ class UsuariOut(UsuariBase):
 
 class ContacteCreate(BaseModel):
     nom: str
-    carrec: CarrecEnum
+    carrec: Optional[str] = "altre"
     email: Optional[EmailStr] = None
     telefon: Optional[str] = None
     principal: bool = False
@@ -35,8 +35,8 @@ class ContacteOut(BaseModel):
     id: UUID
     municipi_id: UUID
     nom: str
-    carrec: CarrecEnum
-    email: Optional[str] = None
+    carrec: Optional[str] = "altre"
+    email: Optional[Optional[str]] = None
     telefon: Optional[str] = None
     principal: bool
     actiu: bool
@@ -51,7 +51,7 @@ class ContactePaginationOut(BaseModel):
 
 class ContacteUpdate(BaseModel):
     nom: Optional[str] = None
-    carrec: Optional[CarrecEnum] = None
+    carrec: Optional[str] = None
     email: Optional[EmailStr] = None
     telefon: Optional[str] = None
     principal: Optional[bool] = None
