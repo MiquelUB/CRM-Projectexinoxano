@@ -34,7 +34,11 @@ export default function EmailsPage() {
       if (search) params.cerca = search;
       
       const res = await api.emails.llistar(params);
-      setEmails(res.items || []);
+      const sanitizedEmails = (res.items || []).map((em: any) => ({
+        ...em,
+        data_enviament: em.data_enviament || em.created_at || new Date().toISOString()
+      }));
+      setEmails(sanitizedEmails);
     } catch (err) {
       console.error(err);
     } finally {
