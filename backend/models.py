@@ -218,9 +218,9 @@ class Email(Base):
     respost = Column(Boolean, default=False)
     data_resposta = Column(DateTime(timezone=True))
     
-    sentiment_resposta = Column(Enum(SentimentEnum, name="sentiment", native_enum=True), nullable=True)
+    sentiment_resposta = Column(String(20), nullable=True)
     intents_detectats = Column(JSONB, default=[])
-    actor_probable = Column(Enum(ActorEnum, name="actor", native_enum=True), nullable=True)
+    actor_probable = Column(String(20), nullable=True)
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
