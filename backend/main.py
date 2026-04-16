@@ -111,7 +111,12 @@ from fastapi.responses import RedirectResponse
 
 @app.api_route("/municipis_v2/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
 async def legacy_municipis_redirect(request: Request, path: str):
-    url = f"/municipis/{path}" if path else "/municipis"
+    # Fix: If the path is exactly 'contactes', redirect to the global contactes router
+    if path == "contactes":
+        url = "/contactes"
+    else:
+        url = f"/municipis/{path}" if path else "/municipis"
+    
     query_params = str(request.query_params)
     if query_params: url += f"?{query_params}"
     return RedirectResponse(url=url, status_code=307)

@@ -62,11 +62,30 @@ def decode_mime_header(raw_header):
             header_str += str(frag)
     return header_str
 
-def extract_email_address(full_address):
-    match = re.search(r'<([^>]+)>', full_address)
-    if match:
-        return match.group(1).strip()
-    return full_address.strip()
+def find_sent_folder(mail):
+    """Llista les carpetes i intenta trobar la de 'Enviats'"""
+    try:
+        status, folders = mail.list()
+        if status != "OK": return "Sent"
+        
+        # Patrons comuns per a carpetes enviades
+        patterns = [r'sent', r'enviats', r'enviados', r'envi', r'sortida']
+        
+        for f in folders:
+            folder_info = f.decode('utf-8', errors='replace')
+            # El format de mail.list() sol ser: (Attributes) "Hierarchy" FolderName
+            match = re.search(r'"([^"]+)"$', folder_info)
+            if not match:
+                match = re.search(r' ([^ ]+)$', folder_info)
+            
+            if match:
+                folder_name = match.group(1).replace('"', '')
+                for p in patterns:
+                    if re.search(p, folder_name.lower()):
+                        return folder_name
+    except:
+        pass
+    return "Sent"
 
 def sync_mailbox(folder="INBOX", direccio="IN", search_criteria="UNSEEN"):
     if not IMAP_HOST or not IMAP_USER:
@@ -79,14 +98,17 @@ def sync_mailbox(folder="INBOX", direccio="IN", search_criteria="UNSEEN"):
         mail = imaplib.IMAP4_SSL(IMAP_HOST, IMAP_PORT) if IMAP_SSL else imaplib.IMAP4(IMAP_HOST, IMAP_PORT)
         mail.login(IMAP_USER, IMAP_PASSWORD)
         
-        status, messages = mail.select(folder)
-        if status != "OK" and folder != "INBOX":
-            for alt_name in ["Sent", "Enviados", "Enviats", "&AOk-nviats", "Sent Items", "INBOX.Sent", "INBOX.Enviados"]:
-                status, messages = mail.select(f'"{alt_name}"')
-                if status == "OK": break
+        target_folder = folder
+        if folder != "INBOX" and direccio == "OUT":
+            target_folder = find_sent_folder(mail)
+            logger.info(f"Target folder for sent: {target_folder}")
+
+        status, messages = mail.select(f'"{target_folder}"')
+        if status != "OK":
+            status, messages = mail.select(target_folder)
         
         if status != "OK":
-            logger.error(f"Could not select folder {folder}.")
+            logger.error(f"Could not select folder {target_folder} (requested: {folder}).")
             return
 
         status, response = mail.search(None, search_criteria)
@@ -175,7 +197,8 @@ def sync_mailbox(folder="INBOX", direccio="IN", search_criteria="UNSEEN"):
 def sync_all_emails():
     logger.info("Starting IMAP email sync...")
     sync_mailbox("INBOX", "IN", "UNSEEN")
-    date_since = (datetime.now(timezone.utc) - timedelta(days=2)).strftime("%d-%b-%Y")
+    # Intentar sincronitzar enviats dels últims 3 dies
+    date_since = (datetime.now(timezone.utc) - timedelta(days=3)).strftime("%d-%b-%Y")
     sync_mailbox("Sent", "OUT", f'SINCE "{date_since}"')
     logger.info("IMAP email sync finished.")
 
