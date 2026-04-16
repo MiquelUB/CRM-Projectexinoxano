@@ -87,6 +87,12 @@ def find_sent_folder(mail):
         pass
     return "Sent"
 
+def extract_email_address(full_address):
+    if not full_address: return ""
+    match = re.search(r'<([^>]+)>', full_address)
+    if match: return match.group(1).strip().lower()
+    return full_address.strip().lower()
+
 def sync_mailbox(folder="INBOX", direccio="IN", search_criteria="UNSEEN"):
     if not IMAP_HOST or not IMAP_USER:
         logger.warning(f"IMAP settings missing, skipping sync {direccio}")
@@ -101,20 +107,18 @@ def sync_mailbox(folder="INBOX", direccio="IN", search_criteria="UNSEEN"):
         target_folder = folder
         if folder != "INBOX" and direccio == "OUT":
             target_folder = find_sent_folder(mail)
+            # Si no trobem carpeta d'enviats, no sincronitzem OUT per evitar errors
+            if target_folder == "Sent": # Fallback per defecte que sabem que falla
+                 logger.warning("No sent folder found, skipping OUT sync.")
+                 return
             logger.info(f"DEBUG: Found sent folder: {target_folder}")
 
-        # Intentar seleccionar la carpeta (amb i sense cometes, i amb prefix INBOX)
         status, messages = mail.select(target_folder)
         if status != "OK" and not target_folder.startswith("INBOX."):
             status, messages = mail.select(f"INBOX.{target_folder}")
             if status == "OK": target_folder = f"INBOX.{target_folder}"
         
         if status != "OK":
-            # Si encara no podem, llistem carpetes per veure-les al log
-            logger.error(f"Could not select {target_folder}. Available folders:")
-            f_status, folders = mail.list()
-            if f_status == "OK":
-                for f in folders: logger.error(f"  - {f.decode('utf-8', errors='replace')}")
             return
 
         status, response = mail.search(None, search_criteria)
