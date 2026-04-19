@@ -92,16 +92,21 @@ async def global_exception_handler(request: Request, exc: Exception):
 @app.middleware("http")
 async def transparent_legacy_rewriter(request: Request, call_next):
     path = request.url.path
-    # Traductor de rutes velles a noves
-    if "_v2" in path or "municipis_lifecycle" in path:
-        new_path = path.replace("_v2", "").replace("municipis_lifecycle", "municipis")
-        # Ajust especial per a contactes que abans penjaven de municipis
+    
+    # Traductor de rutes velles a noves (v1/v2/lifecycle -> unified)
+    if "municipis_v2" in path or "_v2" in path or "municipis_lifecycle" in path:
+        new_path = path.replace("municipis_v2", "municipis") \
+                       .replace("_v2", "") \
+                       .replace("municipis_lifecycle", "municipis") \
+                       .replace("//", "/") # Per si queden dobles barres
+        
+        # Ajust per a contactes que abans penjaven de municipis
         if "/municipis/contactes" in new_path:
             new_path = new_path.replace("/municipis/contactes", "/contactes")
         
-        # Modifiquem la ruta interna del "scope" de FastAPI
+        # Modifiquem la ruta interna perquè FastAPI trobi el controlador correcte
         request.scope["path"] = new_path
-        logger.info(f"DEBUG REWRITE: {path} -> {new_path}")
+        logger.info(f"🔄 [REWRITE] {path} -> {new_path}")
 
     if request.headers.get("x-forwarded-proto") == "https":
         request.scope["scheme"] = "https"
