@@ -4,60 +4,65 @@ from uuid import uuid4
 
 DB_URL = "postgresql://pxx_admin:b86f95465942a859661e@178.104.83.189:5432/crm_pxx?sslmode=disable"
 
-def sync_v2_to_v1():
+def sync_v1_backup_to_unified():
     try:
         conn = psycopg2.connect(DB_URL)
         cur = conn.cursor()
 
-        # 1. Obtenir tots els municipis de la V2
-        print("Llegint Municipis Lifecycle (V2)...")
-        cur.execute("SELECT id, nom, poblacio, etapa_actual, valor_setup, valor_llicencia, prioritat, proper_pas, notes_humanes FROM public.municipis_lifecycle")
-        v2_municipis = cur.fetchall()
-        print(f"Encontrats {len(v2_municipis)} registres a la V2.")
+        # 1. Obtenir dades de Municipis V1 Backup
+        print("Llegint Municipis V1 Backup...")
+        cur.execute("SELECT id, nom, poblacio, tipus, provincia FROM public.municipis_v1_backup")
+        v1_municipis = cur.fetchall()
+        print(f"Encontrats {len(v1_municipis)} municipis al backup.")
 
-        for m_v2 in v2_municipis:
-            m_id, nom, poblacio, etapa, v_setup, v_llicencia, prioritat, proper_pas, notes = m_v2
-            
-            # A. Comprovar si existeix a Municipis (V1) o crear-lo
+        for m_id, nom, poblacio, tipus, provincia in v1_municipis:
+            # Comprovar si ja existeix al unificat
             cur.execute("SELECT id FROM public.municipis WHERE id = %s", (m_id,))
             if not cur.fetchone():
-                print(f"Creant Municipi V1 per: {nom} ({m_id})")
+                print(f"Restaurat Municipi: {nom} ({m_id})")
                 cur.execute("""
-                    INSERT INTO public.municipis (id, nom, tipus, poblacio, created_at, updated_at)
-                    VALUES (%s, %s, %s, %s, now(), now())
-                """, (m_id, nom, 'ajuntament', str(poblacio) if poblacio else '0'))
+                    INSERT INTO public.municipis (id, nom, tipus, poblacio, provincia, created_at, data_ultima_accio)
+                    VALUES (%s, %s, %s, %s, %s, now(), now())
+                """, (m_id, nom, tipus or 'ajuntament', str(poblacio) if poblacio else '0', provincia or 'Barcelona'))
             
-            # B. Comprovar si existeix un Deal (V1) per aquest municipi
-            cur.execute("SELECT id FROM public.deals WHERE municipi_id = %s", (m_id,))
-            deal = cur.fetchone()
-            
-            # Mapetjar etapa V2 a V1 (etapa V2 sol ser més moderna)
-            v1_etapa = etapa if etapa else 'prospecte'
-            if v1_etapa == 'research': v1_etapa = 'prospecte'
-            if v1_etapa == 'contacte': v1_etapa = 'en_proces'
+        # 2. Obtenir dades de Deals V1 Backup
+        print("Sincronitzant dades de Deals V1 Backup...")
+        cur.execute("SELECT municipi_id, titol, etapa, valor_setup, valor_llicencia, prioritat, proper_pas, notes_humanes FROM public.deals_v1_backup")
+        v1_deals = cur.fetchall()
+        
+        for m_id, titol, etapa, v_setup, v_llicencia, prioritat, proper_pas, notes in v1_deals:
+            # Mapetjar etapa V1 a V2 (Enum etapa_funnel)
+            # V2 Enum: lead, research, contacte, demo_pendent, demo_ok, oferta, documentacio, aprovacio, contracte, client, pausa, perdut
+            etapa_mapping = {
+                'prospecte': 'research',
+                'en_proces': 'contacte',
+                'potencial': 'research',
+                'contactat': 'contacte',
+                'proposta_enviada': 'oferta',
+                'proposta': 'oferta',
+                'negociacio': 'oferta',
+                'guanyat': 'client',
+                'perdut': 'perdut',
+                'pausa': 'pausa',
+                'demo': 'demo_ok'
+            }
+            v2_etapa = etapa_mapping.get(etapa.lower() if etapa else '', 'research')
 
-            if not deal:
-                deal_id = str(uuid4())
-                print(f"Creant Deal V1 per: {nom} (Etapa: {v1_etapa})")
-                cur.execute("""
-                    INSERT INTO public.deals (id, municipi_id, titol, etapa, valor_setup, valor_llicencia, prioritat, proper_pas, notes_humanes, created_at, updated_at)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, now(), now())
-                """, (deal_id, str(m_id), f"Projecte {nom}", v1_etapa, v_setup, v_llicencia, prioritat, proper_pas, notes))
-            else:
-                # Opcional: Actualitzar dades si ja existeix per si han canviat a la V2
-                # print(f"🔄 Actualitzant Deal V1 existent per: {nom}")
-                cur.execute("""
-                    UPDATE public.deals 
-                    SET etapa = %s, valor_setup = %s, valor_llicencia = %s, updated_at = now()
-                    WHERE municipi_id = %s
-                """, (v1_etapa, v_setup, v_llicencia, str(m_id)))
+            # Actualitzar dades a Municipis (Unified)
+            cur.execute("""
+                UPDATE public.municipis 
+                SET etapa_actual = %s, 
+                    valor_setup = %s, 
+                    valor_llicencia = %s, 
+                    prioritat = %s, 
+                    proper_pas = %s, 
+                    notes_humanes = %s,
+                    data_ultima_accio = now()
+                WHERE id = %s
+            """, (v2_etapa, v_setup, v_llicencia, prioritat, proper_pas, notes, m_id))
 
         conn.commit()
-        print("REPARACIO I SINCRONITZACIO COMPLETADA.")
-        
-        cur.execute("SELECT COUNT(*) FROM deals")
-        print(f"Deals totals a la BD (V1): {cur.fetchone()[0]}")
-        
+        print("SINCRO COMPLETADA AMB ÈXIT.")
         cur.close()
         conn.close()
 
@@ -65,4 +70,4 @@ def sync_v2_to_v1():
         print(f"ERROR: {e}")
 
 if __name__ == "__main__":
-    sync_v2_to_v1()
+    sync_v1_backup_to_unified()
