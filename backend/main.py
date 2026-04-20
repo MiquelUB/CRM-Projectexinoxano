@@ -95,16 +95,27 @@ async def transparent_legacy_rewriter(request: Request, call_next):
     
     # Traductor de rutes velles a noves (v1/v2/lifecycle -> unified)
     if "municipis_v2" in path or "_v2" in path or "municipis_lifecycle" in path:
+        # 1. Cas especial: Llicència (v2 usava sub-ruta, vàrem passar a top-level amb query param)
+        import re
+        llicencia_match = re.match(r".*/municipis(?:_v2|_lifecycle)?/([^/]+)/llicencia.*", path)
+        if llicencia_match:
+            new_path = "/llicencies"
+            new_query = f"deal_id={llicencia_match.group(1)}"
+            request.scope["path"] = new_path
+            request.scope["raw_path"] = new_path.encode()
+            request.scope["query_string"] = new_query.encode()
+            logger.info(f"🔄 [REWRITE SPECIAL] {path} -> {new_path}?{new_query}")
+            return await call_next(request)
+
+        # 2. Cas general
         new_path = path.replace("municipis_v2", "municipis") \
                        .replace("_v2", "") \
                        .replace("municipis_lifecycle", "municipis") \
-                       .replace("//", "/") # Per si queden dobles barres
+                       .replace("//", "/")
         
-        # Ajust per a contactes que abans penjaven de municipis
         if "/municipis/contactes" in new_path:
             new_path = new_path.replace("/municipis/contactes", "/contactes")
         
-        # Modifiquem la ruta interna perquè FastAPI trobi el controlador correcte
         request.scope["path"] = new_path
         logger.info(f"🔄 [REWRITE] {path} -> {new_path}")
 
