@@ -200,3 +200,5 @@ class AgentRedactarEmailRequest(BaseModel):
     deal_id: Optional[UUID] = None
     contacte_id: Optional[UUID] = None
     instruccions: str
+    model: Optional[str] = None
+    to_address: Optional[str] = None

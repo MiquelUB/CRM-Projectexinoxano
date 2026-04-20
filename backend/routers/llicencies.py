@@ -10,8 +10,11 @@ from datetime import datetime, timedelta
 router = APIRouter(prefix="/llicencies", tags=["Llicencies"])
 
 @router.get("/", response_model=LlicenciaListResponse)
-def get_llicencies(estat: str = None, renovacio_propera: int = None, db: Session = Depends(get_db)):
+def get_llicencies(deal_id: str = None, estat: str = None, renovacio_propera: int = None, db: Session = Depends(get_db)):
     query = db.query(Llicencia)
+    
+    if deal_id:
+        query = query.filter(Llicencia.deal_id == deal_id)
     
     if estat:
         query = query.filter(Llicencia.estat == estat)

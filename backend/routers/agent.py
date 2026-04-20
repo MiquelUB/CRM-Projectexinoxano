@@ -25,6 +25,20 @@ class ChatMessageRequest(BaseModel):
     deal_id: Optional[UUID] = None # Fallback compat
     model: str = "moonshotai/kimi-k2-thinking"
 
+@router.get("/recomanar-accio/{municipi_id}")
+async def recomanar_accio(
+    municipi_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: models.Usuari = Depends(get_current_user)
+):
+    try:
+        agent = AgentKimiK2(db)
+        recomanacio = await agent.recomanar_accio(municipi_id)
+        return recomanacio
+    except Exception as e:
+        logger.error(f"Error recomanar-accio: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.post("/redactar-email")
 async def redactar_email(
     request: schemas.AgentRedactarEmailRequest,

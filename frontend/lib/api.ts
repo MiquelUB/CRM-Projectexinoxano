@@ -85,6 +85,8 @@ const api = {
     getTimeline: (id: string) => fetchAPI(`/municipis/${id}/activitats`),
     kpis: () => fetchAPI("/municipis/kpis"),
     eliminar: (id: string) => fetchAPI(`/municipis/${id}`, { method: "DELETE" }),
+    get_activitats: (id: string) => fetchAPI(`/municipis/${id}/activitats`),
+    get_llicencia: (id: string) => fetchAPI(`/llicencies?deal_id=${id}`),
   },
   contactes: {
     llistar: (params?: Record<string, string>) =>
@@ -110,6 +112,18 @@ const api = {
     marcarLlegit: (id: string, llegit: boolean) => 
       fetchAPI(`/emails/${id}/llegit`, { method: "PATCH", body: JSON.stringify({ llegit }) }),
   },
+  llicencies: {
+    llistar: (params?: Record<string, string>) =>
+      fetchAPI(`/llicencies?${new URLSearchParams(params || {})}`),
+    crear: (data: any) => fetchAPI("/llicencies", { method: "POST", body: JSON.stringify(data) }),
+    detall: (id: string) => fetchAPI(`/llicencies/${id}`),
+  },
+  pagaments: {
+    llistar: (params?: Record<string, string>) =>
+      fetchAPI(`/pagaments?${new URLSearchParams(params || {})}`),
+    confirmar: (id: string, data: any) =>
+      fetchAPI(`/pagaments/${id}/confirmar`, { method: "PATCH", body: JSON.stringify(data) }),
+  },
   tasques: {
     llistar: (params?: Record<string, string>) =>
       fetchAPI(`/tasques?${new URLSearchParams(params || {})}`),
@@ -119,6 +133,10 @@ const api = {
   },
   dashboard: {
     diari: () => fetchAPI("/dashboard/diari"),
+  },
+  alertes: {
+    totes: () => fetchAPI("/alertes"),
+    count: () => fetchAPI("/alertes/count"),
   },
   agent: {
     chat: (data: any) => fetchAPI("/agent/chat", { method: "POST", body: JSON.stringify(data) }),
@@ -131,6 +149,8 @@ const api = {
       }
       return fetchAPI(`/agent/memory?${new URLSearchParams(cleanParams)}`);
     },
+    redactarEmail: (data: any) => fetchAPI("/agent/redactar-email", { method: "POST", body: JSON.stringify(data) }),
+    recomanarAccio: (id: string) => fetchAPI(`/agent/recomanar-accio/${id}`),
   },
 };
 
