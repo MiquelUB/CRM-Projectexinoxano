@@ -19,13 +19,23 @@ class AgentKimiK2:
         self.db = db
 
     def _load_context(self, municipi_id: UUID, limit: int = 50) -> List[Dict[str, Any]]:
-        """Retorna el timeline complet d'activitats del municipi usant el model unificat."""
+        """Retorna el timeline complet d'activitats del municipi usant el model unificat.
+        Resilient a duplicats: busca dades de tots els municipis amb el mateix nom."""
         timeline = []
         
         try:
+            # Trobar tots els IDs associats al mateix nom (per si hi ha duplicats)
+            target_municipi = self.db.query(models.Municipi).get(municipi_id)
+            if not target_municipi:
+                return []
+            
+            # Busquem tots els IDs que comparteixen aquest nom (case insensitive)
+            all_ids = [id_row[0] for id_row in self.db.query(models.Municipi.id)\
+                .filter(models.Municipi.nom == target_municipi.nom).all()]
+            
             # 1. Activitats (trucades, reunions, notes de CRM)
             activitats = self.db.query(models.Activitat)\
-                .filter(models.Activitat.municipi_id == municipi_id)\
+                .filter(models.Activitat.municipi_id.in_(all_ids))\
                 .order_by(desc(models.Activitat.data_activitat))\
                 .limit(limit)\
                 .all()
@@ -41,7 +51,7 @@ class AgentKimiK2:
                 
             # 2. Emails
             emails = self.db.query(models.Email)\
-                .filter(models.Email.municipi_id == municipi_id)\
+                .filter(models.Email.municipi_id.in_(all_ids))\
                 .order_by(desc(models.Email.data_enviament if hasattr(models.Email, 'data_enviament') else models.Email.data_email))\
                 .limit(limit)\
                 .all()
@@ -57,7 +67,7 @@ class AgentKimiK2:
                 
             # 3. Tasques
             tasques = self.db.query(models.Tasca)\
-                .filter(models.Tasca.municipi_id == municipi_id)\
+                .filter(models.Tasca.municipi_id.in_(all_ids))\
                 .filter(models.Tasca.estat == "pendent")\
                 .all()
             for t in tasques:
@@ -110,7 +120,7 @@ class AgentKimiK2:
         
         bloquejos = []
         if dies_silenci > 15:
-            bloquejos.append(f"Sense resposta des de fa {dies_silenci} dies")
+            bloquejos.append(f"Sense resposta des de fa {dies_silenci} days")
 
         return {
             "ultim_contacte": {
@@ -180,10 +190,20 @@ class AgentKimiK2:
         if municipi_id:
             municipi = self.db.query(models.Municipi).get(municipi_id)
             if municipi:
+                # 1. Context d'activitats unificat
                 context_data = await self.analitzar_context(municipi.id)
+                
+                # 2. Contactes agregats (resilient a duplicats)
+                all_municipis_same_name = self.db.query(models.Municipi)\
+                    .filter(models.Municipi.nom == municipi.nom).all()
+                all_ids = [m.id for m in all_municipis_same_name]
+                
+                contactes_reals = self.db.query(models.Contacte)\
+                    .filter(models.Contacte.municipi_id.in_(all_ids), models.Contacte.actiu == True).all()
+                
                 contactes_info = [
                     f"{c.nom} ({c.carrec}) - Email: {c.email}" 
-                    for c in municipi.contactes if c.actiu
+                    for c in contactes_reals
                 ]
 
                 diagnostics = {
@@ -204,7 +224,7 @@ CONTEXT MUNICIPI {municipi.nom}:
 DIAGNÒSTIC I ESTRATÈGIA:
 {json.dumps(diagnostics, indent=2)}
 
-CONTACTES ACTIUS:
+CONTACTES ACTIUS TROBATS:
 {", ".join(contactes_info) if contactes_info else "Cap contacte registrat."}
 
 MEMÒRIA ESTRATÈGICA:
