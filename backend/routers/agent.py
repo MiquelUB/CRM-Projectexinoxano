@@ -100,6 +100,20 @@ async def get_agent_memory(
         logger.error(f"Error /agent/memory: {e}")
         return {"history": [], "summary": "Error temporal recuperant memòria."}
 
+@router.post("/crear-tasca")
+async def agent_crear_tasca(payload: dict = Body(...), db: Session = Depends(get_db)):
+    """Creativitat de l'agent per materialitzar tasques al calendari."""
+    agent = AgentKimiK2(db)
+    try:
+        return await agent.crear_tasca_agent(
+            municipi_id=UUID(payload["municipi_id"]),
+            titol=payload["titol"],
+            data_venciment=payload["data_venciment"],
+            descripcio=payload.get("descripcio", "")
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 tracking_router = APIRouter(prefix="/tracking", tags=["tracking"])
 
 @tracking_router.get("/{token}")

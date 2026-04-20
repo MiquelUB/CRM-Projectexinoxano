@@ -13,8 +13,8 @@ export function DealCard({ deal, isOverlay = false }: any) {
 
   const totalValue = Number(deal.valor_setup) + Number(deal.valor_llicencia);
 
-  // Calcula dies en etapa actual
-  const updateDate = new Date(deal.updated_at);
+  // Calcula dies en etapa actual (V2 usa data_ultima_accio)
+  const updateDate = new Date(deal.data_ultima_accio || deal.created_at);
   const now = new Date();
   const diffDays = Math.floor((now.getTime() - updateDate.getTime()) / (1000 * 3600 * 24));
 

@@ -65,18 +65,12 @@ export function EmailComposer({
   const handleSend = async () => {
     setSending(true);
     try {
-      const formData = new FormData();
-      formData.append("to", to);
-      formData.append("assumpte", subject);
-      formData.append("cos", body);
-      if (dealId) formData.append("deal_id", dealId);
-      if (contacteId) formData.append("contacte_id", contacteId);
-      
-      attachments.forEach(file => {
-        formData.append("files", file);
+      await api.emails.enviar({
+        deal_id: dealId,
+        to,
+        assumpte: subject,
+        cos: body
       });
-
-      await api.emails.enviar(formData);
       if (onSent) onSent();
       onClose();
     } catch (error: any) {

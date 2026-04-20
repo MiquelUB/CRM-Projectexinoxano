@@ -11,15 +11,15 @@ from auth import get_current_user
 
 router = APIRouter(prefix="/contactes", tags=["contactes"])
 
-@router.get("", response_model=schemas.ContactePaginationOut)
+@router.get("/", response_model=schemas.ContactePaginationOut)
 def get_contactes(
-    municipi_id: Optional[UUID] = None,
-    cerca: Optional[str] = None,
-    page: int = Query(1, ge=1),
-    limit: int = Query(20, ge=1, le=100),
+    municipi_id: Optional[UUID] = Query(None),
+    cerca: Optional[str] = Query(None),
+    page: int = 1,
+    limit: int = 50,
     db: Session = Depends(get_db)
 ):
-    query = db.query(models.Contacte)
+    query = db.query(models.Contacte).options(joinedload(models.Contacte.municipi))
     
     if municipi_id:
         query = query.filter(models.Contacte.municipi_id == municipi_id)

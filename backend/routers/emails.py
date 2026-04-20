@@ -65,36 +65,47 @@ def obtenir_draft(draft_id: UUID, db: Session = Depends(get_db)):
 @router.post("/enviar_manual/{municipi_id}")
 async def enviar_manual_endpoint(
     municipi_id: UUID,
-    subject: str = Form(None),
-    cos: str = Form(None),
-    req: Optional[EmailDraftEditRequest] = None,
+    payload: dict = Body(...),
     db: Session = Depends(get_db)
 ):
-    final_subject = subject or (req.subject if req else "")
-    final_cos = cos or (req.cos if req else "")
-    
     municipi = db.query(Municipi).filter(Municipi.id == municipi_id).first()
     if not municipi:
         raise HTTPException(status_code=404, detail="Municipi no trobat")
+    
+    to_address = payload.get("to") or payload.get("to_address") or ""
+    if not to_address and municipi.actor_principal:
+        to_address = municipi.actor_principal.email or ""
+    
+    assumpte = payload.get("assumpte") or payload.get("subject") or "Sense assumpte"
+    cos = payload.get("cos") or payload.get("body") or ""
 
     nou_email = Email(
         municipi_id=municipi_id,
-        assumpte=final_subject,
-        cos=final_cos,
+        assumpte=assumpte,
+        cos=cos,
         from_address="comercial@projectexinoxano.cat",
-        to_address=municipi.email if hasattr(municipi, 'email') and municipi.email else "",
+        to_address=to_address,
         direccio="OUT",
         data_enviament=datetime.now(timezone.utc),
         llegit=True
     )
-    
-    if municipi.actor_principal and hasattr(municipi.actor_principal, 'email'):
-        nou_email.to_address = municipi.actor_principal.email
-
     db.add(nou_email)
+    
+    # Registrar activitat a la timeline automàticament
+    activitat = Activitat(
+        municipi_id=municipi_id,
+        tipus_activitat=TipusActivitat.email_enviat,
+        notes_comercial=f"Email enviat: {assumpte}",
+        contingut={"assumpte": assumpte, "cos": cos[:500] if cos else ""},
+        data_activitat=datetime.now(timezone.utc)
+    )
+    db.add(activitat)
+    
+    # Actualitzar data de l'última acció del municipi
     municipi.data_ultima_accio = datetime.now(timezone.utc)
+    
     db.commit()
-    return {"status": "enviat_manualment"}
+    return {"status": "enviat_manualment", "email_id": str(nou_email.id)}
 
 @router.get("", response_model=dict)
 def llistar_emails(

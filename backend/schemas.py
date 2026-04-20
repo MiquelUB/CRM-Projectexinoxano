@@ -31,6 +31,13 @@ class ContacteCreate(BaseModel):
     telefon: Optional[str] = None
     principal: bool = False
 
+class MunicipiMinimalOut(BaseModel):
+    id: UUID
+    nom: str
+
+    class Config:
+        from_attributes = True
+
 class ContacteOut(BaseModel):
     id: UUID
     municipi_id: UUID
@@ -40,6 +47,7 @@ class ContacteOut(BaseModel):
     telefon: Optional[str] = None
     principal: bool
     actiu: bool
+    municipi: Optional[MunicipiMinimalOut] = None
 
     class Config:
         from_attributes = True

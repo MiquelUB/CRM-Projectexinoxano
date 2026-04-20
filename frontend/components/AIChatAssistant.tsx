@@ -57,7 +57,7 @@ export function AIChatAssistant() {
         } else {
           // Missatge de benvinguda si no hi ha historial
           const welcomeMsg = dealContext 
-            ? `Hola! Soc el teu Assistent CRM. Estic analitzant el municipi **${dealContext.nom || dealContext.titol}**. En què et puc ajudar?`
+            ? `Hola! Soc el teu Assistent CRM. Estic analitzant el municipi **${dealContext.titol}**. En què et puc ajudar?`
             : "Hola! Soc l'Assistent CRM. Com et puc ajudar avui?";
           
           setMessages([{
@@ -150,12 +150,27 @@ export function AIChatAssistant() {
     }
   };
 
-  const handleActionClick = (action: string) => {
+  const handleActionClick = async (action: string) => {
     const normalized = action.toLowerCase();
     if (normalized.includes("redactar") || normalized.includes("email")) {
       setShowEmailModal(action);
-    } else if (normalized.includes("programar") || normalized.includes("trucada")) {
-      setShowCallModal(action);
+    } else if (normalized.includes("programar") || normalized.includes("trucada") || normalized.includes("tasca")) {
+      // Si l'acció suggereix una tasca/trucada, intentem crear-la automàticament o obrir el diàleg
+      if (dealContext && (normalized.includes("tasca") || normalized.includes("seguiment"))) {
+         try {
+            await api.agent.crearTasca({
+               municipi_id: dealContext.id,
+               titol: action,
+               data_venciment: new Date(Date.now() + 86400000).toISOString(), // Demà per defecte
+               descripcio: "Tasca generada per l'Assistent IA"
+            });
+            handleSendMessage(undefined, `He creat la tasca: "${action}" per a demà.`);
+         } catch (e) {
+            setShowCallModal(action);
+         }
+      } else {
+        setShowCallModal(action);
+      }
     } else {
       handleSendMessage(undefined, action);
     }
@@ -210,16 +225,14 @@ export function AIChatAssistant() {
               <h3 className="font-bold tracking-tight">Assistent CRM</h3>
               <Sparkles className="w-3.5 h-3.5 text-blue-200 fill-blue-200" />
             </div>
-            {dealContext ? (
-              <div className="flex items-center space-x-1.5 bg-white/10 px-2 py-0.5 rounded-md mt-0.5 border border-white/5">
-                <LinkIcon className="w-2.5 h-2.5 text-blue-200" />
-                <span className="text-[10px] font-semibold text-blue-50 truncate max-w-[150px]">
-                  {dealContext.titol}
-                </span>
-              </div>
-            ) : (
-              <p className="text-[10px] text-blue-200 font-medium uppercase tracking-widest">Global CRM Assistant</p>
-            )}
+              {dealContext && (
+                <div className="flex items-center space-x-2 px-3 py-1.5 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+                  <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest truncate max-w-[150px]">
+                    Context: {dealContext.titol}
+                  </span>
+                </div>
+              )}
           </div>
         </div>
         <div className="flex items-center space-x-1">

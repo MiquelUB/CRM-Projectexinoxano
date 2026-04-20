@@ -103,11 +103,15 @@ const api = {
     sync: () => fetchAPI("/emails/sync", { method: "POST" }),
     eliminar: (id: string) => fetchAPI(`/emails/${id}`, { method: "DELETE" }),
     enviar: (data: any) => {
-      if (data instanceof FormData) {
-        const mid = data.get("municipi_id") || data.get("deal_id");
-        return fetchAPI(`/emails/enviar_manual/${mid}`, { method: "POST", body: data });
-      }
-      return fetchAPI(`/emails/enviar_manual/${data.municipi_id}`, { method: "POST", body: JSON.stringify(data) });
+      const mid = data.municipi_id || data.deal_id;
+      return fetchAPI(`/emails/enviar_manual/${mid}`, { 
+        method: "POST", 
+        body: JSON.stringify({
+          to: data.to,
+          assumpte: data.assumpte,
+          cos: data.cos
+        }) 
+      });
     },
     marcarLlegit: (id: string, llegit: boolean) => 
       fetchAPI(`/emails/${id}/llegit`, { method: "PATCH", body: JSON.stringify({ llegit }) }),
@@ -151,6 +155,7 @@ const api = {
     },
     redactarEmail: (data: any) => fetchAPI("/agent/redactar-email", { method: "POST", body: JSON.stringify(data) }),
     recomanarAccio: (id: string) => fetchAPI(`/agent/recomanar-accio/${id}`),
+    crearTasca: (data: any) => fetchAPI("/agent/crear-tasca", { method: "POST", body: JSON.stringify(data) }),
   },
 };
 

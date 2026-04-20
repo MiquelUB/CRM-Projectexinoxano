@@ -260,3 +260,42 @@ RECOMPTE PER ETAPA:
             "response": response["content"],
             "model": response["model_usat"]
         }
+
+    async def crear_tasca_agent(self, municipi_id: UUID, titol: str, data_venciment: str, descripcio: str = "") -> dict:
+        """Permet a l'IA crear una tasca real al calendari."""
+        try:
+            from models import Tasca
+            from dateutil import parser
+            
+            # Parse date safely
+            try:
+                dt_venciment = parser.isoparse(data_venciment)
+            except:
+                dt_venciment = datetime.now(timezone.utc) + timedelta(days=1)
+
+            tasca = Tasca(
+                municipi_id=municipi_id,
+                titol=titol,
+                data_venciment=dt_venciment,
+                descripcio=descripcio,
+                prioritat=2,
+                estat="pendent"
+            )
+            self.db.add(tasca)
+            
+            # Registrar l'acció al timeline
+            from models import Activitat, TipusActivitat
+            activitat = Activitat(
+                municipi_id=municipi_id,
+                tipus_activitat=TipusActivitat.sistema,
+                notes_comercial=f"IA ha programat una tasca: {titol} per al {dt_venciment.strftime('%d/%m/%Y')}",
+                data_activitat=datetime.now(timezone.utc)
+            )
+            self.db.add(activitat)
+            
+            self.db.commit()
+            return {"status": "success", "id": str(tasca.id), "titol": titol}
+        except Exception as e:
+            self.db.rollback()
+            logger.error(f"Error agent creant tasca: {e}")
+            raise e

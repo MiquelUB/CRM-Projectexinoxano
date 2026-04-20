@@ -191,6 +191,11 @@ def delete_municipi(id: str, db: Session = Depends(get_db)):
     m = db.query(Municipi).filter(Municipi.id == id).first()
     if not m:
         raise HTTPException(status_code=404, detail="Municipi no trobat")
+    
+    # Trencar referència circular per permetre eliminació en cascada
+    m.actor_principal_id = None
+    db.flush()
+    
     db.delete(m)
     db.commit()
     return {"status": "success"}

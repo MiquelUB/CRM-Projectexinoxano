@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import api from "@/lib/api";
 import { format } from "date-fns";
 import { X, Mail, CreditCard, Trash2, Save, Euro, Building2, User, Loader2 } from "lucide-react";
+import { useChatContext } from "@/contexts/ChatContext";
 
 export default function DealDrawer({ deal, onClose, onUpdate }: any) {
   // State per a camps editables
@@ -36,36 +37,7 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
   const [activitats, setActivitats] = useState<any[]>([]);
   const [llicencia, setLlicencia] = useState<any>(null);
 
-
-  // Email Composer State
-  const [showEmailComposer, setShowEmailComposer] = useState(false);
-  const [composerData, setComposerData] = useState({ to: "", subject: "", body: "", instruccionsIA: "" });
-  const [sendingEmail, setSendingEmail] = useState(false);
-
-  const handleOpenComposer = (to = deal.actor_principal?.email || "", subject = `Seguiment PXX — ${deal.nom || 'Ajuntament'}`, body = "") => {
-    setComposerData({ to, subject, body, instruccionsIA: "" });
-    setShowEmailComposer(true);
-  };
-
-  const handleSendEmail = async () => {
-    setSendingEmail(true);
-    try {
-      await api.emails.enviar({
-        municipi_id: deal.id,
-        to: composerData.to,
-        assumpte: composerData.subject,
-        cos: composerData.body
-      });
-      setShowEmailComposer(false);
-      // Refresh activities
-      fetchActivitats();
-    } catch (e: any) {
-      alert(`Error enviant email: ${e.message}`);
-    } finally {
-      setSendingEmail(false);
-    }
-  };
-
+  const { setDealContext, clearDealContext } = useChatContext();
 
   const fetchActivitats = async () => {
     try {
@@ -78,9 +50,12 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
 
   useEffect(() => {
     if (deal.id) {
+      // Sincronitza amb el xat flotant perquè el Kimi sàpiga on som
+      setDealContext({ id: deal.id, titol: deal.nom, municipiNom: deal.nom });
       fetchActivitats();
       api.municipis.get_llicencia(deal.id).then((l: any) => setLlicencia(l));
     }
+    return () => clearDealContext();
   }, [deal.id]);
 
   const handleSaveAll = async () => {
@@ -379,13 +354,6 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
               <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                  ⚡ Timeline Universal
               </h3>
-              <button 
-                onClick={() => handleOpenComposer()}
-                className="flex items-center space-x-1 px-3 py-1 bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 rounded-lg text-[10px] font-black tracking-widest uppercase transition-colors"
-              >
-                <Mail className="w-3 h-3" />
-                <span>Nou Email</span>
-              </button>
             </div>
             
             {activitats.length === 0 ? (
@@ -461,67 +429,6 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
               )}
           </button>
         </div>
-
-        {/* Email Composer Modal */}
-        {showEmailComposer && (
-          <div className="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6">
-            <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in duration-200 flex flex-col max-h-[90vh]">
-              <div className="bg-slate-900 p-6 flex justify-between items-center">
-                <div className="flex items-center space-x-2 text-white">
-                  <Mail className="w-5 h-5 text-blue-400" />
-                  <span className="font-black text-sm uppercase tracking-widest">Nou Missatge</span>
-                </div>
-                <button onClick={() => setShowEmailComposer(false)} className="text-slate-400 hover:text-white transition-colors">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              
-              <div className="p-8 space-y-4 overflow-y-auto">
-                <div className="grid grid-cols-12 gap-4 items-center">
-                   <label className="col-span-2 text-[10px] font-black text-slate-400 uppercase">Per a:</label>
-                   <input 
-                    value={composerData.to}
-                    onChange={e => setComposerData({...composerData, to: e.target.value})}
-                    className="col-span-10 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 font-bold text-slate-700 outline-none focus:border-blue-400"
-                   />
-                </div>
-                <div className="grid grid-cols-12 gap-4 items-center">
-                   <label className="col-span-2 text-[10px] font-black text-slate-400 uppercase">Assumpte:</label>
-                   <input 
-                    value={composerData.subject}
-                    onChange={e => setComposerData({...composerData, subject: e.target.value})}
-                    className="col-span-10 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 font-bold text-slate-700 outline-none focus:border-blue-400"
-                   />
-                </div>
-
-
-                <textarea 
-                  value={composerData.body}
-                  onChange={e => setComposerData({...composerData, body: e.target.value})}
-                  placeholder="Escriu el missatge aquí..."
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-medium text-slate-700 outline-none focus:border-blue-400 min-h-[200px]"
-                />
-              </div>
-
-              <div className="p-6 bg-slate-50 border-t flex space-x-3">
-                <button 
-                  onClick={() => setShowEmailComposer(false)}
-                  className="px-6 py-3 text-slate-500 font-bold text-sm hover:text-slate-700"
-                >
-                  Cancel·lar
-                </button>
-                <button 
-                  onClick={handleSendEmail}
-                  disabled={sendingEmail || !composerData.to || !composerData.subject || !composerData.body}
-                  className="flex-1 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-black text-sm transition-all disabled:opacity-50 flex items-center justify-center space-x-2 shadow-lg"
-                >
-                  {sendingEmail ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
-                  <span>Enviar Email ara</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
