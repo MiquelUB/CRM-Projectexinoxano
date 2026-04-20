@@ -188,14 +188,20 @@ def update_municipi(id: str, payload: dict, db: Session = Depends(get_db)):
 
 @router.delete("/{id}")
 def delete_municipi(id: str, db: Session = Depends(get_db)):
-    m = db.query(Municipi).filter(Municipi.id == id).first()
-    if not m:
-        raise HTTPException(status_code=404, detail="Municipi no trobat")
-    
-    # Trencar referència circular per permetre eliminació en cascada
-    m.actor_principal_id = None
-    db.flush()
-    
-    db.delete(m)
-    db.commit()
-    return {"status": "success"}
+    try:
+        m = db.query(Municipi).filter(Municipi.id == id).first()
+        if not m:
+            raise HTTPException(status_code=404, detail="Municipi no trobat")
+        
+        # Trencar referència circular per permetre eliminació en cascada
+        m.actor_principal_id = None
+        db.flush()
+        
+        db.delete(m)
+        db.commit()
+        return {"status": "success"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error eliminant municipi: {str(e)}")

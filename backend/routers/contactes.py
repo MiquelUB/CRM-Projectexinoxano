@@ -1,6 +1,6 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 from uuid import UUID
 
@@ -11,7 +11,7 @@ from auth import get_current_user
 
 router = APIRouter(prefix="/contactes", tags=["contactes"])
 
-@router.get("/", response_model=schemas.ContactePaginationOut)
+@router.get("", response_model=schemas.ContactePaginationOut)
 def get_contactes(
     municipi_id: Optional[UUID] = Query(None),
     cerca: Optional[str] = Query(None),
