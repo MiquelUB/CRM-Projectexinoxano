@@ -35,6 +35,9 @@ def get_url():
         url = url.replace("postgres://", "postgresql+pg8000://", 1)
     elif url.startswith("postgresql://"):
         url = url.replace("postgresql://", "postgresql+pg8000://", 1)
+    
+    if "?" in url:
+        url = url.split("?")[0]
     return url
 
 def run_migrations_offline() -> None:

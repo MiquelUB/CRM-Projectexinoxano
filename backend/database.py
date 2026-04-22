@@ -15,6 +15,10 @@ if DATABASE_URL:
         DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+pg8000://", 1)
     elif DATABASE_URL.startswith("postgresql://"):
         DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+pg8000://", 1)
+    
+    # Netegem paràmetres com ?sslmode=require que pg8000 no suporta directament a la URL
+    if "?" in DATABASE_URL:
+        DATABASE_URL = DATABASE_URL.split("?")[0]
 
 if not DATABASE_URL:
     logger.error("FATAL: DATABASE_URL no definida a l'entorn!")
