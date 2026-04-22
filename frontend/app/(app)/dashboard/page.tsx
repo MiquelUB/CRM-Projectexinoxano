@@ -315,7 +315,7 @@ export default function DashboardPage() {
             
             {(alertes?.renovacions?.length === 0 && alertes?.pagaments_vencuts?.length === 0) && (
               <div className="flex flex-col items-center justify-center h-full text-center space-y-2 opacity-50">
-                <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-2xl">✨</div>
+                <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-2xl">🎯</div>
                 <p className="text-sm text-slate-500 font-medium italic">Tot en ordre. No hi ha alertes pendents.</p>
               </div>
             )}

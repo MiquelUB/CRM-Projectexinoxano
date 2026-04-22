@@ -10,8 +10,7 @@ import {
   Clock, 
   Loader2,
   ChevronRight,
-  TrendingUp,
-  Brain
+  TrendingUp
 } from "lucide-react";
 import { format } from "date-fns";
 import { ca } from "date-fns/locale";

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import api from "@/lib/api";
 import { format } from "date-fns";
-import { X, Mail, CreditCard, Trash2, Save, Euro, Building2, User, Loader2 } from "lucide-react";
+import { X, Mail, CreditCard, Trash2, Save, Euro, Building2, User, Loader2, Clock } from "lucide-react";
 
 export default function DealDrawer({ deal, onClose, onUpdate }: any) {
   // State per a camps editables
@@ -348,7 +348,7 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
           <section>
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                 ⚡ Timeline Universal
+                 <Clock className="w-4 h-4 mr-2 text-slate-400" /> Timeline Universal
               </h3>
             </div>
             

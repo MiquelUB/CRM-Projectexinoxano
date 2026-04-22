@@ -9,7 +9,7 @@ import api from "@/lib/api";
 
 const PLANS = [
   { id: "roure", nom: "ROURE", setup: 3500, manteniment: 2500, desc: "5 rutas / 10 POIs / 5k MAU" },
-  { id: "mirador", nom: "MIRADOR", setup: 5500, manteniment: 5000, desc: "10 rutas / 20 POIs / 10k MAU + IA Quizzes" },
+  { id: "mirador", nom: "MIRADOR", setup: 5500, manteniment: 5000, desc: "10 rutas / 20 POIs / 10k MAU" },
   { id: "territori", nom: "TERRITORI", setup: 9500, manteniment: 14000, desc: "20 rutas / 35 POIs / 20k MAU + Multi-Bioma" },
 ];
 

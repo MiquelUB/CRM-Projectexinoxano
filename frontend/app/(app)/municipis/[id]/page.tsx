@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import api from "@/lib/api";
 import { 
     X, Mail, CreditCard, Trash2, Save, Euro, Building2, User, Loader2, 
-    Sparkles, ArrowLeft, Calendar
+    History, ArrowLeft, Calendar
 } from "lucide-react";
 import { format } from "date-fns";
 import { EmailComposer } from "@/components/EmailComposer";
@@ -125,7 +125,7 @@ export default function MunicipiDetailPage() {
   );
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-20">
+    <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       {/* Header - Aligned with DealDrawer style but as absolute top */}
       <div className="bg-[#0f172a] text-white p-10 rounded-3xl shadow-2xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl -mr-48 -mt-48" />
@@ -214,7 +214,7 @@ export default function MunicipiDetailPage() {
           <div className="glass-card p-10 border-white/60">
               <div className="flex justify-between items-center mb-8">
                 <h3 className="text-2xl font-black text-slate-800 tracking-tighter flex items-center">
-                    <Sparkles className="w-6 h-6 mr-3 text-blue-500" />
+                    <History className="w-6 h-6 mr-3 text-slate-400" />
                     Timeline Universal
                 </h3>
                 <Button 
@@ -244,7 +244,7 @@ export default function MunicipiDetailPage() {
                                 <div className="flex justify-between items-start mb-2">
                                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                                         {a.tipus_activitat?.replace('_', ' ')}
-                                        {a.generat_per_ia && <span className="ml-2 text-blue-500">✨ IA</span>}
+                                        {a.generat_per_ia && <span className="ml-2 text-blue-500">IA</span>}
                                     </span>
                                     <span className="text-[10px] font-bold text-slate-300">{format(new Date(a.data_activitat), "dd/MM/yyyy HH:mm")}</span>
                                 </div>

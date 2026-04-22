@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
 import { format } from "date-fns";
-import { Mail, MailOpen, ArrowRightLeft, ArrowDownRight, ArrowUpRight, Eye, Plus, Send, X, Bot, Trash2 } from "lucide-react";
+import { Mail, MailOpen, ArrowRightLeft, ArrowDownRight, ArrowUpRight, Eye, Plus, Send, X, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmailComposer } from "@/components/EmailComposer";
 
@@ -239,7 +239,7 @@ export default function EmailsPage() {
               <tr>
                 <td colSpan={6} className="px-8 py-20 text-center">
                     <div className="flex flex-col items-center opacity-40">
-                        <div className="text-4xl mb-4">Inbox Neta ✨</div>
+                        <div className="text-4xl mb-4">Inbox Neta</div>
                         <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">No hi ha comunicacions per mostrar</p>
                     </div>
                 </td>
