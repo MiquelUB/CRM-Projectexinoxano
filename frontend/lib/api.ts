@@ -100,6 +100,7 @@ const contactes = {
 const emails = {
   llistar: (params?: Record<string, string>) => 
     fetchAPI(`/emails?${new URLSearchParams(params || {})}`),
+  pendents: () => fetchAPI("/emails?sense_vincular=true"),
   vincular: (id: string, dealId: string) => 
     fetchAPI(`/emails/${id}/deal`, { method: "PATCH", body: JSON.stringify({ deal_id: dealId }) }),
   sync: () => fetchAPI("/emails/sync", { method: "POST" }),
@@ -150,21 +151,13 @@ const alertes = {
   count: () => fetchAPI("/alertes/count"),
 };
 
-const agent = {
-  chat: (data: any) => fetchAPI("/agent/chat", { method: "POST", body: JSON.stringify(data) }),
-  getMemory: (params?: { deal_id?: string; municipi_id?: string }) => {
-    const cleanParams: Record<string, string> = {};
-    if (params) {
-      Object.entries(params).forEach(([key, value]) => {
-        if (value) cleanParams[key] = value;
-      });
-    }
-    return fetchAPI(`/agent/memory?${new URLSearchParams(cleanParams)}`);
-  },
-  redactarEmail: (data: any) => fetchAPI("/agent/redactar-email", { method: "POST", body: JSON.stringify(data) }),
-  recomanarAccio: (id: string) => fetchAPI(`/agent/recomanar-accio/${id}`),
-  crearTasca: (data: any) => fetchAPI("/agent/crear-tasca", { method: "POST", body: JSON.stringify(data) }),
+const usuaris = {
+  llistar: () => fetchAPI("/usuaris"),
+  crear: (data: any) => fetchAPI("/usuaris", { method: "POST", body: JSON.stringify(data) }),
+  editar: (id: string, data: any) => fetchAPI(`/usuaris/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  eliminar: (id: string) => fetchAPI(`/usuaris/${id}`, { method: "DELETE" }),
 };
+
 
 const api = {
   auth,
@@ -176,8 +169,8 @@ const api = {
   tasques,
   dashboard,
   alertes,
-  agent
+  usuaris
 };
 
-export { auth, municipis, contactes, emails, llicencies, pagaments, tasques, dashboard, alertes, agent };
+export { auth, municipis, contactes, emails, llicencies, pagaments, tasques, dashboard, alertes, usuaris };
 export default api;

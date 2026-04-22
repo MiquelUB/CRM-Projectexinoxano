@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from database import engine, Base, SessionLocal, get_db
 import models
 from auth import get_password_hash
-from routers import auth, alertes, usuaris, agent, tasques, dashboard, municipis, emails, activitats, contactes
+from routers import auth, alertes, usuaris, tasques, dashboard, municipis, emails, activitats, contactes, tracking
 import scheduler
 
 @asynccontextmanager
@@ -162,5 +162,4 @@ app.include_router(contactes.router)
 app.include_router(activitats.router)
 app.include_router(tasques.router)
 app.include_router(alertes.router)
-app.include_router(agent.router)
-app.include_router(agent.tracking_router)
+app.include_router(tracking.router)

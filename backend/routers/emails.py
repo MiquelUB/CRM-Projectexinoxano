@@ -6,61 +6,16 @@ from typing import List, Optional
 from uuid import UUID
 from datetime import datetime, timezone
 import traceback
+import logging
+
+logger = logging.getLogger(__name__)
 
 from database import get_db
-from models import Municipi, Contacte, Email, EmailDraft, EmailSequencia, TipusActivitat
-from schemas import EmailOut, EmailDraftCreateRequest, EmailDraftEditRequest, EmailDraftSelectVariantRequest, EmailDraftSendRequest, EmailSequenciaGenerateRequest
-
-from services.draft_generator import generar_draft
-from services.sequenciador import generar_sequencia_prospeccio, preparar_email_sequencia
+from models import Municipi, Contacte, Email, Activitat, TipusActivitat
+from schemas import EmailOut
 
 router = APIRouter(prefix="/emails", tags=["Emails"])
 
-@router.post("/drafts/nou/{municipi_id}")
-async def crear_draft_endpoint(
-    municipi_id: UUID,
-    req: EmailDraftCreateRequest,
-    db: Session = Depends(get_db)
-):
-    municipi = db.query(Municipi).filter(Municipi.id == municipi_id).first()
-    if not municipi:
-        raise HTTPException(status_code=404, detail="Municipi no trobat")
-    
-    contacte = None
-    if req.contacte_id:
-        contacte = db.query(Contacte).filter(Contacte.id == req.contacte_id).first()
-
-    try:
-        draft = await generar_draft(db, municipi, req.tipus, contacte)
-        db.add(draft)
-        municipi.data_ultima_accio = datetime.now(timezone.utc)
-        db.commit()
-        db.refresh(draft)
-        
-        return {
-            'draft_id': draft.id,
-            'variants': draft.variants_generades,
-            'subject_inicial': draft.subject,
-            'cos_inicial': draft.cos,
-            'angle_personalitzacio': municipi.angle_personalitzacio
-        }
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.get("/drafts/{draft_id}")
-def obtenir_draft(draft_id: UUID, db: Session = Depends(get_db)):
-    draft = db.query(EmailDraft).filter(EmailDraft.id == draft_id).first()
-    if not draft:
-        raise HTTPException(status_code=404, detail="Draft no trobat")
-        
-    return {
-        'draft_id': draft.id,
-        'subject': draft.subject,
-        'cos': draft.cos,
-        'variants': draft.variants_generades if hasattr(draft, 'variants_generades') else [],
-        'angle_personalitzacio': draft.municipi.angle_personalitzacio if draft.municipi else None
-    }
 
 @router.post("/enviar_manual/{municipi_id}")
 async def enviar_manual_endpoint(
@@ -76,36 +31,25 @@ async def enviar_manual_endpoint(
     if not to_address and municipi.actor_principal:
         to_address = municipi.actor_principal.email or ""
     
+    if not to_address:
+        raise HTTPException(status_code=400, detail="Sense destinatari")
+    
     assumpte = payload.get("assumpte") or payload.get("subject") or "Sense assumpte"
     cos = payload.get("cos") or payload.get("body") or ""
 
-    nou_email = Email(
-        municipi_id=municipi_id,
-        assumpte=assumpte,
-        cos=cos,
-        from_address="comercial@projectexinoxano.cat",
-        to_address=to_address,
-        direccio="OUT",
-        data_enviament=datetime.now(timezone.utc),
-        llegit=True
-    )
-    db.add(nou_email)
-    
-    # Registrar activitat a la timeline automàticament
-    activitat = Activitat(
-        municipi_id=municipi_id,
-        tipus_activitat=TipusActivitat.email_enviat,
-        notes_comercial=f"Email enviat: {assumpte}",
-        contingut={"assumpte": assumpte, "cos": cos[:500] if cos else ""},
-        data_activitat=datetime.now(timezone.utc)
-    )
-    db.add(activitat)
-    
-    # Actualitzar data de l'última acció del municipi
-    municipi.data_ultima_accio = datetime.now(timezone.utc)
-    
-    db.commit()
-    return {"status": "enviat_manualment", "email_id": str(nou_email.id)}
+    from services.email_sender import send_email_from_crm
+    try:
+        nou_email = send_email_from_crm(
+            to_address=to_address,
+            assumpte=assumpte,
+            cos=cos,
+            municipi_id=str(municipi_id),
+            contacte_id=str(municipi.actor_principal.id) if municipi.actor_principal else None
+        )
+        return {"status": "enviat_manualment", "email_id": str(nou_email.id)}
+    except Exception as e:
+        logger.error(f"Error enviant email manual: {str(e)}")
+        raise HTTPException(status_code=500, detail="No s'ha pogut enviar l'email SMTP")
 
 @router.get("", response_model=dict)
 def llistar_emails(
@@ -113,6 +57,7 @@ def llistar_emails(
     direccio: Optional[str] = None,
     llegit: Optional[bool] = None,
     cerca: Optional[str] = None,
+    sense_vincular: Optional[bool] = None,
     limit: int = 50,
     db: Session = Depends(get_db)
 ):
@@ -122,6 +67,8 @@ def llistar_emails(
         query = query.filter(Email.direccio == direccio)
     if llegit is not None:
         query = query.filter(Email.llegit == llegit)
+    if sense_vincular:
+        query = query.filter(Email.municipi_id == None)
     if cerca:
         query = query.filter(
             or_(

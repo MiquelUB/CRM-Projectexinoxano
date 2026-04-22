@@ -5,7 +5,6 @@ import { useParams, useRouter } from "next/navigation";
 import { ChevronRight, Home, Loader2, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { MunicipiHeader } from "@/components/municipis/MunicipiHeader";
-import { KimiRecommendation } from "@/components/municipis/KimiRecommendation";
 import { ActivitatTimeline } from "@/components/municipis/ActivitatTimeline";
 
 export default function MissionControlPage() {
@@ -91,19 +90,11 @@ export default function MissionControlPage() {
                     <MunicipiHeader municipi={municipi} onUpdated={fetchMunicipiData} />
                 </div>
 
-                {/* Grid Layout: Lateral (Recomanació) + Central (Timeline) */}
-                <div className="flex flex-col lg:grid lg:grid-cols-3 gap-6 lg:h-[calc(100vh-280px)] min-h-[600px] animate-in fade-in slide-in-from-bottom-8 duration-700">
+                {/* Grid Layout: Single Column (Timeline) */}
+                <div className="flex flex-col gap-6 lg:h-[calc(100vh-280px)] min-h-[600px] animate-in fade-in slide-in-from-bottom-8 duration-700">
                     
-                    {/* Columna Esquerra: Recomanacions */}
-                    <div className="lg:col-span-1 h-auto lg:h-full">
-                        <KimiRecommendation 
-                            municipiId={municipiId} 
-                            onActionComplete={handleActionComplete} 
-                        />
-                    </div>
-
-                    {/* Columna Dreta: Timeline */}
-                    <div className="lg:col-span-2 h-[500px] lg:h-full" role="region" aria-label="Timeline d'activitats">
+                    {/* Full width: Timeline */}
+                    <div className="h-[500px] lg:h-full" role="region" aria-label="Timeline d'activitats">
                         <ActivitatTimeline 
                             municipiId={municipiId} 
                             refreshKey={refreshKey} 

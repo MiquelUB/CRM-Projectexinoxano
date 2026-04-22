@@ -205,8 +205,8 @@ def sync_mailbox(folder="INBOX", direccio="IN", search_criteria="UNSEEN"):
         db.close()
 
 def sync_all_emails():
-    logger.info("Starting IMAP email sync...")
-    sync_mailbox("INBOX", "IN", "UNSEEN")
+    date_since = (datetime.now(timezone.utc) - timedelta(days=3)).strftime("%d-%b-%Y")
+    sync_mailbox("INBOX", "IN", f'SINCE "{date_since}"')
     # Intentar sincronitzar enviats dels últims 3 dies
     date_since = (datetime.now(timezone.utc) - timedelta(days=3)).strftime("%d-%b-%Y")
     sync_mailbox("Sent", "OUT", f'SINCE "{date_since}"')

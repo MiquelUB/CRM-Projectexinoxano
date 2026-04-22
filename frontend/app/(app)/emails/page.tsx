@@ -254,7 +254,7 @@ export default function EmailsPage() {
         <EmailComposer 
             initialTo={composerConfig.to}
             initialSubject={composerConfig.subject}
-            dealId={composerConfig.dealId}
+            municipiId={composerConfig.dealId}
             onClose={() => setShowComposer(false)} 
             onSent={() => fetchEmails()}
         />

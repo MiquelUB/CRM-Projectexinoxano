@@ -7,7 +7,7 @@ import { Mail } from "lucide-react";
 import { CalendarWidget } from "@/components/CalendarWidget";
 import { TaskModal } from "@/components/TaskModal";
 import DealDrawer from "@/components/DealDrawer";
-import { EmailDraftModal } from "@/components/EmailDraftModal";
+import { EmailComposer } from "@/components/EmailComposer";
 
 export default function DashboardPage() {
   const [isClient, setIsClient] = useState(false);
@@ -22,7 +22,7 @@ export default function DashboardPage() {
   const [selectedDeal, setSelectedDeal] = useState<any>(null);
   const [selectedTaskForEdit, setSelectedTaskForEdit] = useState<any>(null);
   const [dealLoading, setDealLoading] = useState(false);
-  const [selectedDraft, setSelectedDraft] = useState<any>(null);
+  const [emailModal, setEmailModal] = useState<any>(null);
 
   const fetchDashboardData = async () => {
     try {
@@ -164,7 +164,7 @@ export default function DashboardPage() {
               key={a.municipi_id} 
               onClick={() => {
                  if (a.tipus_accio === 'email') {
-                    setSelectedDraft({ municipi_id: a.municipi_id, tipus: 'email', contacte_id: a.contacte_sugerit_id });
+                    setEmailModal({ municipi_id: a.municipi_id, tipus: 'email', contacte_id: a.contacte_sugerit_id });
                  } else if (a.tipus_accio === 'trucada') {
                     // Placeholder per a log de trucada
                     alert("Obrint formulari de log de trucada... (Pròximament)");
@@ -199,7 +199,7 @@ export default function DashboardPage() {
                                     const tipusAccio = a.tipus_accio?.toLowerCase() || 'altre';
                                     
                                     // Obrir el Control Hub Modal per a qualsevol Acció/Tasca
-                                    setSelectedDraft({ 
+                                    setEmailModal({ 
                                         municipi_id: a.municipi_id, 
                                         tipus: tipusAccio === 'email' ? 'email' : 'altre', 
                                         contacte_id: a.contacte_sugerit_id, 
@@ -223,14 +223,10 @@ export default function DashboardPage() {
             </div>
           </div>
     
-          {selectedDraft && (
-             <EmailDraftModal 
-                  municipiId={selectedDraft.municipi_id}
-                  tipus={selectedDraft.tipus === 'email' ? 'email_1_prospeccio' : 'email_1_prospeccio'}
-                  contacteId={selectedDraft.contacte_id}
-                  accioRecomanada={selectedDraft.accio_recomanada}
-                  rao={selectedDraft.rao}
-                  onClose={() => setSelectedDraft(null)}
+          {emailModal && (
+             <EmailComposer 
+                  municipiId={emailModal.municipi_id}
+                  onClose={() => setEmailModal(null)}
                   onSent={() => fetchDashboardData()}
              />
           )}

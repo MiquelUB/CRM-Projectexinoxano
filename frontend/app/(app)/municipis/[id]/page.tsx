@@ -362,8 +362,8 @@ export default function MunicipiDetailPage() {
         }}
         initialTo={composerConfig.to}
         initialSubject={composerConfig.subject}
-        contacteId={composerConfig.contacteId}
-        dealId={id as string}
+        municipiId={id as string}
+        onSent={() => alert("Email enviat manualment")}
       />
     )}
     </div>

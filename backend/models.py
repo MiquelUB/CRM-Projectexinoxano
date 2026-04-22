@@ -165,10 +165,7 @@ class Municipi(Base):
     emails = relationship("Email", back_populates="municipi", cascade="all, delete-orphan")
     trucades = relationship("Trucada", back_populates="municipi", cascade="all, delete-orphan")
     reunions = relationship("Reunio", back_populates="municipi", cascade="all, delete-orphan")
-    email_drafts = relationship("EmailDraft", back_populates="municipi", cascade="all, delete-orphan")
-    sequencia_emails = relationship("EmailSequencia", back_populates="municipi", cascade="all, delete-orphan")
     activitats = relationship("Activitat", back_populates="municipi", cascade="all, delete-orphan")
-    agent_memories = relationship("AgentMemory", back_populates="municipi", cascade="all, delete-orphan")
     tasques = relationship("Tasca", back_populates="municipi", cascade="all, delete-orphan")
 
 class Contacte(Base):
@@ -228,9 +225,6 @@ class Email(Base):
     municipi = relationship("Municipi", back_populates="emails")
 
 class Trucada(Base):
-    __tablename__ = "trucades_v2" # Mantingut el nom físic per compatibilitat de moment o canviar-lo a trucades
-    # Optem per mantenir els noms fisics si ho hem fet aixi o canviar-los també
-    # El swap només l'hem fet per les principals. Fem-ho per totes.
     __tablename__ = "trucades"
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -242,7 +236,6 @@ class Trucada(Base):
     qui_va_contestar = Column(Enum(ActorEnum, name="actor_respuesta", native_enum=True), nullable=True)
     
     notes_breus = Column(Text)
-    resum_ia = Column(Text)
     seguent_accio_sugerida = Column(Text)
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -273,39 +266,7 @@ class Reunio(Base):
     
     municipi = relationship("Municipi", back_populates="reunions")
 
-class EmailDraft(Base):
-    __tablename__ = "email_drafts"
-    
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    municipi_id = Column(UUID(as_uuid=True), ForeignKey("municipis.id"), nullable=False)
-    contacte_id = Column(UUID(as_uuid=True), ForeignKey("contactes.id"), nullable=True)
-    
-    subject = Column(String(200))
-    cos = Column(Text)
-    generat_per_ia = Column(Boolean, default=False)
-    prompt_utilitzat = Column(Text)
-    variants_generades = Column(JSONB, default=[])
-    variant_seleccionada = Column(Integer, default=0)
-    
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    
-    municipi = relationship("Municipi", back_populates="email_drafts")
 
-class EmailSequencia(Base):
-    __tablename__ = "email_sequencies"
-    
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    municipi_id = Column(UUID(as_uuid=True), ForeignKey("municipis.id"), nullable=False)
-    numero_email = Column(Integer, nullable=False)
-    tipus_sequencia = Column(Enum(TipusSequenciaEnum), default=TipusSequenciaEnum.prospeccio)
-    estat = Column(Enum(EstatSequenciaEnum), default=EstatSequenciaEnum.pendent)
-    data_programada = Column(DateTime(timezone=True))
-    draft_id = Column(UUID(as_uuid=True), ForeignKey("email_drafts.id"), nullable=True)
-    
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    
-    municipi = relationship("Municipi", back_populates="sequencia_emails")
-    draft = relationship("EmailDraft")
 
 class Activitat(Base):
     __tablename__ = "activitats"
@@ -319,7 +280,6 @@ class Activitat(Base):
     
     contingut = Column(JSONB, default={})
     notes_comercial = Column(Text)
-    generat_per_ia = Column(Boolean, default=False)
     etiquetes = Column(ARRAY(String), default=[])
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -327,19 +287,7 @@ class Activitat(Base):
     
     municipi = relationship("Municipi", back_populates="activitats")
 
-class AgentMemory(Base):
-    __tablename__ = "agent_memories"
-    
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    municipi_id = Column(UUID(as_uuid=True), ForeignKey("municipis.id"), nullable=True)
-    usuari_id = Column(UUID(as_uuid=True), nullable=True, index=True)
-    
-    history = Column(JSONB, default=[])
-    summary = Column(Text, nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-    
-    municipi = relationship("Municipi", back_populates="agent_memories")
+
 
 class Tasca(Base):
     __tablename__ = "tasques"

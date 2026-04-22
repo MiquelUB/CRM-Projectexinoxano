@@ -24,7 +24,6 @@ def create_activitat(activitat: schemas.ActivitatCreate, db: Session = Depends(g
         data_activitat=activitat.data_activitat or datetime.now(),
         contingut=activitat.contingut,
         notes_comercial=activitat.notes_comercial,
-        generat_per_ia=activitat.generat_per_ia,
         etiquetes=activitat.etiquetes
     )
     

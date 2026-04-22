@@ -12,13 +12,13 @@ export default function ContactesPage() {
   
   // Email states
   const [isComposerOpen, setIsComposerOpen] = useState(false);
-  const [composerConfig, setComposerConfig] = useState({ to: "", subject: "", contacteId: "" });
+  const [composerConfig, setComposerConfig] = useState({ to: "", subject: "", municipiId: "" });
 
   const handleEmailClick = (contacte: any) => {
     setComposerConfig({
       to: contacte.email || "",
       subject: `Seguiment Projecte Xino Xano`,
-      contacteId: contacte.id
+      municipiId: contacte.municipi_id || ""
     });
     setIsComposerOpen(true);
   };
@@ -317,9 +317,10 @@ export default function ContactesPage() {
     {isComposerOpen && (
       <EmailComposer 
         onClose={() => setIsComposerOpen(false)}
+        onSent={() => setIsComposerOpen(false)}
+        municipiId={composerConfig.municipiId}
         initialTo={composerConfig.to}
         initialSubject={composerConfig.subject}
-        contacteId={composerConfig.contacteId}
       />
     )}
     </>

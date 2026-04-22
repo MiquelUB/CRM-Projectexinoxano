@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 scheduler = AsyncIOScheduler()
 
 def daily_maintenance():
-    """Manteniment diari: Neteja de memòria i actualització d'estats."""
+    """Manteniment diari: Actualització d'estats."""
     from database import SessionLocal
     import models
     logger.info("Executant manteniment diari...")

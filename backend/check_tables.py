@@ -9,9 +9,7 @@ def check():
         tables = [r[0] for r in result.fetchall()]
         print("Existing tables:", tables)
         
-        # Check specifically for agent_memories_v2 and activitats_municipi
-        critical_tables = ["agent_memories_v2", "activitats_municipi", "municipis_lifecycle"]
-        for t in critical_tables:
+        critical_tables = ["activitats_municipi", "municipis_lifecycle"]
             if t in tables:
                 print(f"✅ Table {t} exists.")
             else:

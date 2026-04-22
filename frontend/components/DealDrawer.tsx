@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import api from "@/lib/api";
 import { format } from "date-fns";
 import { X, Mail, CreditCard, Trash2, Save, Euro, Building2, User, Loader2 } from "lucide-react";
-import { useChatContext } from "@/contexts/ChatContext";
 
 export default function DealDrawer({ deal, onClose, onUpdate }: any) {
   // State per a camps editables
@@ -37,7 +36,7 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
   const [activitats, setActivitats] = useState<any[]>([]);
   const [llicencia, setLlicencia] = useState<any>(null);
 
-  const { setDealContext, clearDealContext } = useChatContext();
+
 
   const fetchActivitats = async () => {
     try {
@@ -50,12 +49,9 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
 
   useEffect(() => {
     if (deal.id) {
-      // Sincronitza amb el xat flotant perquè el Kimi sàpiga on som
-      setDealContext({ id: deal.id, titol: deal.nom, municipiNom: deal.nom });
       fetchActivitats();
       api.municipis.get_llicencia(deal.id).then((l: any) => setLlicencia(l));
     }
-    return () => clearDealContext();
   }, [deal.id]);
 
   const handleSaveAll = async () => {
@@ -377,7 +373,6 @@ export default function DealDrawer({ deal, onClose, onUpdate }: any) {
                           <div className="flex justify-between items-start mb-2">
                              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                                 {a.tipus_activitat.replace('_', ' ')}
-                                {a.generat_per_ia && <span className="ml-2 text-blue-500">✨ IA-GEN</span>}
                              </span>
                              <span className="text-[10px] text-slate-400 font-bold">{safeFormatDate(a.data_activitat, "dd MMM, HH:mm")}</span>
                           </div>

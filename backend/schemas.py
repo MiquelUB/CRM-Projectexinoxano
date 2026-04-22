@@ -123,7 +123,6 @@ class ActivitatCreate(BaseModel):
     data_activitat: Optional[datetime] = None
     contingut: Optional[dict] = {}
     notes_comercial: Optional[str] = None
-    generat_per_ia: bool = False
     etiquetes: List[str] = []
 
 class ActivitatOut(BaseModel):
@@ -134,7 +133,6 @@ class ActivitatOut(BaseModel):
     data_activitat: datetime
     contingut: dict
     notes_comercial: Optional[str] = None
-    generat_per_ia: bool
     etiquetes: List[str]
     created_at: datetime
     updated_at: datetime
@@ -184,29 +182,4 @@ class TascaOut(BaseModel):
     class Config:
         from_attributes = True
 
-class EmailDraftCreateRequest(BaseModel):
-    tipus: str
-    contacte_id: Optional[UUID] = None
 
-class EmailDraftEditRequest(BaseModel):
-    subject: str
-    cos: str
-    canvis: Optional[dict] = {}
-
-class EmailDraftSelectVariantRequest(BaseModel):
-    variant_id: int
-
-class EmailDraftSendRequest(BaseModel):
-    mode: str
-    data_programada: Optional[datetime] = None
-
-class EmailSequenciaGenerateRequest(BaseModel):
-    contacte_id: Optional[UUID] = None
-
-class AgentRedactarEmailRequest(BaseModel):
-    municipi_id: Optional[UUID] = None
-    deal_id: Optional[UUID] = None
-    contacte_id: Optional[UUID] = None
-    instruccions: str
-    model: Optional[str] = None
-    to_address: Optional[str] = None
