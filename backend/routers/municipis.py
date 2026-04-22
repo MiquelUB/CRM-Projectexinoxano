@@ -200,8 +200,34 @@ def delete_municipi(id: str, db: Session = Depends(get_db)):
         db.delete(m)
         db.commit()
         return {"status": "success"}
-    except HTTPException:
-        raise
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error eliminant municipi: {str(e)}")
+
+@router.post("/{id}/accions/programar-trucada")
+def programar_trucada(id: str, payload: dict, db: Session = Depends(get_db)):
+    m = db.query(Municipi).filter(Municipi.id == id).first()
+    if not m:
+        raise HTTPException(status_code=404, detail="Municipi no trobat")
+    
+    data_programada = payload.get("data_programada")
+    notes = payload.get("notes")
+    contacte_id = payload.get("contacte_id")
+    
+    # Actualitzar data_seguiment i proper_pas del municipi
+    m.data_seguiment = datetime.fromisoformat(data_programada)
+    m.proper_pas = f"Trucada: {notes}"
+    m.data_ultima_accio = datetime.now(timezone.utc)
+    
+    # Crear activitat de sistema
+    activitat = Activitat(
+        municipi_id=m.id,
+        contacte_id=contacte_id,
+        tipus_activitat=TipusActivitat.trucada_programada if hasattr(TipusActivitat, 'trucada_programada') else TipusActivitat.nota_manual,
+        notes_comercial=f"Trucada programada per al {data_programada}. Notes: {notes}",
+        data_activitat=datetime.now(timezone.utc)
+    )
+    db.add(activitat)
+    db.commit()
+    
+    return {"status": "success", "data_programada": data_programada}

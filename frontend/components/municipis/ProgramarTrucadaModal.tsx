@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { X, Calendar, Loader2, Check } from "lucide-react";
+import api from "@/lib/api";
 
 export function ProgramarTrucadaModal({ municipiId, onClose, onAdded, contactes }: { municipiId: string, onClose: () => void, onAdded: () => void, contactes: any[] }) {
     const [dataTrucada, setDataTrucada] = useState("");
@@ -12,24 +13,15 @@ export function ProgramarTrucadaModal({ municipiId, onClose, onAdded, contactes 
         if (!dataTrucada || !notes) return alert("Falten dades");
         setSaving(true);
         try {
-            const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
-            const token = sessionStorage.getItem("token") || "";
-            const res = await fetch(`${BASE_URL}/api/v2/municipis/${municipiId}/accions/programar-trucada`, {
-                method: "POST",
-                headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    contacte_id: contacteId || null,
-                    data_programada: dataTrucada,
-                    notes: notes
-                })
+            await api.municipis.programarTrucada(municipiId, {
+                contacte_id: contacteId || null,
+                data_programada: dataTrucada,
+                notes: notes
             });
-            if (res.ok) {
-                onAdded();
-            } else {
-                alert("Error programant trucada");
-            }
+            onAdded();
         } catch (e) {
             console.error(e);
+            alert("Error programant trucada");
         } finally {
             setSaving(false);
         }

@@ -86,6 +86,7 @@ const municipis = {
   kpis: () => fetchAPI("/municipis/kpis"),
   eliminar: (id: string) => fetchAPI(`/municipis/${id}`, { method: "DELETE" }),
   get_activitats: (id: string) => fetchAPI(`/municipis/${id}/activitats`),
+  programarTrucada: (id: string, data: any) => fetchAPI(`/municipis/${id}/accions/programar-trucada`, { method: "POST", body: JSON.stringify(data) }),
   get_llicencia: (id: string) => fetchAPI(`/llicencies?deal_id=${id}`),
 };
 

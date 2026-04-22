@@ -24,23 +24,27 @@ interface ActivitatTimelineProps {
 
 const ICON_MAP: Record<string, any> = {
     trucada: Phone,
+    trucada_programada: Phone,
     email_enviat: Mail,
     email_rebut: Mail,
     reunio: Users,
     nota_manual: StickyNote,
     pagament: TrendingUp,
     canvi_etapa: ChevronRight,
+    seguiment: Clock,
     sistema: CheckCircle2
 };
 
 const COLOR_MAP: Record<string, string> = {
     trucada: "bg-blue-100 text-blue-600",
+    trucada_programada: "bg-emerald-100 text-emerald-600",
     email_enviat: "bg-indigo-100 text-indigo-600",
     email_rebut: "bg-purple-100 text-purple-600",
     reunio: "bg-amber-100 text-amber-600",
     nota_manual: "bg-slate-100 text-slate-600",
     pagament: "bg-emerald-100 text-emerald-600",
     canvi_etapa: "bg-rose-100 text-rose-600",
+    seguiment: "bg-cyan-100 text-cyan-600",
     sistema: "bg-slate-50 text-slate-400"
 };
 
@@ -86,7 +90,6 @@ export function ActivitatTimeline({ municipiId, refreshKey }: ActivitatTimelineP
             {activitats.map((act, idx) => {
                 const Icon = ICON_MAP[act.tipus_activitat] || StickyNote;
                 const colors = COLOR_MAP[act.tipus_activitat] || "bg-slate-100 text-slate-600";
-                const isIA = act.generat_per_ia;
 
                 return (
                     <div key={act.id || idx} className="relative group">
@@ -103,11 +106,6 @@ export function ActivitatTimeline({ municipiId, refreshKey }: ActivitatTimelineP
                                         <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight">
                                             {act.tipus_activitat.replace('_', ' ')}
                                         </h4>
-                                        {isIA && (
-                                            <span className="flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-600 text-[9px] font-black uppercase tracking-widest rounded-md border border-blue-100">
-                                                <Brain className="w-2 h-2" /> Generat IA
-                                            </span>
-                                        )}
                                     </div>
                                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                                         {format(new Date(act.data_activitat), "PPP 'a les' HH:mm", { locale: ca })}

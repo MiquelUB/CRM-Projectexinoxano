@@ -18,6 +18,8 @@ class TipusActivitat(str, enum.Enum):
     demo = "demo"
     pagament = "pagament"
     canvi_etapa = "canvi_etapa"
+    trucada_programada = "trucada_programada"
+    seguiment = "seguiment"
     sistema = "sistema"
 
 class GeografiaEnum(str, enum.Enum):
@@ -131,9 +133,6 @@ class Municipi(Base):
     telefon = Column(String(50))
     adreca = Column(Text)
     
-    diagnostic_digital = Column(JSONB, default={})
-    angle_personalitzacio = Column(Text)
-    
     etapa_actual = Column(Enum(EtapaFunnelEnum, name="etapa_funnel", native_enum=True), default=EtapaFunnelEnum.research, index=True)
     historial_etapes = Column(JSONB, default=[])
     
@@ -182,11 +181,6 @@ class Contacte(Base):
     actiu = Column(Boolean, default=True)
     principal = Column(Boolean, default=False)
     
-    angles_exitosos = Column(JSONB, default=[])
-    angles_fallits = Column(JSONB, default=[])
-    moment_optimal = Column(String(10))
-    to_preferit = Column(String(50), nullable=True)
-    
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     municipi = relationship("Municipi", back_populates="contactes", foreign_keys="[Contacte.municipi_id]")
@@ -214,10 +208,6 @@ class Email(Base):
     cops_obert = Column(Integer, default=0)
     respost = Column(Boolean, default=False)
     data_resposta = Column(DateTime(timezone=True))
-    
-    sentiment_resposta = Column(String(20), nullable=True)
-    intents_detectats = Column(JSONB, default=[])
-    actor_probable = Column(String(20), nullable=True)
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

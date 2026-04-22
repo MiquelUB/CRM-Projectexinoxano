@@ -6,6 +6,7 @@ import { ChevronRight, Home, Loader2, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { MunicipiHeader } from "@/components/municipis/MunicipiHeader";
 import { ActivitatTimeline } from "@/components/municipis/ActivitatTimeline";
+import api from "@/lib/api";
 
 export default function MissionControlPage() {
     const params = useParams();
@@ -18,15 +19,8 @@ export default function MissionControlPage() {
 
     const fetchMunicipiData = async () => {
         try {
-            const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
-            const token = sessionStorage.getItem("token") || "";
-            const res = await fetch(`${BASE_URL}/municipis_lifecycle/${municipiId}`, {
-                headers: { "Authorization": `Bearer ${token}` }
-            });
-            if (res.ok) {
-                const data = await res.json();
-                setMunicipi(data);
-            }
+            const data = await api.municipis.detall(municipiId);
+            setMunicipi(data);
         } catch (e) {
             console.error("Error al carregar municipi", e);
         } finally {

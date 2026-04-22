@@ -90,8 +90,6 @@ class MunicipiOut(BaseModel):
     telefon: Optional[str] = None
     adreca: Optional[str] = None
     geografia: Optional[str] = None
-    diagnostic_digital: Optional[dict] = None
-    angle_personalitzacio: Optional[str] = None
     etapa_actual: EtapaFunnelEnum
     temperatura: TemperaturaEnum
     dies_etapa_actual: int
