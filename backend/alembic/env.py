@@ -32,14 +32,10 @@ def get_url():
     if not url:
          raise ValueError("DATABASE_URL no definida per a Alembic!")
     if url.startswith("postgres://"):
-        url = url.replace("postgres://", "postgresql://", 1)
+        url = url.replace("postgres://", "postgresql+pg8000://", 1)
+    elif url.startswith("postgresql://"):
+        url = url.replace("postgresql://", "postgresql+pg8000://", 1)
     return url
-
-# other values from the config, defined by the needs of env.py,
-# can be acquired:
-# my_important_option = config.get_main_option("my_important_option")
-# ... etc.
-
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.
@@ -72,8 +68,7 @@ def run_migrations_online() -> None:
     
     connectable = create_engine(
         url,
-        poolclass=pool.NullPool,
-        connect_args={"options": "-csearch_path=public"}
+        poolclass=pool.NullPool
     )
 
 

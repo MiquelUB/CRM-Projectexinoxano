@@ -1,7 +1,8 @@
-import psycopg2
+import pg8000.native
 import os
 import sys
 from dotenv import load_dotenv
+from urllib.parse import urlparse
 
 load_dotenv()
 
@@ -14,65 +15,67 @@ if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 def fix_db_schema():
-    print(f"Connexi a la base de dades per correcci de schema...")
+    print(f"Connexió a la base de dades per correcció de schema (usant pg8000)...")
     
     conn = None
-    cur = None
     
     try:
-        # Connexió amb autocommit per evitar problemes de transaccions amb DDL
-        conn = psycopg2.connect(DATABASE_URL)
-        conn.autocommit = True  # CLAU: Cada operació DDL es commiteja automàticament
-        cur = conn.cursor()
+        # Parse DATABASE_URL for pg8000
+        url = urlparse(DATABASE_URL)
+        
+        conn = pg8000.native.Connection(
+            user=url.username,
+            password=url.password,
+            host=url.hostname,
+            port=url.port,
+            database=url.path[1:]
+        )
         
         # 1. Assegurar Extensions
         print(" creant extensions necessàries...")
-        cur.execute('CREATE EXTENSION IF NOT EXISTS "pgcrypto";')
+        conn.run('CREATE EXTENSION IF NOT EXISTS "pgcrypto";')
         
-        # 2. Verificar si municipis existeix abans d'afegir columnes
-        cur.execute("""
+        # 2. Verificar si municipis existeix
+        res = conn.run("""
             SELECT EXISTS (
                 SELECT FROM information_schema.tables 
                 WHERE table_name = 'municipis'
             );
         """)
         
-        if cur.fetchone()[0]:
+        if res[0][0]:
             print(" Verificant existència de columnes a municipis...")
-            
             # Verificar si usuari_asignat ja existeix
-            cur.execute("""
+            col_res = conn.run("""
                 SELECT column_name 
                 FROM information_schema.columns 
                 WHERE table_name='municipis' 
                   AND column_name='usuari_asignat'
             """)
             
-            if not cur.fetchone():
+            if not col_res:
                 print(" Afegint columna usuari_asignat a municipis...")
-                cur.execute("""
-                    ALTER TABLE public.municipis 
-                    ADD COLUMN usuari_asignat VARCHAR(50);
-                """)
+                conn.run("ALTER TABLE public.municipis ADD COLUMN usuari_asignat VARCHAR(50);")
             else:
                 print(" Columna usuari_asignat ja existeix")
         else:
-            print(" Taula municipis no existeix encara (Alembic la crearà)")
+            print(" Taula municipis no existeix encara")
         
-        print(" Correcció de schema finalitzada (control passat a Alembic).")
+        print(" Correcció de schema finalitzada.")
         
     except Exception as e:
         print(f" Error corregint schema: {e}")
-        print(" Continuant amb el procs (Alembic pot gestionar-ho)...")
-        # No propagar l'error - deixar que el procs continu
+        print(" Continuant amb el procés...")
         
     finally:
-        #  CLAU: Tancar SEMPRE la connexi, passi el que passi
-        if cur:
-            cur.close()
         if conn:
-            conn.close()
-            print(" Connexi tancada correctament")
+            try:
+                conn.close()
+                print(" Connexió tancada correctament")
+            except: pass
+
+if __name__ == "__main__":
+    fix_db_schema()
 
 if __name__ == "__main__":
     fix_db_schema()

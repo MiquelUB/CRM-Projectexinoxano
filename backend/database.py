@@ -10,23 +10,19 @@ logger = logging.getLogger(__name__)
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+if DATABASE_URL:
+    if DATABASE_URL.startswith("postgres://"):
+        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+pg8000://", 1)
+    elif DATABASE_URL.startswith("postgresql://"):
+        DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+pg8000://", 1)
 
 if not DATABASE_URL:
     logger.error("FATAL: DATABASE_URL no definida a l'entorn!")
-    # No llencem ValueError aquí per permetre que l'app arrenqui i ens doni logs pel navegador
-    # Però l'engine fallarà quan s'intenti usar
-    DATABASE_URL = "postgresql://missing_url_error"
+    DATABASE_URL = "postgresql+pg8000://missing_url_error"
 
 try:
-    engine = create_engine(
-        DATABASE_URL,
-        connect_args={
-            "options": "-csearch_path=public",
-            "connect_timeout": 10
-        }
-    )
+    # Use pg8000 (pure python) to avoid C extension dependencies like libz.so.1
+    engine = create_engine(DATABASE_URL)
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 except Exception as e:
     logger.error(f"Error creant l'engine de la BD: {e}")
