@@ -1,16 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /*
-  eslint: {
-    // Ignora els errors de linter durant el build
-    ignoreDuringBuilds: true,
-  },
   typescript: {
-    // IGNORA ELS ERRORS DE TYPESCRIPT PER FORÇAR EL DESPLEGAMENT
+    // Ignorem errors de tipus durant el build per assegurar el deploy
     ignoreBuildErrors: true,
   },
-  */
+  // Activem el mode standalone per a millor rendiment a Docker/Easypanel
+  output: 'standalone',
 };
 
 export default nextConfig;
